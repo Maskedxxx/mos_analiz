@@ -1,0 +1,7 @@
+{
+  "rule_index": "2.1",
+  "rule_title": "Количество проблем в таблице \"Оцифровка потерь\"",
+  "target_document": "КПСЦ и Спагетти ТС_Предприятие.xlsx",
+  "status": "PASS",
+  "discrepancy": ""
+}

@@ -1,0 +1,801 @@
+{
+  "meta": {
+    "workbook": "/Users/mask/Documents/Проеты_2025/мос_мониторинг/третья_итерация/КПСЦ и Спагетти ТС_Предприятие.xlsx",
+    "sheet": "Условные обозначения"
+  },
+  "pictures": [
+    {
+      "row": 3,
+      "col": 1,
+      "bbox": {
+        "from": {
+          "row": 3,
+          "col": 1
+        },
+        "to": {
+          "row": 3,
+          "col": 1
+        }
+      },
+      "rel_id": "rId1",
+      "target": "../media/image10.png"
+    },
+    {
+      "row": 4,
+      "col": 1,
+      "bbox": {
+        "from": {
+          "row": 4,
+          "col": 1
+        },
+        "to": {
+          "row": 4,
+          "col": 1
+        }
+      },
+      "rel_id": "rId2",
+      "target": "../media/image11.png"
+    },
+    {
+      "row": 5,
+      "col": 1,
+      "bbox": {
+        "from": {
+          "row": 5,
+          "col": 1
+        },
+        "to": {
+          "row": 5,
+          "col": 1
+        }
+      },
+      "rel_id": "rId3",
+      "target": "../media/image12.png"
+    },
+    {
+      "row": 9,
+      "col": 1,
+      "bbox": {
+        "from": {
+          "row": 9,
+          "col": 1
+        },
+        "to": {
+          "row": 9,
+          "col": 1
+        }
+      },
+      "rel_id": "rId4",
+      "target": "../media/image13.png"
+    },
+    {
+      "row": 10,
+      "col": 1,
+      "bbox": {
+        "from": {
+          "row": 10,
+          "col": 1
+        },
+        "to": {
+          "row": 10,
+          "col": 1
+        }
+      },
+      "rel_id": "rId5",
+      "target": "../media/image14.png"
+    },
+    {
+      "row": 11,
+      "col": 1,
+      "bbox": {
+        "from": {
+          "row": 11,
+          "col": 1
+        },
+        "to": {
+          "row": 11,
+          "col": 1
+        }
+      },
+      "rel_id": "rId6",
+      "target": "../media/image15.png"
+    },
+    {
+      "row": 12,
+      "col": 1,
+      "bbox": {
+        "from": {
+          "row": 12,
+          "col": 1
+        },
+        "to": {
+          "row": 12,
+          "col": 1
+        }
+      },
+      "rel_id": "rId7",
+      "target": "../media/image16.png"
+    },
+    {
+      "row": 13,
+      "col": 1,
+      "bbox": {
+        "from": {
+          "row": 13,
+          "col": 1
+        },
+        "to": {
+          "row": 13,
+          "col": 1
+        }
+      },
+      "rel_id": "rId8",
+      "target": "../media/image17.png"
+    },
+    {
+      "row": 14,
+      "col": 1,
+      "bbox": {
+        "from": {
+          "row": 14,
+          "col": 1
+        },
+        "to": {
+          "row": 14,
+          "col": 1
+        }
+      },
+      "rel_id": "rId9",
+      "target": "../media/image18.png"
+    },
+    {
+      "row": 15,
+      "col": 1,
+      "bbox": {
+        "from": {
+          "row": 15,
+          "col": 1
+        },
+        "to": {
+          "row": 15,
+          "col": 1
+        }
+      },
+      "rel_id": "rId10",
+      "target": "../media/image19.png"
+    },
+    {
+      "row": 16,
+      "col": 1,
+      "bbox": {
+        "from": {
+          "row": 16,
+          "col": 1
+        },
+        "to": {
+          "row": 16,
+          "col": 1
+        }
+      },
+      "rel_id": "rId11",
+      "target": "../media/image4.png"
+    },
+    {
+      "row": 17,
+      "col": 1,
+      "bbox": {
+        "from": {
+          "row": 17,
+          "col": 1
+        },
+        "to": {
+          "row": 17,
+          "col": 1
+        }
+      },
+      "rel_id": "rId12",
+      "target": "../media/image20.png"
+    },
+    {
+      "row": 18,
+      "col": 1,
+      "bbox": {
+        "from": {
+          "row": 18,
+          "col": 1
+        },
+        "to": {
+          "row": 18,
+          "col": 1
+        }
+      },
+      "rel_id": "rId13",
+      "target": "../media/image5.png"
+    },
+    {
+      "row": 19,
+      "col": 1,
+      "bbox": {
+        "from": {
+          "row": 19,
+          "col": 1
+        },
+        "to": {
+          "row": 19,
+          "col": 1
+        }
+      },
+      "rel_id": "rId14",
+      "target": "../media/image7.png"
+    },
+    {
+      "row": 20,
+      "col": 1,
+      "bbox": {
+        "from": {
+          "row": 20,
+          "col": 1
+        },
+        "to": {
+          "row": 20,
+          "col": 1
+        }
+      },
+      "rel_id": "rId15",
+      "target": "../media/image21.png"
+    },
+    {
+      "row": 21,
+      "col": 1,
+      "bbox": {
+        "from": {
+          "row": 21,
+          "col": 1
+        },
+        "to": {
+          "row": 21,
+          "col": 1
+        }
+      },
+      "rel_id": "rId16",
+      "target": "../media/image22.png"
+    },
+    {
+      "row": 22,
+      "col": 1,
+      "bbox": {
+        "from": {
+          "row": 22,
+          "col": 1
+        },
+        "to": {
+          "row": 22,
+          "col": 1
+        }
+      },
+      "rel_id": "rId17",
+      "target": "../media/image23.png"
+    },
+    {
+      "row": 23,
+      "col": 1,
+      "bbox": {
+        "from": {
+          "row": 23,
+          "col": 1
+        },
+        "to": {
+          "row": 23,
+          "col": 1
+        }
+      },
+      "rel_id": "rId18",
+      "target": "../media/image24.png"
+    },
+    {
+      "row": 28,
+      "col": 1,
+      "bbox": {
+        "from": {
+          "row": 28,
+          "col": 1
+        },
+        "to": {
+          "row": 28,
+          "col": 1
+        }
+      },
+      "rel_id": "rId19",
+      "target": "../media/image6.png"
+    },
+    {
+      "row": 29,
+      "col": 1,
+      "bbox": {
+        "from": {
+          "row": 29,
+          "col": 1
+        },
+        "to": {
+          "row": 29,
+          "col": 1
+        }
+      },
+      "rel_id": "rId20",
+      "target": "../media/image9.png"
+    },
+    {
+      "row": 30,
+      "col": 1,
+      "bbox": {
+        "from": {
+          "row": 30,
+          "col": 1
+        },
+        "to": {
+          "row": 30,
+          "col": 1
+        }
+      },
+      "rel_id": "rId21",
+      "target": "../media/image8.png"
+    }
+  ],
+  "entries": [
+    {
+      "row": 3,
+      "text": "Поставщик/клиент",
+      "picture": {
+        "row": 3,
+        "col": 1,
+        "bbox": {
+          "from": {
+            "row": 3,
+            "col": 1
+          },
+          "to": {
+            "row": 3,
+            "col": 1
+          }
+        },
+        "rel_id": "rId1",
+        "target": "../media/image10.png"
+      }
+    },
+    {
+      "row": 4,
+      "text": "Склад",
+      "picture": {
+        "row": 4,
+        "col": 1,
+        "bbox": {
+          "from": {
+            "row": 4,
+            "col": 1
+          },
+          "to": {
+            "row": 4,
+            "col": 1
+          }
+        },
+        "rel_id": "rId2",
+        "target": "../media/image11.png"
+      }
+    },
+    {
+      "row": 5,
+      "text": "Операция",
+      "picture": {
+        "row": 5,
+        "col": 1,
+        "bbox": {
+          "from": {
+            "row": 5,
+            "col": 1
+          },
+          "to": {
+            "row": 5,
+            "col": 1
+          }
+        },
+        "rel_id": "rId3",
+        "target": "../media/image12.png"
+      }
+    },
+    {
+      "row": 6,
+      "text": "Последовательность материального потока",
+      "picture": {
+        "row": 9,
+        "col": 1,
+        "bbox": {
+          "from": {
+            "row": 9,
+            "col": 1
+          },
+          "to": {
+            "row": 9,
+            "col": 1
+          }
+        },
+        "rel_id": "rId4",
+        "target": "../media/image13.png"
+      }
+    },
+    {
+      "row": 7,
+      "text": "Информационный поток",
+      "picture": {
+        "row": 10,
+        "col": 1,
+        "bbox": {
+          "from": {
+            "row": 10,
+            "col": 1
+          },
+          "to": {
+            "row": 10,
+            "col": 1
+          }
+        },
+        "rel_id": "rId5",
+        "target": "../media/image14.png"
+      }
+    },
+    {
+      "row": 8,
+      "text": "Информационный поток при отсутствии сырья на складе",
+      "picture": {
+        "row": 11,
+        "col": 1,
+        "bbox": {
+          "from": {
+            "row": 11,
+            "col": 1
+          },
+          "to": {
+            "row": 11,
+            "col": 1
+          }
+        },
+        "rel_id": "rId6",
+        "target": "../media/image15.png"
+      }
+    },
+    {
+      "row": 9,
+      "text": "Указания",
+      "picture": {
+        "row": 12,
+        "col": 1,
+        "bbox": {
+          "from": {
+            "row": 12,
+            "col": 1
+          },
+          "to": {
+            "row": 12,
+            "col": 1
+          }
+        },
+        "rel_id": "rId7",
+        "target": "../media/image16.png"
+      }
+    },
+    {
+      "row": 10,
+      "text": "Информация о начале (запуске) и объёме производства.",
+      "picture": {
+        "row": 13,
+        "col": 1,
+        "bbox": {
+          "from": {
+            "row": 13,
+            "col": 1
+          },
+          "to": {
+            "row": 13,
+            "col": 1
+          }
+        },
+        "rel_id": "rId8",
+        "target": "../media/image17.png"
+      }
+    },
+    {
+      "row": 11,
+      "text": "Использование карты канбан «вытягивания» и карты канбан «запуска»",
+      "picture": {
+        "row": 14,
+        "col": 1,
+        "bbox": {
+          "from": {
+            "row": 14,
+            "col": 1
+          },
+          "to": {
+            "row": 14,
+            "col": 1
+          }
+        },
+        "rel_id": "rId9",
+        "target": "../media/image18.png"
+      }
+    },
+    {
+      "row": 12,
+      "text": "Супермаркет. Место хранения, в котором\n-         Определено место и количество для каждой номенклатуры\n-         Организован принцип FIFO\n-        Есть восполняющая система",
+      "picture": {
+        "row": 15,
+        "col": 1,
+        "bbox": {
+          "from": {
+            "row": 15,
+            "col": 1
+          },
+          "to": {
+            "row": 15,
+            "col": 1
+          }
+        },
+        "rel_id": "rId10",
+        "target": "../media/image19.png"
+      }
+    },
+    {
+      "row": 13,
+      "text": "Складирование в порядке очередности",
+      "picture": {
+        "row": 16,
+        "col": 1,
+        "bbox": {
+          "from": {
+            "row": 16,
+            "col": 1
+          },
+          "to": {
+            "row": 16,
+            "col": 1
+          }
+        },
+        "rel_id": "rId11",
+        "target": "../media/image4.png"
+      }
+    },
+    {
+      "row": 14,
+      "text": "Место скопления материальных ценностей без установленных правил или порядка складирования.",
+      "picture": {
+        "row": 17,
+        "col": 1,
+        "bbox": {
+          "from": {
+            "row": 17,
+            "col": 1
+          },
+          "to": {
+            "row": 17,
+            "col": 1
+          }
+        },
+        "rel_id": "rId12",
+        "target": "../media/image20.png"
+      }
+    },
+    {
+      "row": 15,
+      "text": "Транспортировка грузовым автомобилем",
+      "picture": {
+        "row": 18,
+        "col": 1,
+        "bbox": {
+          "from": {
+            "row": 18,
+            "col": 1
+          },
+          "to": {
+            "row": 18,
+            "col": 1
+          }
+        },
+        "rel_id": "rId13",
+        "target": "../media/image5.png"
+      }
+    },
+    {
+      "row": 16,
+      "text": "Транспортировка погрузчиком",
+      "picture": {
+        "row": 19,
+        "col": 1,
+        "bbox": {
+          "from": {
+            "row": 19,
+            "col": 1
+          },
+          "to": {
+            "row": 19,
+            "col": 1
+          }
+        },
+        "rel_id": "rId14",
+        "target": "../media/image7.png"
+      }
+    },
+    {
+      "row": 17,
+      "text": "Перемещение краном",
+      "picture": {
+        "row": 20,
+        "col": 1,
+        "bbox": {
+          "from": {
+            "row": 20,
+            "col": 1
+          },
+          "to": {
+            "row": 20,
+            "col": 1
+          }
+        },
+        "rel_id": "rId15",
+        "target": "../media/image21.png"
+      }
+    },
+    {
+      "row": 18,
+      "text": "Транспортировка на ручной тележк",
+      "picture": {
+        "row": 21,
+        "col": 1,
+        "bbox": {
+          "from": {
+            "row": 21,
+            "col": 1
+          },
+          "to": {
+            "row": 21,
+            "col": 1
+          }
+        },
+        "rel_id": "rId16",
+        "target": "../media/image22.png"
+      }
+    },
+    {
+      "row": 19,
+      "text": "Перемещение вручную",
+      "picture": {
+        "row": 22,
+        "col": 1,
+        "bbox": {
+          "from": {
+            "row": 22,
+            "col": 1
+          },
+          "to": {
+            "row": 22,
+            "col": 1
+          }
+        },
+        "rel_id": "rId17",
+        "target": "../media/image23.png"
+      }
+    },
+    {
+      "row": 20,
+      "text": "Пост выравнивания",
+      "picture": {
+        "row": 23,
+        "col": 1,
+        "bbox": {
+          "from": {
+            "row": 23,
+            "col": 1
+          },
+          "to": {
+            "row": 23,
+            "col": 1
+          }
+        },
+        "rel_id": "rId18",
+        "target": "../media/image24.png"
+      }
+    },
+    {
+      "row": 21,
+      "text": "Пост формирования партии",
+      "picture": {
+        "row": 28,
+        "col": 1,
+        "bbox": {
+          "from": {
+            "row": 28,
+            "col": 1
+          },
+          "to": {
+            "row": 28,
+            "col": 1
+          }
+        },
+        "rel_id": "rId19",
+        "target": "../media/image6.png"
+      }
+    },
+    {
+      "row": 22,
+      "text": "Пост сбора карт канбан",
+      "picture": {
+        "row": 29,
+        "col": 1,
+        "bbox": {
+          "from": {
+            "row": 29,
+            "col": 1
+          },
+          "to": {
+            "row": 29,
+            "col": 1
+          }
+        },
+        "rel_id": "rId20",
+        "target": "../media/image9.png"
+      }
+    },
+    {
+      "row": 23,
+      "text": "Очередь карт канбан (склиз)",
+      "picture": {
+        "row": 30,
+        "col": 1,
+        "bbox": {
+          "from": {
+            "row": 30,
+            "col": 1
+          },
+          "to": {
+            "row": 30,
+            "col": 1
+          }
+        },
+        "rel_id": "rId21",
+        "target": "../media/image8.png"
+      }
+    },
+    {
+      "row": 24,
+      "text": "\"Узкое\" место в потоке",
+      "picture": null
+    },
+    {
+      "row": 25,
+      "text": "Проблемы",
+      "picture": null
+    },
+    {
+      "row": 26,
+      "text": "Границы процесса",
+      "picture": null
+    },
+    {
+      "row": 27,
+      "text": "Эталонный участок",
+      "picture": null
+    },
+    {
+      "row": 28,
+      "text": "Трубопровод",
+      "picture": null
+    },
+    {
+      "row": 29,
+      "text": "Передача информации по средствам электронной почты",
+      "picture": null
+    },
+    {
+      "row": 30,
+      "text": "Передача информации по средствам мобильной связи",
+      "picture": null
+    }
+  ]
+}

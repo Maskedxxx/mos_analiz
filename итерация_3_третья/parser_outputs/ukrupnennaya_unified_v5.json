@@ -1,0 +1,813 @@
+{
+  "meta": {
+    "workbook": "/Users/mask/Documents/Проеты_2025/мос_мониторинг/третья_итерация/КПСЦ и Спагетти ТС_Предприятие.xlsx",
+    "sheet": "Укрупненная",
+    "drawing_xml": "xl/drawings/drawing1.xml"
+  },
+  "title": "Текущее состояние КПСЦ ООО \"предприятие\" поток \"Производство ягодного пюре\" (укрупненная)",
+  "notes": [
+    {
+      "cell": "B14",
+      "value": "В связи с сезонностью выбраны границы процесса: от склада сырья до отгрузки на склад готовой продукции"
+    },
+    {
+      "cell": "B15",
+      "value": "Расчет произведен на 4 тонны сырья"
+    }
+  ],
+  "comments": [],
+  "metrics_row": 11,
+  "graph": {
+    "nodes": [
+      {
+        "id": 1,
+        "anchor_type": "twoCellAnchor",
+        "content_type": "sp",
+        "text": "Сбор ягоды (внешний агент)",
+        "geometry": "rect",
+        "bbox": {
+          "from": {
+            "row": 8,
+            "col": 2,
+            "rowOff": 0,
+            "colOff": 509587,
+            "cell": "B8"
+          },
+          "to": {
+            "row": 10,
+            "col": 4,
+            "rowOff": 174539,
+            "colOff": 52387,
+            "cell": "D10"
+          }
+        },
+        "center": {
+          "x": 2.000280987,
+          "y": 8.0000872695
+        },
+        "linked_value": {
+          "col_start": 3,
+          "col_end": 3,
+          "cell": "C11",
+          "value": "3-5 тонны в день"
+        }
+      },
+      {
+        "id": 3,
+        "anchor_type": "twoCellAnchor",
+        "content_type": "sp",
+        "text": "Приемка",
+        "geometry": "rect",
+        "bbox": {
+          "from": {
+            "row": 8,
+            "col": 5,
+            "rowOff": 0,
+            "colOff": 0,
+            "cell": "E8"
+          },
+          "to": {
+            "row": 10,
+            "col": 6,
+            "rowOff": 174539,
+            "colOff": 23813,
+            "cell": "F10"
+          }
+        },
+        "center": {
+          "x": 4.5000119065,
+          "y": 8.0000872695
+        },
+        "linked_value": {
+          "col_start": 5,
+          "col_end": 5,
+          "cell": "E11",
+          "value": "1 час"
+        }
+      },
+      {
+        "id": 5,
+        "anchor_type": "twoCellAnchor",
+        "content_type": "sp",
+        "text": "Провеевание ягод от веток и листьев",
+        "geometry": "rect",
+        "bbox": {
+          "from": {
+            "row": 8,
+            "col": 7,
+            "rowOff": 0,
+            "colOff": 0,
+            "cell": "G8"
+          },
+          "to": {
+            "row": 10,
+            "col": 8,
+            "rowOff": 174539,
+            "colOff": 23813,
+            "cell": "H10"
+          }
+        },
+        "center": {
+          "x": 6.5000119065,
+          "y": 8.0000872695
+        },
+        "linked_value": {
+          "col_start": 7,
+          "col_end": 7,
+          "cell": "G11",
+          "value": "7 часов"
+        }
+      },
+      {
+        "id": 7,
+        "anchor_type": "twoCellAnchor",
+        "content_type": "sp",
+        "text": "Охлаждение",
+        "geometry": "rect",
+        "bbox": {
+          "from": {
+            "row": 7,
+            "col": 8,
+            "rowOff": 176213,
+            "colOff": 642937,
+            "cell": "H7"
+          },
+          "to": {
+            "row": 10,
+            "col": 10,
+            "rowOff": 169777,
+            "colOff": 19050,
+            "cell": "J10"
+          }
+        },
+        "center": {
+          "x": 8.0003309935,
+          "y": 7.500172995
+        },
+        "linked_value": {
+          "col_start": 9,
+          "col_end": 9,
+          "cell": "I11",
+          "value": "2-3 дня"
+        }
+      },
+      {
+        "id": 9,
+        "anchor_type": "twoCellAnchor",
+        "content_type": "sp",
+        "text": "Заморозка",
+        "geometry": "rect",
+        "bbox": {
+          "from": {
+            "row": 8,
+            "col": 11,
+            "rowOff": 4763,
+            "colOff": 0,
+            "cell": "K8"
+          },
+          "to": {
+            "row": 10,
+            "col": 12,
+            "rowOff": 179302,
+            "colOff": 23813,
+            "cell": "L10"
+          }
+        },
+        "center": {
+          "x": 10.5000119065,
+          "y": 8.0000920325
+        },
+        "linked_value": {
+          "col_start": 11,
+          "col_end": 11,
+          "cell": "K11",
+          "value": "10-15 дней"
+        }
+      },
+      {
+        "id": 11,
+        "anchor_type": "twoCellAnchor",
+        "content_type": "sp",
+        "text": "Электронная чистка",
+        "geometry": "rect",
+        "bbox": {
+          "from": {
+            "row": 8,
+            "col": 13,
+            "rowOff": 14288,
+            "colOff": 4763,
+            "cell": "M8"
+          },
+          "to": {
+            "row": 11,
+            "col": 14,
+            "rowOff": 7852,
+            "colOff": 28576,
+            "cell": "N11"
+          }
+        },
+        "center": {
+          "x": 12.500016669499999,
+          "y": 8.50001107
+        },
+        "linked_value": {
+          "col_start": 13,
+          "col_end": 13,
+          "cell": "M11",
+          "value": "1 короб (540-600кг)- 30 мин"
+        }
+      },
+      {
+        "id": 16,
+        "anchor_type": "twoCellAnchor",
+        "content_type": "sp",
+        "text": "Склад сырья",
+        "geometry": "rect",
+        "bbox": {
+          "from": {
+            "row": 8,
+            "col": 14,
+            "rowOff": 14287,
+            "colOff": 642938,
+            "cell": "N8"
+          },
+          "to": {
+            "row": 11,
+            "col": 16,
+            "rowOff": 7851,
+            "colOff": 19051,
+            "cell": "P11"
+          }
+        },
+        "center": {
+          "x": 14.000330994499999,
+          "y": 8.500011069
+        },
+        "linked_value": null
+      },
+      {
+        "id": 13,
+        "anchor_type": "twoCellAnchor",
+        "content_type": "sp",
+        "text": "Измельчение",
+        "geometry": "rect",
+        "bbox": {
+          "from": {
+            "row": 8,
+            "col": 17,
+            "rowOff": 14287,
+            "colOff": 4763,
+            "cell": "Q8"
+          },
+          "to": {
+            "row": 11,
+            "col": 18,
+            "rowOff": 7851,
+            "colOff": 28576,
+            "cell": "R11"
+          }
+        },
+        "center": {
+          "x": 16.5000166695,
+          "y": 8.500011069
+        },
+        "linked_value": {
+          "col_start": 17,
+          "col_end": 21,
+          "cell": "Q11",
+          "value": "2 рабочие смены по 12 часов"
+        }
+      },
+      {
+        "id": 14,
+        "anchor_type": "twoCellAnchor",
+        "content_type": "sp",
+        "text": "Варка",
+        "geometry": "rect",
+        "bbox": {
+          "from": {
+            "row": 8,
+            "col": 19,
+            "rowOff": 4762,
+            "colOff": 4762,
+            "cell": "S8"
+          },
+          "to": {
+            "row": 10,
+            "col": 20,
+            "rowOff": 179301,
+            "colOff": 28575,
+            "cell": "T10"
+          }
+        },
+        "center": {
+          "x": 18.500016668500002,
+          "y": 8.0000920315
+        },
+        "linked_value": {
+          "col_start": 17,
+          "col_end": 21,
+          "cell": "Q11",
+          "value": "2 рабочие смены по 12 часов"
+        }
+      },
+      {
+        "id": 15,
+        "anchor_type": "twoCellAnchor",
+        "content_type": "sp",
+        "text": "Фасовка",
+        "geometry": "rect",
+        "bbox": {
+          "from": {
+            "row": 8,
+            "col": 21,
+            "rowOff": 4762,
+            "colOff": 9525,
+            "cell": "U8"
+          },
+          "to": {
+            "row": 10,
+            "col": 22,
+            "rowOff": 179301,
+            "colOff": 33338,
+            "cell": "V10"
+          }
+        },
+        "center": {
+          "x": 20.5000214315,
+          "y": 8.0000920315
+        },
+        "linked_value": {
+          "col_start": 17,
+          "col_end": 21,
+          "cell": "Q11",
+          "value": "2 рабочие смены по 12 часов"
+        }
+      },
+      {
+        "id": 21,
+        "anchor_type": "twoCellAnchor",
+        "content_type": "sp",
+        "text": "Склад готовой продукции",
+        "geometry": "rect",
+        "bbox": {
+          "from": {
+            "row": 8,
+            "col": 23,
+            "rowOff": 0,
+            "colOff": 0,
+            "cell": "W8"
+          },
+          "to": {
+            "row": 10,
+            "col": 24,
+            "rowOff": 174539,
+            "colOff": 23813,
+            "cell": "X10"
+          }
+        },
+        "center": {
+          "x": 22.5000119065,
+          "y": 8.0000872695
+        },
+        "linked_value": {
+          "col_start": 23,
+          "col_end": 23,
+          "cell": "W11",
+          "value": "1-5 дней"
+        }
+      },
+      {
+        "id": 23,
+        "anchor_type": "twoCellAnchor",
+        "content_type": "sp",
+        "text": "Отгрузка клиенту",
+        "geometry": "rect",
+        "bbox": {
+          "from": {
+            "row": 8,
+            "col": 25,
+            "rowOff": 14288,
+            "colOff": 4762,
+            "cell": "Y8"
+          },
+          "to": {
+            "row": 11,
+            "col": 26,
+            "rowOff": 7852,
+            "colOff": 0,
+            "cell": "Z11"
+          }
+        },
+        "center": {
+          "x": 24.500002381,
+          "y": 8.50001107
+        },
+        "linked_value": null
+      }
+    ],
+    "edges": [
+      {
+        "from_id": 1,
+        "to_id": 3,
+        "connector_id": 2
+      },
+      {
+        "from_id": 3,
+        "to_id": 5,
+        "connector_id": 4
+      },
+      {
+        "from_id": 5,
+        "to_id": 7,
+        "connector_id": 6
+      },
+      {
+        "from_id": 7,
+        "to_id": 9,
+        "connector_id": 8
+      },
+      {
+        "from_id": 9,
+        "to_id": 11,
+        "connector_id": 10
+      },
+      {
+        "from_id": 11,
+        "to_id": 16,
+        "connector_id": 12
+      },
+      {
+        "from_id": 16,
+        "to_id": 13,
+        "connector_id": 17
+      },
+      {
+        "from_id": 13,
+        "to_id": 14,
+        "connector_id": 18
+      },
+      {
+        "from_id": 14,
+        "to_id": 15,
+        "connector_id": 19
+      },
+      {
+        "from_id": 15,
+        "to_id": 21,
+        "connector_id": 20
+      },
+      {
+        "from_id": 21,
+        "to_id": 23,
+        "connector_id": 22
+      }
+    ],
+    "assumption": "linear left-to-right mapping by connector order (count = nodes-1)"
+  },
+  "connectors": [
+    {
+      "id": 2,
+      "anchor_type": "twoCellAnchor",
+      "content_type": "cxnSp",
+      "text": "",
+      "geometry": "straightConnector1",
+      "bbox": {
+        "from": {
+          "row": 9,
+          "col": 4,
+          "rowOff": 171450,
+          "colOff": 142875,
+          "cell": "D9"
+        },
+        "to": {
+          "row": 9,
+          "col": 4,
+          "rowOff": 172028,
+          "colOff": 646188,
+          "cell": "D9"
+        }
+      },
+      "center": {
+        "x": 3.0003945315,
+        "y": 8.000171739
+      }
+    },
+    {
+      "id": 4,
+      "anchor_type": "twoCellAnchor",
+      "content_type": "cxnSp",
+      "text": "",
+      "geometry": "straightConnector1",
+      "bbox": {
+        "from": {
+          "row": 9,
+          "col": 6,
+          "rowOff": 176212,
+          "colOff": 61913,
+          "cell": "F9"
+        },
+        "to": {
+          "row": 9,
+          "col": 6,
+          "rowOff": 176790,
+          "colOff": 565226,
+          "cell": "F9"
+        }
+      },
+      "center": {
+        "x": 5.0003135695,
+        "y": 8.000176501
+      }
+    },
+    {
+      "id": 6,
+      "anchor_type": "twoCellAnchor",
+      "content_type": "cxnSp",
+      "text": "",
+      "geometry": "straightConnector1",
+      "bbox": {
+        "from": {
+          "row": 10,
+          "col": 8,
+          "rowOff": 4763,
+          "colOff": 80963,
+          "cell": "H10"
+        },
+        "to": {
+          "row": 10,
+          "col": 8,
+          "rowOff": 5341,
+          "colOff": 584276,
+          "cell": "H10"
+        }
+      },
+      "center": {
+        "x": 7.0003326195,
+        "y": 9.000005052
+      }
+    },
+    {
+      "id": 8,
+      "anchor_type": "twoCellAnchor",
+      "content_type": "cxnSp",
+      "text": "",
+      "geometry": "straightConnector1",
+      "bbox": {
+        "from": {
+          "row": 10,
+          "col": 10,
+          "rowOff": 0,
+          "colOff": 71438,
+          "cell": "J10"
+        },
+        "to": {
+          "row": 10,
+          "col": 10,
+          "rowOff": 578,
+          "colOff": 574751,
+          "cell": "J10"
+        }
+      },
+      "center": {
+        "x": 9.000323094499999,
+        "y": 9.000000289
+      }
+    },
+    {
+      "id": 10,
+      "anchor_type": "twoCellAnchor",
+      "content_type": "cxnSp",
+      "text": "",
+      "geometry": "straightConnector1",
+      "bbox": {
+        "from": {
+          "row": 9,
+          "col": 12,
+          "rowOff": 176212,
+          "colOff": 71437,
+          "cell": "L9"
+        },
+        "to": {
+          "row": 9,
+          "col": 12,
+          "rowOff": 176790,
+          "colOff": 574750,
+          "cell": "L9"
+        }
+      },
+      "center": {
+        "x": 11.0003230935,
+        "y": 8.000176501
+      }
+    },
+    {
+      "id": 12,
+      "anchor_type": "twoCellAnchor",
+      "content_type": "cxnSp",
+      "text": "",
+      "geometry": "straightConnector1",
+      "bbox": {
+        "from": {
+          "row": 10,
+          "col": 14,
+          "rowOff": 0,
+          "colOff": 90487,
+          "cell": "N10"
+        },
+        "to": {
+          "row": 10,
+          "col": 14,
+          "rowOff": 578,
+          "colOff": 593800,
+          "cell": "N10"
+        }
+      },
+      "center": {
+        "x": 13.000342143500001,
+        "y": 9.000000289
+      }
+    },
+    {
+      "id": 17,
+      "anchor_type": "twoCellAnchor",
+      "content_type": "cxnSp",
+      "text": "",
+      "geometry": "straightConnector1",
+      "bbox": {
+        "from": {
+          "row": 9,
+          "col": 16,
+          "rowOff": 171450,
+          "colOff": 57150,
+          "cell": "P9"
+        },
+        "to": {
+          "row": 9,
+          "col": 16,
+          "rowOff": 172028,
+          "colOff": 560463,
+          "cell": "P9"
+        }
+      },
+      "center": {
+        "x": 15.0003088065,
+        "y": 8.000171739
+      }
+    },
+    {
+      "id": 18,
+      "anchor_type": "twoCellAnchor",
+      "content_type": "cxnSp",
+      "text": "",
+      "geometry": "straightConnector1",
+      "bbox": {
+        "from": {
+          "row": 10,
+          "col": 18,
+          "rowOff": 0,
+          "colOff": 95250,
+          "cell": "R10"
+        },
+        "to": {
+          "row": 10,
+          "col": 18,
+          "rowOff": 578,
+          "colOff": 598563,
+          "cell": "R10"
+        }
+      },
+      "center": {
+        "x": 17.0003469065,
+        "y": 9.000000289
+      }
+    },
+    {
+      "id": 19,
+      "anchor_type": "twoCellAnchor",
+      "content_type": "cxnSp",
+      "text": "",
+      "geometry": "straightConnector1",
+      "bbox": {
+        "from": {
+          "row": 10,
+          "col": 20,
+          "rowOff": 4763,
+          "colOff": 90488,
+          "cell": "T10"
+        },
+        "to": {
+          "row": 10,
+          "col": 20,
+          "rowOff": 5341,
+          "colOff": 593801,
+          "cell": "T10"
+        }
+      },
+      "center": {
+        "x": 19.0003421445,
+        "y": 9.000005052
+      }
+    },
+    {
+      "id": 20,
+      "anchor_type": "twoCellAnchor",
+      "content_type": "cxnSp",
+      "text": "",
+      "geometry": "straightConnector1",
+      "bbox": {
+        "from": {
+          "row": 9,
+          "col": 22,
+          "rowOff": 176213,
+          "colOff": 71438,
+          "cell": "V9"
+        },
+        "to": {
+          "row": 9,
+          "col": 22,
+          "rowOff": 176791,
+          "colOff": 574751,
+          "cell": "V9"
+        }
+      },
+      "center": {
+        "x": 21.0003230945,
+        "y": 8.000176502
+      }
+    },
+    {
+      "id": 22,
+      "anchor_type": "twoCellAnchor",
+      "content_type": "cxnSp",
+      "text": "",
+      "geometry": "straightConnector1",
+      "bbox": {
+        "from": {
+          "row": 10,
+          "col": 24,
+          "rowOff": 0,
+          "colOff": 80963,
+          "cell": "X10"
+        },
+        "to": {
+          "row": 10,
+          "col": 24,
+          "rowOff": 578,
+          "colOff": 584276,
+          "cell": "X10"
+        }
+      },
+      "center": {
+        "x": 23.0003326195,
+        "y": 9.000000289
+      }
+    }
+  ],
+  "cells": [
+    {
+      "cell": "B1",
+      "value": "Текущее состояние КПСЦ ООО \"предприятие\" поток \"Производство ягодного пюре\" (укрупненная)"
+    },
+    {
+      "cell": "C11",
+      "value": "3-5 тонны в день"
+    },
+    {
+      "cell": "E11",
+      "value": "1 час"
+    },
+    {
+      "cell": "G11",
+      "value": "7 часов"
+    },
+    {
+      "cell": "I11",
+      "value": "2-3 дня"
+    },
+    {
+      "cell": "K11",
+      "value": "10-15 дней"
+    },
+    {
+      "cell": "M11",
+      "value": "1 короб (540-600кг)- 30 мин"
+    },
+    {
+      "cell": "Q11",
+      "value": "2 рабочие смены по 12 часов"
+    },
+    {
+      "cell": "W11",
+      "value": "1-5 дней"
+    },
+    {
+      "cell": "B14",
+      "value": "В связи с сезонностью выбраны границы процесса: от склада сырья до отгрузки на склад готовой продукции"
+    },
+    {
+      "cell": "B15",
+      "value": "Расчет произведен на 4 тонны сырья"
+    }
+  ]
+}

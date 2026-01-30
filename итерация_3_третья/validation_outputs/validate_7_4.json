@@ -1,0 +1,7 @@
+{
+  "rule_index": "7.4",
+  "rule_title": "Наличие и заполнение листа \"Оцифровка потерь КПСЦ\"",
+  "target_document": "КПСЦ и Спагетти ТС_Предприятие.xlsx",
+  "status": "PASS",
+  "discrepancy": ""
+}

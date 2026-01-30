@@ -1,0 +1,1659 @@
+{
+  "meta": {
+    "workbook": "/Users/mask/Documents/Проеты_2025/мос_мониторинг/третья_итерация/КПСЦ и Спагетти ТС_Предприятие.xlsx",
+    "sheet": "КПСЦ",
+    "section_title_cell": "B52"
+  },
+  "bounds": {
+    "top_row": 53,
+    "bottom_row": 60,
+    "left_col": 2,
+    "right_col": 26,
+    "left_letter": "B",
+    "right_letter": "Z",
+    "height": 8,
+    "width": 25
+  },
+  "rows": [
+    {
+      "row": 53,
+      "cells": [
+        {
+          "coord": "B53",
+          "col": 2,
+          "row": 53,
+          "value": "Показатель",
+          "merge_range": "B53:C53",
+          "merge_anchor": true
+        },
+        {
+          "coord": "C53",
+          "col": 3,
+          "row": 53,
+          "value": "Показатель",
+          "merge_range": "B53:C53",
+          "merge_anchor": false
+        },
+        {
+          "coord": "D53",
+          "col": 4,
+          "row": 53,
+          "value": "Ед. измерения",
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "E53",
+          "col": 5,
+          "row": 53,
+          "value": null,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "F53",
+          "col": 6,
+          "row": 53,
+          "value": null,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "G53",
+          "col": 7,
+          "row": 53,
+          "value": null,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "H53",
+          "col": 8,
+          "row": 53,
+          "value": "Оператор Измельчителя ягоды",
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "I53",
+          "col": 9,
+          "row": 53,
+          "value": null,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "J53",
+          "col": 10,
+          "row": 53,
+          "value": null,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "K53",
+          "col": 11,
+          "row": 53,
+          "value": null,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "L53",
+          "col": 12,
+          "row": 53,
+          "value": "Оператор Подготовитель-размораживатель",
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "M53",
+          "col": 13,
+          "row": 53,
+          "value": "Оператор Подготовитель-размораживатель",
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "N53",
+          "col": 14,
+          "row": 53,
+          "value": "Оператор Протирочной машины",
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "O53",
+          "col": 15,
+          "row": 53,
+          "value": "Оператор Вакуумно-варочного котла",
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "P53",
+          "col": 16,
+          "row": 53,
+          "value": "Оператор Буферной емкости",
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "Q53",
+          "col": 17,
+          "row": 53,
+          "value": "Фасовка",
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "R53",
+          "col": 18,
+          "row": 53,
+          "value": null,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "S53",
+          "col": 19,
+          "row": 53,
+          "value": null,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "T53",
+          "col": 20,
+          "row": 53,
+          "value": null,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "U53",
+          "col": 21,
+          "row": 53,
+          "value": "Упаковка 2-х бочек с пюре на упаковочный поддон ",
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "V53",
+          "col": 22,
+          "row": 53,
+          "value": null,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "W53",
+          "col": 23,
+          "row": 53,
+          "value": "Упаковка 4-х бочек",
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "X53",
+          "col": 24,
+          "row": 53,
+          "value": null,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "Y53",
+          "col": 25,
+          "row": 53,
+          "value": null,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "Z53",
+          "col": 26,
+          "row": 53,
+          "value": null,
+          "merge_range": null,
+          "merge_anchor": false
+        }
+      ]
+    },
+    {
+      "row": 54,
+      "cells": [
+        {
+          "coord": "B54",
+          "col": 2,
+          "row": 54,
+          "value": "Время выполнения сменного задания 1-м оператором",
+          "merge_range": "B54:C54",
+          "merge_anchor": true
+        },
+        {
+          "coord": "C54",
+          "col": 3,
+          "row": 54,
+          "value": "Время выполнения сменного задания 1-м оператором",
+          "merge_range": "B54:C54",
+          "merge_anchor": false
+        },
+        {
+          "coord": "D54",
+          "col": 4,
+          "row": 54,
+          "value": "секунды",
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "E54",
+          "col": 5,
+          "row": 54,
+          "value": null,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "F54",
+          "col": 6,
+          "row": 54,
+          "value": null,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "G54",
+          "col": 7,
+          "row": 54,
+          "value": null,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "H54",
+          "col": 8,
+          "row": 54,
+          "value": 1093.95,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "I54",
+          "col": 9,
+          "row": 54,
+          "value": null,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "J54",
+          "col": 10,
+          "row": 54,
+          "value": null,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "K54",
+          "col": 11,
+          "row": 54,
+          "value": null,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "L54",
+          "col": 12,
+          "row": 54,
+          "value": 4370.19,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "M54",
+          "col": 13,
+          "row": 54,
+          "value": 41291.19418888889,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "N54",
+          "col": 14,
+          "row": 54,
+          "value": 3710,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "O54",
+          "col": 15,
+          "row": 54,
+          "value": 17400,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "P54",
+          "col": 16,
+          "row": 54,
+          "value": 14400,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "Q54",
+          "col": 17,
+          "row": 54,
+          "value": 11760,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "R54",
+          "col": 18,
+          "row": 54,
+          "value": null,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "S54",
+          "col": 19,
+          "row": 54,
+          "value": null,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "T54",
+          "col": 20,
+          "row": 54,
+          "value": null,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "U54",
+          "col": 21,
+          "row": 54,
+          "value": 972.9999999999999,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "V54",
+          "col": 22,
+          "row": 54,
+          "value": null,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "W54",
+          "col": 23,
+          "row": 54,
+          "value": 619.5,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "X54",
+          "col": 24,
+          "row": 54,
+          "value": null,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "Y54",
+          "col": 25,
+          "row": 54,
+          "value": "из таблицы № 3",
+          "merge_range": "Y54:Z54",
+          "merge_anchor": true
+        },
+        {
+          "coord": "Z54",
+          "col": 26,
+          "row": 54,
+          "value": "из таблицы № 3",
+          "merge_range": "Y54:Z54",
+          "merge_anchor": false
+        }
+      ]
+    },
+    {
+      "row": 55,
+      "cells": [
+        {
+          "coord": "B55",
+          "col": 2,
+          "row": 55,
+          "value": "Количество оборудования на которых работает оператор",
+          "merge_range": "B55:C55",
+          "merge_anchor": true
+        },
+        {
+          "coord": "C55",
+          "col": 3,
+          "row": 55,
+          "value": "Количество оборудования на которых работает оператор",
+          "merge_range": "B55:C55",
+          "merge_anchor": false
+        },
+        {
+          "coord": "D55",
+          "col": 4,
+          "row": 55,
+          "value": " единиц",
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "E55",
+          "col": 5,
+          "row": 55,
+          "value": null,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "F55",
+          "col": 6,
+          "row": 55,
+          "value": null,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "G55",
+          "col": 7,
+          "row": 55,
+          "value": null,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "H55",
+          "col": 8,
+          "row": 55,
+          "value": 1,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "I55",
+          "col": 9,
+          "row": 55,
+          "value": null,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "J55",
+          "col": 10,
+          "row": 55,
+          "value": null,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "K55",
+          "col": 11,
+          "row": 55,
+          "value": null,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "L55",
+          "col": 12,
+          "row": 55,
+          "value": 0,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "M55",
+          "col": 13,
+          "row": 55,
+          "value": 3,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "N55",
+          "col": 14,
+          "row": 55,
+          "value": 1,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "O55",
+          "col": 15,
+          "row": 55,
+          "value": 1,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "P55",
+          "col": 16,
+          "row": 55,
+          "value": 1,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "Q55",
+          "col": 17,
+          "row": 55,
+          "value": 1,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "R55",
+          "col": 18,
+          "row": 55,
+          "value": null,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "S55",
+          "col": 19,
+          "row": 55,
+          "value": null,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "T55",
+          "col": 20,
+          "row": 55,
+          "value": null,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "U55",
+          "col": 21,
+          "row": 55,
+          "value": 0,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "V55",
+          "col": 22,
+          "row": 55,
+          "value": null,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "W55",
+          "col": 23,
+          "row": 55,
+          "value": 0,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "X55",
+          "col": 24,
+          "row": 55,
+          "value": null,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "Y55",
+          "col": 25,
+          "row": 55,
+          "value": null,
+          "merge_range": "Y55:Z55",
+          "merge_anchor": true
+        },
+        {
+          "coord": "Z55",
+          "col": 26,
+          "row": 55,
+          "value": null,
+          "merge_range": "Y55:Z55",
+          "merge_anchor": false
+        }
+      ]
+    },
+    {
+      "row": 56,
+      "cells": [
+        {
+          "coord": "B56",
+          "col": 2,
+          "row": 56,
+          "value": "Количество операторов",
+          "merge_range": "B56:C56",
+          "merge_anchor": true
+        },
+        {
+          "coord": "C56",
+          "col": 3,
+          "row": 56,
+          "value": "Количество операторов",
+          "merge_range": "B56:C56",
+          "merge_anchor": false
+        },
+        {
+          "coord": "D56",
+          "col": 4,
+          "row": 56,
+          "value": "человек",
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "E56",
+          "col": 5,
+          "row": 56,
+          "value": null,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "F56",
+          "col": 6,
+          "row": 56,
+          "value": null,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "G56",
+          "col": 7,
+          "row": 56,
+          "value": null,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "H56",
+          "col": 8,
+          "row": 56,
+          "value": 3,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "I56",
+          "col": 9,
+          "row": 56,
+          "value": null,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "J56",
+          "col": 10,
+          "row": 56,
+          "value": null,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "K56",
+          "col": 11,
+          "row": 56,
+          "value": null,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "L56",
+          "col": 12,
+          "row": 56,
+          "value": 3,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "M56",
+          "col": 13,
+          "row": 56,
+          "value": 3,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "N56",
+          "col": 14,
+          "row": 56,
+          "value": 3,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "O56",
+          "col": 15,
+          "row": 56,
+          "value": 1,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "P56",
+          "col": 16,
+          "row": 56,
+          "value": 1,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "Q56",
+          "col": 17,
+          "row": 56,
+          "value": 1,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "R56",
+          "col": 18,
+          "row": 56,
+          "value": null,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "S56",
+          "col": 19,
+          "row": 56,
+          "value": null,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "T56",
+          "col": 20,
+          "row": 56,
+          "value": null,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "U56",
+          "col": 21,
+          "row": 56,
+          "value": 1,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "V56",
+          "col": 22,
+          "row": 56,
+          "value": null,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "W56",
+          "col": 23,
+          "row": 56,
+          "value": 1,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "X56",
+          "col": 24,
+          "row": 56,
+          "value": null,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "Y56",
+          "col": 25,
+          "row": 56,
+          "value": null,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "Z56",
+          "col": 26,
+          "row": 56,
+          "value": null,
+          "merge_range": null,
+          "merge_anchor": false
+        }
+      ]
+    },
+    {
+      "row": 57,
+      "cells": [
+        {
+          "coord": "B57",
+          "col": 2,
+          "row": 57,
+          "value": "Время работы оператора в смену",
+          "merge_range": "B57:C57",
+          "merge_anchor": true
+        },
+        {
+          "coord": "C57",
+          "col": 3,
+          "row": 57,
+          "value": "Время работы оператора в смену",
+          "merge_range": "B57:C57",
+          "merge_anchor": false
+        },
+        {
+          "coord": "D57",
+          "col": 4,
+          "row": 57,
+          "value": "секунды",
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "E57",
+          "col": 5,
+          "row": 57,
+          "value": null,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "F57",
+          "col": 6,
+          "row": 57,
+          "value": null,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "G57",
+          "col": 7,
+          "row": 57,
+          "value": null,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "H57",
+          "col": 8,
+          "row": 57,
+          "value": 1093.95,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "I57",
+          "col": 9,
+          "row": 57,
+          "value": null,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "J57",
+          "col": 10,
+          "row": 57,
+          "value": null,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "K57",
+          "col": 11,
+          "row": 57,
+          "value": null,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "L57",
+          "col": 12,
+          "row": 57,
+          "value": 4370,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "M57",
+          "col": 13,
+          "row": 57,
+          "value": 39382.38837777778,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "N57",
+          "col": 14,
+          "row": 57,
+          "value": 3710,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "O57",
+          "col": 15,
+          "row": 57,
+          "value": 17400,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "P57",
+          "col": 16,
+          "row": 57,
+          "value": 14400,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "Q57",
+          "col": 17,
+          "row": 57,
+          "value": 11760,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "R57",
+          "col": 18,
+          "row": 57,
+          "value": null,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "S57",
+          "col": 19,
+          "row": 57,
+          "value": null,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "T57",
+          "col": 20,
+          "row": 57,
+          "value": null,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "U57",
+          "col": 21,
+          "row": 57,
+          "value": 972.9999999999999,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "V57",
+          "col": 22,
+          "row": 57,
+          "value": null,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "W57",
+          "col": 23,
+          "row": 57,
+          "value": 619.5,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "X57",
+          "col": 24,
+          "row": 57,
+          "value": null,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "Y57",
+          "col": 25,
+          "row": 57,
+          "value": null,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "Z57",
+          "col": 26,
+          "row": 57,
+          "value": null,
+          "merge_range": null,
+          "merge_anchor": false
+        }
+      ]
+    },
+    {
+      "row": 58,
+      "cells": [
+        {
+          "coord": "B58",
+          "col": 2,
+          "row": 58,
+          "value": "Время переналадки в смену",
+          "merge_range": "B58:C58",
+          "merge_anchor": true
+        },
+        {
+          "coord": "C58",
+          "col": 3,
+          "row": 58,
+          "value": "Время переналадки в смену",
+          "merge_range": "B58:C58",
+          "merge_anchor": false
+        },
+        {
+          "coord": "D58",
+          "col": 4,
+          "row": 58,
+          "value": "секунды",
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "E58",
+          "col": 5,
+          "row": 58,
+          "value": null,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "F58",
+          "col": 6,
+          "row": 58,
+          "value": null,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "G58",
+          "col": 7,
+          "row": 58,
+          "value": null,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "H58",
+          "col": 8,
+          "row": 58,
+          "value": 0,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "I58",
+          "col": 9,
+          "row": 58,
+          "value": null,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "J58",
+          "col": 10,
+          "row": 58,
+          "value": null,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "K58",
+          "col": 11,
+          "row": 58,
+          "value": null,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "L58",
+          "col": 12,
+          "row": 58,
+          "value": 0,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "M58",
+          "col": 13,
+          "row": 58,
+          "value": 0,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "N58",
+          "col": 14,
+          "row": 58,
+          "value": 0,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "O58",
+          "col": 15,
+          "row": 58,
+          "value": 0,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "P58",
+          "col": 16,
+          "row": 58,
+          "value": 2160,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "Q58",
+          "col": 17,
+          "row": 58,
+          "value": 7560,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "R58",
+          "col": 18,
+          "row": 58,
+          "value": null,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "S58",
+          "col": 19,
+          "row": 58,
+          "value": null,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "T58",
+          "col": 20,
+          "row": 58,
+          "value": null,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "U58",
+          "col": 21,
+          "row": 58,
+          "value": 0,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "V58",
+          "col": 22,
+          "row": 58,
+          "value": null,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "W58",
+          "col": 23,
+          "row": 58,
+          "value": 0,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "X58",
+          "col": 24,
+          "row": 58,
+          "value": null,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "Y58",
+          "col": 25,
+          "row": 58,
+          "value": "из таблицы № 3",
+          "merge_range": "Y58:Z58",
+          "merge_anchor": true
+        },
+        {
+          "coord": "Z58",
+          "col": 26,
+          "row": 58,
+          "value": "из таблицы № 3",
+          "merge_range": "Y58:Z58",
+          "merge_anchor": false
+        }
+      ]
+    },
+    {
+      "row": 59,
+      "cells": [
+        {
+          "coord": "B59",
+          "col": 2,
+          "row": 59,
+          "value": "Время простоев в смену",
+          "merge_range": "B59:C59",
+          "merge_anchor": true
+        },
+        {
+          "coord": "C59",
+          "col": 3,
+          "row": 59,
+          "value": "Время простоев в смену",
+          "merge_range": "B59:C59",
+          "merge_anchor": false
+        },
+        {
+          "coord": "D59",
+          "col": 4,
+          "row": 59,
+          "value": "секунды",
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "E59",
+          "col": 5,
+          "row": 59,
+          "value": null,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "F59",
+          "col": 6,
+          "row": 59,
+          "value": null,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "G59",
+          "col": 7,
+          "row": 59,
+          "value": null,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "H59",
+          "col": 8,
+          "row": 59,
+          "value": 42106.05,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "I59",
+          "col": 9,
+          "row": 59,
+          "value": null,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "J59",
+          "col": 10,
+          "row": 59,
+          "value": null,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "K59",
+          "col": 11,
+          "row": 59,
+          "value": null,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "L59",
+          "col": 12,
+          "row": 59,
+          "value": 38830,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "M59",
+          "col": 13,
+          "row": 59,
+          "value": 1680,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "N59",
+          "col": 14,
+          "row": 59,
+          "value": 39490,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "O59",
+          "col": 15,
+          "row": 59,
+          "value": 25800,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "P59",
+          "col": 16,
+          "row": 59,
+          "value": 26640,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "Q59",
+          "col": 17,
+          "row": 59,
+          "value": 24360,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "R59",
+          "col": 18,
+          "row": 59,
+          "value": null,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "S59",
+          "col": 19,
+          "row": 59,
+          "value": null,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "T59",
+          "col": 20,
+          "row": 59,
+          "value": null,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "U59",
+          "col": 21,
+          "row": 59,
+          "value": 42227,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "V59",
+          "col": 22,
+          "row": 59,
+          "value": null,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "W59",
+          "col": 23,
+          "row": 59,
+          "value": 42580.5,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "X59",
+          "col": 24,
+          "row": 59,
+          "value": null,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "Y59",
+          "col": 25,
+          "row": 59,
+          "value": "из таблицы №4",
+          "merge_range": "Y59:Z59",
+          "merge_anchor": true
+        },
+        {
+          "coord": "Z59",
+          "col": 26,
+          "row": 59,
+          "value": "из таблицы №4",
+          "merge_range": "Y59:Z59",
+          "merge_anchor": false
+        }
+      ]
+    },
+    {
+      "row": 60,
+      "cells": [
+        {
+          "coord": "B60",
+          "col": 2,
+          "row": 60,
+          "value": "Время потерь на брак в смену на оператора",
+          "merge_range": "B60:C60",
+          "merge_anchor": true
+        },
+        {
+          "coord": "C60",
+          "col": 3,
+          "row": 60,
+          "value": "Время потерь на брак в смену на оператора",
+          "merge_range": "B60:C60",
+          "merge_anchor": false
+        },
+        {
+          "coord": "D60",
+          "col": 4,
+          "row": 60,
+          "value": "секунды",
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "E60",
+          "col": 5,
+          "row": 60,
+          "value": null,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "F60",
+          "col": 6,
+          "row": 60,
+          "value": null,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "G60",
+          "col": 7,
+          "row": 60,
+          "value": null,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "H60",
+          "col": 8,
+          "row": 60,
+          "value": 0,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "I60",
+          "col": 9,
+          "row": 60,
+          "value": null,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "J60",
+          "col": 10,
+          "row": 60,
+          "value": null,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "K60",
+          "col": 11,
+          "row": 60,
+          "value": null,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "L60",
+          "col": 12,
+          "row": 60,
+          "value": 0,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "M60",
+          "col": 13,
+          "row": 60,
+          "value": 228.80581111111113,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "N60",
+          "col": 14,
+          "row": 60,
+          "value": 0,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "O60",
+          "col": 15,
+          "row": 60,
+          "value": 0,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "P60",
+          "col": 16,
+          "row": 60,
+          "value": 0,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "Q60",
+          "col": 17,
+          "row": 60,
+          "value": 0,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "R60",
+          "col": 18,
+          "row": 60,
+          "value": null,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "S60",
+          "col": 19,
+          "row": 60,
+          "value": null,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "T60",
+          "col": 20,
+          "row": 60,
+          "value": null,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "U60",
+          "col": 21,
+          "row": 60,
+          "value": 0,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "V60",
+          "col": 22,
+          "row": 60,
+          "value": null,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "W60",
+          "col": 23,
+          "row": 60,
+          "value": 0,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "X60",
+          "col": 24,
+          "row": 60,
+          "value": null,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "Y60",
+          "col": 25,
+          "row": 60,
+          "value": "из таблицы №5",
+          "merge_range": "Y60:Z60",
+          "merge_anchor": true
+        },
+        {
+          "coord": "Z60",
+          "col": 26,
+          "row": 60,
+          "value": "из таблицы №5",
+          "merge_range": "Y60:Z60",
+          "merge_anchor": false
+        }
+      ]
+    }
+  ]
+}

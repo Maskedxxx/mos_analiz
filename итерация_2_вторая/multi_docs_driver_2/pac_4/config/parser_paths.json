@@ -1,0 +1,62 @@
+[
+  {
+    "id": "order_version",
+    "parser": "order_comp_ppu_version_3_10",
+    "path": "/Users/mask/Documents/Проеты_2025/мос_мониторинг/вторая_итерация/multi_docs_driver_2/pac_4/archive25-11-13/order_comp_ppu/order_comp_ppu_version_3_10.docx"
+  },
+  {
+    "id": "order_template",
+    "parser": "order_comp_ppu_version_3_10",
+    "path": "/Users/mask/Documents/Проеты_2025/мос_мониторинг/вторая_итерация/multi_docs_driver_2/pac_4/archive25-11-13/order_comp_ppu/order_comp_ppu_template.docx"
+  },
+  {
+    "id": "order_tz",
+    "parser": "order_comp_ppu_tz_3_10",
+    "path": "/Users/mask/Documents/Проеты_2025/мос_мониторинг/вторая_итерация/multi_docs_driver_2/pac_4/archive25-11-13/order_comp_ppu/order_comp_ppu_tz_3_10.docx"
+  },
+  {
+    "id": "order_ppu_version",
+    "parser": "order_ppu_version_3_10",
+    "path": "/Users/mask/Documents/Проеты_2025/мос_мониторинг/вторая_итерация/multi_docs_driver_2/pac_4/archive25-11-13/order_ppu/order_ppu_version_3_10.docx"
+  },
+  {
+    "id": "order_ppu_template",
+    "parser": "order_ppu_template",
+    "path": "/Users/mask/Documents/Проеты_2025/мос_мониторинг/вторая_итерация/multi_docs_driver_2/pac_4/archive25-11-13/order_ppu/order_ppu_template.docx"
+  },
+  {
+    "id": "order_ppu_tz",
+    "parser": "order_ppu_tz_3_10",
+    "path": "/Users/mask/Documents/Проеты_2025/мос_мониторинг/вторая_итерация/multi_docs_driver_2/pac_4/archive25-11-13/order_ppu/order_ppu_tz_3_10.docx"
+  },
+  {
+    "id": "reg_comp_ppu_version",
+    "parser": "reg_comp_ppu_version_3_10",
+    "path": "/Users/mask/Documents/Проеты_2025/мос_мониторинг/вторая_итерация/multi_docs_driver_2/pac_4/archive25-11-13/reg_comp_ppu/reg_comp_ppu_version_3_10.docx"
+  },
+  {
+    "id": "reg_comp_ppu_template",
+    "parser": "reg_comp_ppu_template_3_10",
+    "path": "/Users/mask/Documents/Проеты_2025/мос_мониторинг/вторая_итерация/multi_docs_driver_2/pac_4/archive25-11-13/reg_comp_ppu/reg_comp_ppu_template_3_10.docx"
+  },
+  {
+    "id": "reg_comp_ppu_tz",
+    "parser": "reg_comp_ppu_tz_3_10",
+    "path": "/Users/mask/Documents/Проеты_2025/мос_мониторинг/вторая_итерация/multi_docs_driver_2/pac_4/archive25-11-13/reg_comp_ppu/reg_comp_ppu_tz_3_10.docx"
+  },
+  {
+    "id": "reg_ppu_version",
+    "parser": "reg_ppu_version_3_10",
+    "path": "/Users/mask/Documents/Проеты_2025/мос_мониторинг/вторая_итерация/multi_docs_driver_2/pac_4/archive25-11-13/reg_ppu/reg_ppu_version_3_10.docx"
+  },
+  {
+    "id": "reg_ppu_template",
+    "parser": "reg_ppu_template",
+    "path": "/Users/mask/Documents/Проеты_2025/мос_мониторинг/вторая_итерация/multi_docs_driver_2/pac_4/archive25-11-13/reg_ppu/reg_ppu_template.docx"
+  },
+  {
+    "id": "reg_ppu_tz",
+    "parser": "reg_ppu_tz_3_10",
+    "path": "/Users/mask/Documents/Проеты_2025/мос_мониторинг/вторая_итерация/multi_docs_driver_2/pac_4/archive25-11-13/reg_ppu/reg_ppu_tz_3_10.docx"
+  }
+]

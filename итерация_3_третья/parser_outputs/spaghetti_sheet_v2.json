@@ -1,0 +1,2185 @@
+{
+  "meta": {
+    "workbook": "/Users/mask/Documents/Проеты_2025/мос_мониторинг/третья_итерация/КПСЦ и Спагетти ТС_Предприятие.xlsx",
+    "sheet": "Диаграмма Спагетти",
+    "header_row": 8
+  },
+  "bounds": {
+    "top_row": 8,
+    "bottom_row": 23,
+    "left_col": 2,
+    "right_col": 17,
+    "left_letter": "B",
+    "right_letter": "Q",
+    "height": 16,
+    "width": 16
+  },
+  "pre_table_cells": [
+    {
+      "coord": "F2",
+      "row": 2,
+      "col": 6,
+      "value": "Диаграмма Спагетти текущее состояние"
+    },
+    {
+      "coord": "B4",
+      "row": 4,
+      "col": 2,
+      "value": "Рабочая зона: от склада сырья до отгрузки на склад на готовой продукции"
+    },
+    {
+      "coord": "L4",
+      "row": 4,
+      "col": 12,
+      "value": "ФИО: Егорова Н.А."
+    },
+    {
+      "coord": "B5",
+      "row": 5,
+      "col": 2,
+      "value": "Поток: производство ягодного пюре"
+    },
+    {
+      "coord": "L5",
+      "row": 5,
+      "col": 12,
+      "value": "Дата: 24.06.2025"
+    },
+    {
+      "coord": "B6",
+      "row": 6,
+      "col": 2,
+      "value": "за единицу продукции взят объем заготовки ягодного пюре 1200кг (6 бочек)"
+    }
+  ],
+  "rows": [
+    {
+      "row": 8,
+      "cells": [
+        {
+          "coord": "B8",
+          "row": 8,
+          "col": 2,
+          "value": "Путь",
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "C8",
+          "row": 8,
+          "col": 3,
+          "value": "Наименование перемещения",
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "D8",
+          "row": 8,
+          "col": 4,
+          "value": "Протяженность, (м)",
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "E8",
+          "row": 8,
+          "col": 5,
+          "value": "Время перемещения (сек) ",
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "F8",
+          "row": 8,
+          "col": 6,
+          "value": "Количество перемещений",
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "G8",
+          "row": 8,
+          "col": 7,
+          "value": "Общее время перемещения, сек",
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "H8",
+          "row": 8,
+          "col": 8,
+          "value": "Общая протяженность, (м)",
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "I8",
+          "row": 8,
+          "col": 9,
+          "value": "Время операции, сек",
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "J8",
+          "row": 8,
+          "col": 10,
+          "value": "Количество премещаемого за 1 раз (кг) ",
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "K8",
+          "row": 8,
+          "col": 11,
+          "value": "Способ перемещения",
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "L8",
+          "row": 8,
+          "col": 12,
+          "value": null,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "M8",
+          "row": 8,
+          "col": 13,
+          "value": null,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "N8",
+          "row": 8,
+          "col": 14,
+          "value": null,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "O8",
+          "row": 8,
+          "col": 15,
+          "value": null,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "P8",
+          "row": 8,
+          "col": 16,
+          "value": null,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "Q8",
+          "row": 8,
+          "col": 17,
+          "value": null,
+          "merge_range": null,
+          "merge_anchor": false
+        }
+      ]
+    },
+    {
+      "row": 9,
+      "cells": [
+        {
+          "coord": "B9",
+          "row": 9,
+          "col": 2,
+          "value": "1-2",
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "C9",
+          "row": 9,
+          "col": 3,
+          "value": "Перемещение ягоды со склада сырья к буферу возле измельчителя",
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "D9",
+          "row": 9,
+          "col": 4,
+          "value": 70,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "E9",
+          "row": 9,
+          "col": 5,
+          "value": 102,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "F9",
+          "row": 9,
+          "col": 6,
+          "value": 3,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "G9",
+          "row": 9,
+          "col": 7,
+          "value": 306,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "H9",
+          "row": 9,
+          "col": 8,
+          "value": 210,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "I9",
+          "row": 9,
+          "col": 9,
+          "value": null,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "J9",
+          "row": 9,
+          "col": 10,
+          "value": 565,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "K9",
+          "row": 9,
+          "col": 11,
+          "value": "кара погрузчик",
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "L9",
+          "row": 9,
+          "col": 12,
+          "value": null,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "M9",
+          "row": 9,
+          "col": 13,
+          "value": null,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "N9",
+          "row": 9,
+          "col": 14,
+          "value": null,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "O9",
+          "row": 9,
+          "col": 15,
+          "value": null,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "P9",
+          "row": 9,
+          "col": 16,
+          "value": null,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "Q9",
+          "row": 9,
+          "col": 17,
+          "value": null,
+          "merge_range": null,
+          "merge_anchor": false
+        }
+      ]
+    },
+    {
+      "row": 10,
+      "cells": [
+        {
+          "coord": "B10",
+          "row": 10,
+          "col": 2,
+          "value": "2-3",
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "C10",
+          "row": 10,
+          "col": 3,
+          "value": "Перемещение ягоды от буфера к измельчителю",
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "D10",
+          "row": 10,
+          "col": 4,
+          "value": 10,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "E10",
+          "row": 10,
+          "col": 5,
+          "value": 10.746,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "F10",
+          "row": 10,
+          "col": 6,
+          "value": 130,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "G10",
+          "row": 10,
+          "col": 7,
+          "value": 1396.98,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "H10",
+          "row": 10,
+          "col": 8,
+          "value": 1300,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "I10",
+          "row": 10,
+          "col": 9,
+          "value": null,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "J10",
+          "row": 10,
+          "col": 10,
+          "value": 9,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "K10",
+          "row": 10,
+          "col": 11,
+          "value": "ручной",
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "L10",
+          "row": 10,
+          "col": 12,
+          "value": null,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "M10",
+          "row": 10,
+          "col": 13,
+          "value": null,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "N10",
+          "row": 10,
+          "col": 14,
+          "value": null,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "O10",
+          "row": 10,
+          "col": 15,
+          "value": null,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "P10",
+          "row": 10,
+          "col": 16,
+          "value": null,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "Q10",
+          "row": 10,
+          "col": 17,
+          "value": null,
+          "merge_range": null,
+          "merge_anchor": false
+        }
+      ]
+    },
+    {
+      "row": 11,
+      "cells": [
+        {
+          "coord": "B11",
+          "row": 11,
+          "col": 2,
+          "value": "3",
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "C11",
+          "row": 11,
+          "col": 3,
+          "value": "Измельчение",
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "D11",
+          "row": 11,
+          "col": 4,
+          "value": null,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "E11",
+          "row": 11,
+          "col": 5,
+          "value": null,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "F11",
+          "row": 11,
+          "col": 6,
+          "value": null,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "G11",
+          "row": 11,
+          "col": 7,
+          "value": null,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "H11",
+          "row": 11,
+          "col": 8,
+          "value": null,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "I11",
+          "row": 11,
+          "col": 9,
+          "value": 75,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "J11",
+          "row": 11,
+          "col": 10,
+          "value": null,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "K11",
+          "row": 11,
+          "col": 11,
+          "value": null,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "L11",
+          "row": 11,
+          "col": 12,
+          "value": null,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "M11",
+          "row": 11,
+          "col": 13,
+          "value": null,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "N11",
+          "row": 11,
+          "col": 14,
+          "value": null,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "O11",
+          "row": 11,
+          "col": 15,
+          "value": null,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "P11",
+          "row": 11,
+          "col": 16,
+          "value": null,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "Q11",
+          "row": 11,
+          "col": 17,
+          "value": null,
+          "merge_range": null,
+          "merge_anchor": false
+        }
+      ]
+    },
+    {
+      "row": 12,
+      "cells": [
+        {
+          "coord": "B12",
+          "row": 12,
+          "col": 2,
+          "value": "3-4",
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "C12",
+          "row": 12,
+          "col": 3,
+          "value": "Перемещение к подготовителю-размораживателю",
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "D12",
+          "row": 12,
+          "col": 4,
+          "value": 24,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "E12",
+          "row": 12,
+          "col": 5,
+          "value": 24,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "F12",
+          "row": 12,
+          "col": 6,
+          "value": 26,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "G12",
+          "row": 12,
+          "col": 7,
+          "value": 624,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "H12",
+          "row": 12,
+          "col": 8,
+          "value": 624,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "I12",
+          "row": 12,
+          "col": 9,
+          "value": null,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "J12",
+          "row": 12,
+          "col": 10,
+          "value": 45,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "K12",
+          "row": 12,
+          "col": 11,
+          "value": "ручная тележка ",
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "L12",
+          "row": 12,
+          "col": 12,
+          "value": null,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "M12",
+          "row": 12,
+          "col": 13,
+          "value": null,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "N12",
+          "row": 12,
+          "col": 14,
+          "value": null,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "O12",
+          "row": 12,
+          "col": 15,
+          "value": null,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "P12",
+          "row": 12,
+          "col": 16,
+          "value": null,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "Q12",
+          "row": 12,
+          "col": 17,
+          "value": null,
+          "merge_range": null,
+          "merge_anchor": false
+        }
+      ]
+    },
+    {
+      "row": 13,
+      "cells": [
+        {
+          "coord": "B13",
+          "row": 13,
+          "col": 2,
+          "value": "4",
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "C13",
+          "row": 13,
+          "col": 3,
+          "value": "Загрузка подготовителя-размораживателя и разогрев",
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "D13",
+          "row": 13,
+          "col": 4,
+          "value": null,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "E13",
+          "row": 13,
+          "col": 5,
+          "value": null,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "F13",
+          "row": 13,
+          "col": 6,
+          "value": null,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "G13",
+          "row": 13,
+          "col": 7,
+          "value": null,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "H13",
+          "row": 13,
+          "col": 8,
+          "value": null,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "I13",
+          "row": 13,
+          "col": 9,
+          "value": 20938,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "J13",
+          "row": 13,
+          "col": 10,
+          "value": null,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "K13",
+          "row": 13,
+          "col": 11,
+          "value": null,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "L13",
+          "row": 13,
+          "col": 12,
+          "value": null,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "M13",
+          "row": 13,
+          "col": 13,
+          "value": null,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "N13",
+          "row": 13,
+          "col": 14,
+          "value": null,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "O13",
+          "row": 13,
+          "col": 15,
+          "value": null,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "P13",
+          "row": 13,
+          "col": 16,
+          "value": null,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "Q13",
+          "row": 13,
+          "col": 17,
+          "value": null,
+          "merge_range": null,
+          "merge_anchor": false
+        }
+      ]
+    },
+    {
+      "row": 14,
+      "cells": [
+        {
+          "coord": "B14",
+          "row": 14,
+          "col": 2,
+          "value": "5",
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "C14",
+          "row": 14,
+          "col": 3,
+          "value": "Протирочная машина",
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "D14",
+          "row": 14,
+          "col": 4,
+          "value": null,
+          "merge_range": "D14:H14",
+          "merge_anchor": true
+        },
+        {
+          "coord": "E14",
+          "row": 14,
+          "col": 5,
+          "value": null,
+          "merge_range": "D14:H14",
+          "merge_anchor": false
+        },
+        {
+          "coord": "F14",
+          "row": 14,
+          "col": 6,
+          "value": null,
+          "merge_range": "D14:H14",
+          "merge_anchor": false
+        },
+        {
+          "coord": "G14",
+          "row": 14,
+          "col": 7,
+          "value": null,
+          "merge_range": "D14:H14",
+          "merge_anchor": false
+        },
+        {
+          "coord": "H14",
+          "row": 14,
+          "col": 8,
+          "value": null,
+          "merge_range": "D14:H14",
+          "merge_anchor": false
+        },
+        {
+          "coord": "I14",
+          "row": 14,
+          "col": 9,
+          "value": 3180,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "J14",
+          "row": 14,
+          "col": 10,
+          "value": 1200,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "K14",
+          "row": 14,
+          "col": 11,
+          "value": "вакуумным насосом по трубопроводу ",
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "L14",
+          "row": 14,
+          "col": 12,
+          "value": null,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "M14",
+          "row": 14,
+          "col": 13,
+          "value": null,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "N14",
+          "row": 14,
+          "col": 14,
+          "value": null,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "O14",
+          "row": 14,
+          "col": 15,
+          "value": null,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "P14",
+          "row": 14,
+          "col": 16,
+          "value": null,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "Q14",
+          "row": 14,
+          "col": 17,
+          "value": null,
+          "merge_range": null,
+          "merge_anchor": false
+        }
+      ]
+    },
+    {
+      "row": 15,
+      "cells": [
+        {
+          "coord": "B15",
+          "row": 15,
+          "col": 2,
+          "value": "6",
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "C15",
+          "row": 15,
+          "col": 3,
+          "value": "Вакуумно-варочный котел",
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "D15",
+          "row": 15,
+          "col": 4,
+          "value": null,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "E15",
+          "row": 15,
+          "col": 5,
+          "value": null,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "F15",
+          "row": 15,
+          "col": 6,
+          "value": null,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "G15",
+          "row": 15,
+          "col": 7,
+          "value": null,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "H15",
+          "row": 15,
+          "col": 8,
+          "value": null,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "I15",
+          "row": 15,
+          "col": 9,
+          "value": 840,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "J15",
+          "row": 15,
+          "col": 10,
+          "value": 240,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "K15",
+          "row": 15,
+          "col": 11,
+          "value": "вакуумным насосом по трубопроводу ",
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "L15",
+          "row": 15,
+          "col": 12,
+          "value": null,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "M15",
+          "row": 15,
+          "col": 13,
+          "value": null,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "N15",
+          "row": 15,
+          "col": 14,
+          "value": null,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "O15",
+          "row": 15,
+          "col": 15,
+          "value": "Общее время перемещения, сек",
+          "merge_range": "O15:P15",
+          "merge_anchor": true
+        },
+        {
+          "coord": "P15",
+          "row": 15,
+          "col": 16,
+          "value": "Общее время перемещения, сек",
+          "merge_range": "O15:P15",
+          "merge_anchor": false
+        },
+        {
+          "coord": "Q15",
+          "row": 15,
+          "col": 17,
+          "value": 3314.98,
+          "merge_range": null,
+          "merge_anchor": false
+        }
+      ]
+    },
+    {
+      "row": 16,
+      "cells": [
+        {
+          "coord": "B16",
+          "row": 16,
+          "col": 2,
+          "value": "7",
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "C16",
+          "row": 16,
+          "col": 3,
+          "value": "Буферная емкость линии ассептики",
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "D16",
+          "row": 16,
+          "col": 4,
+          "value": null,
+          "merge_range": "D16:H16",
+          "merge_anchor": true
+        },
+        {
+          "coord": "E16",
+          "row": 16,
+          "col": 5,
+          "value": null,
+          "merge_range": "D16:H16",
+          "merge_anchor": false
+        },
+        {
+          "coord": "F16",
+          "row": 16,
+          "col": 6,
+          "value": null,
+          "merge_range": "D16:H16",
+          "merge_anchor": false
+        },
+        {
+          "coord": "G16",
+          "row": 16,
+          "col": 7,
+          "value": null,
+          "merge_range": "D16:H16",
+          "merge_anchor": false
+        },
+        {
+          "coord": "H16",
+          "row": 16,
+          "col": 8,
+          "value": null,
+          "merge_range": "D16:H16",
+          "merge_anchor": false
+        },
+        {
+          "coord": "I16",
+          "row": 16,
+          "col": 9,
+          "value": 2220,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "J16",
+          "row": 16,
+          "col": 10,
+          "value": 240,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "K16",
+          "row": 16,
+          "col": 11,
+          "value": "по трубопроводу ",
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "L16",
+          "row": 16,
+          "col": 12,
+          "value": null,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "M16",
+          "row": 16,
+          "col": 13,
+          "value": null,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "N16",
+          "row": 16,
+          "col": 14,
+          "value": null,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "O16",
+          "row": 16,
+          "col": 15,
+          "value": "Общая протяженность, (м)",
+          "merge_range": "O16:P16",
+          "merge_anchor": true
+        },
+        {
+          "coord": "P16",
+          "row": 16,
+          "col": 16,
+          "value": "Общая протяженность, (м)",
+          "merge_range": "O16:P16",
+          "merge_anchor": false
+        },
+        {
+          "coord": "Q16",
+          "row": 16,
+          "col": 17,
+          "value": 2373,
+          "merge_range": null,
+          "merge_anchor": false
+        }
+      ]
+    },
+    {
+      "row": 17,
+      "cells": [
+        {
+          "coord": "B17",
+          "row": 17,
+          "col": 2,
+          "value": "8",
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "C17",
+          "row": 17,
+          "col": 3,
+          "value": "Фасовка",
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "D17",
+          "row": 17,
+          "col": 4,
+          "value": null,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "E17",
+          "row": 17,
+          "col": 5,
+          "value": null,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "F17",
+          "row": 17,
+          "col": 6,
+          "value": null,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "G17",
+          "row": 17,
+          "col": 7,
+          "value": null,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "H17",
+          "row": 17,
+          "col": 8,
+          "value": null,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "I17",
+          "row": 17,
+          "col": 9,
+          "value": 1680,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "J17",
+          "row": 17,
+          "col": 10,
+          "value": null,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "K17",
+          "row": 17,
+          "col": 11,
+          "value": null,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "L17",
+          "row": 17,
+          "col": 12,
+          "value": null,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "M17",
+          "row": 17,
+          "col": 13,
+          "value": null,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "N17",
+          "row": 17,
+          "col": 14,
+          "value": null,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "O17",
+          "row": 17,
+          "col": 15,
+          "value": null,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "P17",
+          "row": 17,
+          "col": 16,
+          "value": null,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "Q17",
+          "row": 17,
+          "col": 17,
+          "value": null,
+          "merge_range": null,
+          "merge_anchor": false
+        }
+      ]
+    },
+    {
+      "row": 18,
+      "cells": [
+        {
+          "coord": "B18",
+          "row": 18,
+          "col": 2,
+          "value": "8-9",
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "C18",
+          "row": 18,
+          "col": 3,
+          "value": "Перемещение бочки с пюре на поддон",
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "D18",
+          "row": 18,
+          "col": 4,
+          "value": 1,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "E18",
+          "row": 18,
+          "col": 5,
+          "value": 90,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "F18",
+          "row": 18,
+          "col": 6,
+          "value": 6,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "G18",
+          "row": 18,
+          "col": 7,
+          "value": 540,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "H18",
+          "row": 18,
+          "col": 8,
+          "value": 6,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "I18",
+          "row": 18,
+          "col": 9,
+          "value": null,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "J18",
+          "row": 18,
+          "col": 10,
+          "value": 200,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "K18",
+          "row": 18,
+          "col": 11,
+          "value": "ручной",
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "L18",
+          "row": 18,
+          "col": 12,
+          "value": null,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "M18",
+          "row": 18,
+          "col": 13,
+          "value": null,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "N18",
+          "row": 18,
+          "col": 14,
+          "value": null,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "O18",
+          "row": 18,
+          "col": 15,
+          "value": null,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "P18",
+          "row": 18,
+          "col": 16,
+          "value": null,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "Q18",
+          "row": 18,
+          "col": 17,
+          "value": null,
+          "merge_range": null,
+          "merge_anchor": false
+        }
+      ]
+    },
+    {
+      "row": 19,
+      "cells": [
+        {
+          "coord": "B19",
+          "row": 19,
+          "col": 2,
+          "value": "9-10",
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "C19",
+          "row": 19,
+          "col": 3,
+          "value": "Перемещение поддона с 2-мя бочками на склад временного хранения",
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "D19",
+          "row": 19,
+          "col": 4,
+          "value": 35,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "E19",
+          "row": 19,
+          "col": 5,
+          "value": 96,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "F19",
+          "row": 19,
+          "col": 6,
+          "value": 3,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "G19",
+          "row": 19,
+          "col": 7,
+          "value": 288,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "H19",
+          "row": 19,
+          "col": 8,
+          "value": 105,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "I19",
+          "row": 19,
+          "col": 9,
+          "value": null,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "J19",
+          "row": 19,
+          "col": 10,
+          "value": 400,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "K19",
+          "row": 19,
+          "col": 11,
+          "value": "рохля",
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "L19",
+          "row": 19,
+          "col": 12,
+          "value": null,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "M19",
+          "row": 19,
+          "col": 13,
+          "value": null,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "N19",
+          "row": 19,
+          "col": 14,
+          "value": null,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "O19",
+          "row": 19,
+          "col": 15,
+          "value": null,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "P19",
+          "row": 19,
+          "col": 16,
+          "value": null,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "Q19",
+          "row": 19,
+          "col": 17,
+          "value": null,
+          "merge_range": null,
+          "merge_anchor": false
+        }
+      ]
+    },
+    {
+      "row": 20,
+      "cells": [
+        {
+          "coord": "B20",
+          "row": 20,
+          "col": 2,
+          "value": "10",
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "C20",
+          "row": 20,
+          "col": 3,
+          "value": "Упаковка",
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "D20",
+          "row": 20,
+          "col": 4,
+          "value": null,
+          "merge_range": "D20:H20",
+          "merge_anchor": true
+        },
+        {
+          "coord": "E20",
+          "row": 20,
+          "col": 5,
+          "value": null,
+          "merge_range": "D20:H20",
+          "merge_anchor": false
+        },
+        {
+          "coord": "F20",
+          "row": 20,
+          "col": 6,
+          "value": null,
+          "merge_range": "D20:H20",
+          "merge_anchor": false
+        },
+        {
+          "coord": "G20",
+          "row": 20,
+          "col": 7,
+          "value": null,
+          "merge_range": "D20:H20",
+          "merge_anchor": false
+        },
+        {
+          "coord": "H20",
+          "row": 20,
+          "col": 8,
+          "value": null,
+          "merge_range": "D20:H20",
+          "merge_anchor": false
+        },
+        {
+          "coord": "I20",
+          "row": 20,
+          "col": 9,
+          "value": 3987,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "J20",
+          "row": 20,
+          "col": 10,
+          "value": null,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "K20",
+          "row": 20,
+          "col": 11,
+          "value": null,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "L20",
+          "row": 20,
+          "col": 12,
+          "value": null,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "M20",
+          "row": 20,
+          "col": 13,
+          "value": null,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "N20",
+          "row": 20,
+          "col": 14,
+          "value": null,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "O20",
+          "row": 20,
+          "col": 15,
+          "value": null,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "P20",
+          "row": 20,
+          "col": 16,
+          "value": null,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "Q20",
+          "row": 20,
+          "col": 17,
+          "value": null,
+          "merge_range": null,
+          "merge_anchor": false
+        }
+      ]
+    },
+    {
+      "row": 21,
+      "cells": [
+        {
+          "coord": "B21",
+          "row": 21,
+          "col": 2,
+          "value": "10-11",
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "C21",
+          "row": 21,
+          "col": 3,
+          "value": "Перемещение поддона с 4-мя бочками на склад готовой продукции",
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "D21",
+          "row": 21,
+          "col": 4,
+          "value": 64,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "E21",
+          "row": 21,
+          "col": 5,
+          "value": 80,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "F21",
+          "row": 21,
+          "col": 6,
+          "value": 2,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "G21",
+          "row": 21,
+          "col": 7,
+          "value": 160,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "H21",
+          "row": 21,
+          "col": 8,
+          "value": 128,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "I21",
+          "row": 21,
+          "col": 9,
+          "value": null,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "J21",
+          "row": 21,
+          "col": 10,
+          "value": 800,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "K21",
+          "row": 21,
+          "col": 11,
+          "value": "кара погрузчик",
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "L21",
+          "row": 21,
+          "col": 12,
+          "value": null,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "M21",
+          "row": 21,
+          "col": 13,
+          "value": null,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "N21",
+          "row": 21,
+          "col": 14,
+          "value": null,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "O21",
+          "row": 21,
+          "col": 15,
+          "value": null,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "P21",
+          "row": 21,
+          "col": 16,
+          "value": null,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "Q21",
+          "row": 21,
+          "col": 17,
+          "value": null,
+          "merge_range": null,
+          "merge_anchor": false
+        }
+      ]
+    },
+    {
+      "row": 22,
+      "cells": [
+        {
+          "coord": "B22",
+          "row": 22,
+          "col": 2,
+          "value": "Итого",
+          "merge_range": "B22:C22",
+          "merge_anchor": true
+        },
+        {
+          "coord": "C22",
+          "row": 22,
+          "col": 3,
+          "value": "Итого",
+          "merge_range": "B22:C22",
+          "merge_anchor": false
+        },
+        {
+          "coord": "D22",
+          "row": 22,
+          "col": 4,
+          "value": null,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "E22",
+          "row": 22,
+          "col": 5,
+          "value": null,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "F22",
+          "row": 22,
+          "col": 6,
+          "value": null,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "G22",
+          "row": 22,
+          "col": 7,
+          "value": 3314.98,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "H22",
+          "row": 22,
+          "col": 8,
+          "value": 2373,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "I22",
+          "row": 22,
+          "col": 9,
+          "value": null,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "J22",
+          "row": 22,
+          "col": 10,
+          "value": null,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "K22",
+          "row": 22,
+          "col": 11,
+          "value": null,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "L22",
+          "row": 22,
+          "col": 12,
+          "value": null,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "M22",
+          "row": 22,
+          "col": 13,
+          "value": null,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "N22",
+          "row": 22,
+          "col": 14,
+          "value": null,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "O22",
+          "row": 22,
+          "col": 15,
+          "value": null,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "P22",
+          "row": 22,
+          "col": 16,
+          "value": null,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "Q22",
+          "row": 22,
+          "col": 17,
+          "value": null,
+          "merge_range": null,
+          "merge_anchor": false
+        }
+      ]
+    },
+    {
+      "row": 23,
+      "cells": [
+        {
+          "coord": "B23",
+          "row": 23,
+          "col": 2,
+          "value": null,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "C23",
+          "row": 23,
+          "col": 3,
+          "value": null,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "D23",
+          "row": 23,
+          "col": 4,
+          "value": null,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "E23",
+          "row": 23,
+          "col": 5,
+          "value": null,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "F23",
+          "row": 23,
+          "col": 6,
+          "value": null,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "G23",
+          "row": 23,
+          "col": 7,
+          "value": "Общее время перемещения, сек",
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "H23",
+          "row": 23,
+          "col": 8,
+          "value": "Общая протяженность, (м)",
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "I23",
+          "row": 23,
+          "col": 9,
+          "value": null,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "J23",
+          "row": 23,
+          "col": 10,
+          "value": null,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "K23",
+          "row": 23,
+          "col": 11,
+          "value": null,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "L23",
+          "row": 23,
+          "col": 12,
+          "value": null,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "M23",
+          "row": 23,
+          "col": 13,
+          "value": null,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "N23",
+          "row": 23,
+          "col": 14,
+          "value": null,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "O23",
+          "row": 23,
+          "col": 15,
+          "value": null,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "P23",
+          "row": 23,
+          "col": 16,
+          "value": null,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "Q23",
+          "row": 23,
+          "col": 17,
+          "value": null,
+          "merge_range": null,
+          "merge_anchor": false
+        }
+      ]
+    }
+  ]
+}

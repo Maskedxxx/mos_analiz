@@ -1,0 +1,7 @@
+{
+  "rule_index": "6.1",
+  "rule_title": "Наличие строки \"Перемещения\" в блоке \"Расчет ВПП\"",
+  "target_document": "КПСЦ и Спагетти ТС_Предприятие.xlsx",
+  "status": "PASS",
+  "discrepancy": ""
+}

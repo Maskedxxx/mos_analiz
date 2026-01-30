@@ -1,0 +1,2482 @@
+ВАЛИДАТОР 4.1: Все ячейки строки ВПП заполнены
+Запуск: 2025-12-09 08:51:21
+Целевой документ: КПСЦ и Спагетти ТС_Предприятие.xlsx
+
+================================================================================
+[STEP 1/6] Загрузка правила проверки
+Timestamp: 2025-12-09 08:51:21
+================================================================================
+Rule loaded:
+{
+  "rule_index": "4.1",
+  "rule_title": "Все ячейки строки ВПП заполнены",
+  "section": "РАЗДЕЛ 4: ПРОВЕРКА ЗАПОЛНЕНИЯ И РАСЧЕТОВ ВПП",
+  "requirement_expert": "Все ячейки строки ВПП - заполнены, если нет, выведи список пустых ячеек. Форма вывода: Указать в каком именно показателе из блока \"Наименование показателя\" отсутствует значение в строке ВПП + номер ячейки. Пример: Упаковка 2-х бочек с пюре на упаковочный поддон X23 ВПП отсутствует.",
+  "technical_description": "Найти строку с меткой \"ВПП\" в первой колонке (обычно колонка B или C). Для каждой ячейки в этой строке (начиная с операций, колонка E и далее) проверить, что значение не null и не пустое. Для пустых ячеек - найти соответствующее название показателя из заголовка столбца.",
+  "source_files": [
+    "kpsc_table1_v2.json"
+  ],
+  "source_path": "rows",
+  "validation_criteria": {
+    "what_to_check": "1. Найти строку с меткой \"ВПП\" в первой колонке\n2. Для каждой ячейки в этой строке (начиная с колонки E) проверить, что значение не null и не пустое\n3. Для пустых ячеек - найти соответствующее название показателя",
+    "success_condition": "Все ячейки в строке ВПП заполнены числовыми значениями",
+    "error_condition": "Есть пустые ячейки"
+  }
+}
+
+================================================================================
+[STEP 2/6] Загрузка данных
+Timestamp: 2025-12-09 08:51:21
+================================================================================
+Source files loaded
+Data: {
+  "file_exists": true,
+  "data": {
+    "meta": {
+      "workbook": "КПСЦ и Спагетти ТС_Предприятие.xlsx",
+      "sheet": "КПСЦ",
+      "section_title_cell": "B14"
+    },
+    "bounds": {
+      "top_row": 15,
+      "bottom_row": 25,
+      "left_col": 2,
+      "right_col": 27,
+      "left_letter": "B",
+      "right_letter": "AA",
+      "height": 11,
+      "width": 26
+    },
+    "rows": [
+      {
+        "row": 15,
+        "cells": [
+          {
+            "coord": "B15",
+            "col": 2,
+            "row": 15,
+            "value": "Показатель",
+            "merge_range": "B15:C15",
+            "merge_anchor": true
+          },
+          {
+            "coord": "C15",
+            "col": 3,
+            "row": 15,
+            "value": "Показатель",
+            "merge_range": "B15:C15",
+            "merge_anchor": false
+          },
+          {
+            "coord": "D15",
+            "col": 4,
+            "row": 15,
+            "value": "Ед. измерения",
+            "merge_range": null,
+            "merge_anchor": false
+          },
+          {
+            "coord": "E15",
+            "col": 5,
+            "row": 15,
+            "value": "Перемещение на каре",
+            "merge_range": null,
+            "merge_anchor": false
+          },
+          {
+            "coord": "F15",
+            "col": 6,
+            "row": 15,
+            "value": "Ожидание ягоды в коробе",
+            "merge_range": null,
+            "merge_anchor": false
+          },
+          {
+            "coord": "G15",
+            "col": 7,
+            "row": 15,
+            "value": "Перемещение сырья в ведре",
+            "merge_range": null,
+            "merge_anchor": false
+          },
+          {
+            "coord": "H15",
+            "col": 8,
+            "row": 15,
+            "value": "Измельчитель ягоды",
+            "merge_range": null,
+            "merge_anchor": false
+          },
+          {
+            "coord": "I15",
+            "col": 9,
+            "row": 15,
+            "value": "Ожидание ягоды в ручной тележке ",
+            "merge_range": null,
+            "merge_anchor": false
+          },
+          {
+            "coord": "J15",
+            "col": 10,
+            "row": 15,
+            "value": "Перемещение ягоды в ручной тележке ",
+            "merge_range": null,
+            "merge_anchor": false
+          },
+          {
+            "coord": "K15",
+            "col": 11,
+            "row": 15,
+            "value": "Ожидание ягоды в ручной тележке ",
+            "merge_range": null,
+            "merge_anchor": false
+          },
+          {
+            "coord": "L15",
+            "col": 12,
+            "row": 15,
+            "value": "Загрузка подготовителя-размораживателя",
+            "merge_range": null,
+            "merge_anchor": false
+          },
+          {
+            "coord": "M15",
+            "col": 13,
+            "row": 15,
+            "value": "Подготовитель-размораживатель",
+            "merge_range": null,
+            "merge_anchor": false
+          },
+          {
+            "coord": "N15",
+            "col": 14,
+            "row": 15,
+            "value": "Протирочная машина",
+            "merge_range": null,
+            "merge_anchor": false
+          },
+          {
+            "coord": "O15",
+            "col": 15,
+            "row": 15,
+            "value": "Вакуумно-варочный котел",
+            "merge_range": null,
+            "merge_anchor": false
+          },
+          {
+            "coord": "P15",
+            "col": 16,
+            "row": 15,
+            "value": "Буферная ёмкость",
+            "merge_range": null,
+            "merge_anchor": false
+          },
+          {
+            "coord": "Q15",
+            "col": 17,
+            "row": 15,
+            "value": "Фасовка",
+            "merge_range": null,
+            "merge_anchor": false
+          },
+          {
+            "coord": "R15",
+            "col": 18,
+            "row": 15,
+            "value": "Перемещение бочки с пюре на пластиковый поддон ",
+            "merge_range": null,
+            "merge_anchor": false
+          },
+          {
+            "coord": "S15",
+            "col": 19,
+            "row": 15,
+            "value": "Ожидание 2-й бочки с пюре на поддоне ",
+            "merge_range": null,
+            "merge_anchor": false
+          },
+          {
+            "coord": "T15",
+            "col": 20,
+            "row": 15,
+            "value": "Перемещение 2-х бочек с пюре на поддон на склад ВХ",
+            "merge_range": null,
+            "merge_anchor": false
+          },
+          {
+            "coord": "U15",
+            "col": 21,
+            "row": 15,
+            "value": "Упаковка 2-х бочек с пюре на упаковочный поддон ",
+            "merge_range": null,
+            "merge_anchor": false
+          },
+          {
+            "coord": "V15",
+            "col": 22,
+            "row": 15,
+            "value": "Ожидание 2-х бочек с пюре на поддоне на складе ВХ",
+            "merge_range": null,
+            "merge_anchor": false
+          },
+          {
+            "coord": "W15",
+            "col": 23,
+            "row": 15,
+            "value": "Упаковка 4-х бочек",
+            "merge_range": null,
+            "merge_anchor": false
+          },
+          {
+            "coord": "X15",
+            "col": 24,
+            "row": 15,
+            "value": "Ожидание 4-х бочек с пюре на поддоне на складе ВХ",
+            "merge_range": null,
+            "merge_anchor": false
+          },
+          {
+            "coord": "Y15",
+            "col": 25,
+            "row": 15,
+            "value": "Перемещение на каре 4-х бочек с пюре на поддоне на склад ГП",
+            "merge_range": null,
+            "merge_anchor": false
+          },
+          {
+            "coord": "Z15",
+            "col": 26,
+            "row": 15,
+            "value": "ИТОГО",
+            "merge_range": null,
+            "merge_anchor": false
+          },
+          {
+            "coord": "AA15",
+            "col": 27,
+            "row": 15,
+            "value": "Ед. измерения",
+            "merge_range": null,
+            "merge_anchor": false
+          }
+        ]
+      },
+      {
+        "row": 16,
+        "cells": [
+          {
+            "coord": "B16",
+            "col": 2,
+            "row": 16,
+            "value": "Запасы в потоке",
+            "merge_range": "B16:C16",
+            "merge_anchor": true
+          },
+          {
+            "coord": "C16",
+            "col": 3,
+            "row": 16,
+            "value": "Запасы в потоке",
+            "merge_range": "B16:C16",
+            "merge_anchor": false
+          },
+          {
+            "coord": "D16",
+            "col": 4,
+            "row": 16,
+            "value": "кг",
+            "merge_range": null,
+            "merge_anchor": false
+          },
+          {
+            "coord": "E16",
+            "col": 5,
+            "row": 16,
+            "value": null,
+            "merge_range": null,
+            "merge_anchor": false
+          },
+          {
+            "coord": "F16",
+            "col": 6,
+            "row": 16,
+            "value": 1446,
+            "merge_range": null,
+            "merge_anchor": false
+          },
+          {
+            "coord": "G16",
+            "col": 7,
+            "row": 16,
+            "value": null,
+            "merge_range": null,
+            "merge_anchor": false
+          },
+          {
+            "coord": "H16",
+            "col": 8,
+            "row": 16,
+            "value": null,
+            "merge_range": null,
+            "merge_anchor": false
+          },
+          {
+            "coord": "I16",
+            "col": 9,
+            "row": 16,
+            "value": null,
+            "merge_range": null,
+            "merge_anchor": false
+          },
+          {
+            "coord": "J16",
+            "col": 10,
+            "row": 16,
+            "value": null,
+            "merge_range": null,
+            "merge_anchor": false
+          },
+          {
+            "coord": "K16",
+            "col": 11,
+            "row": 16,
+            "value": null,
+            "merge_range": null,
+            "merge_anchor": false
+          },
+          {
+            "coord": "L16",
+            "col": 12,
+            "row": 16,
+            "value": null,
+            "merge_range": null,
+            "merge_anchor": false
+          },
+          {
+            "coord": "M16",
+            "col": 13,
+            "row": 16,
+            "value": null,
+            "merge_range": null,
+            "merge_anchor": false
+          },
+          {
+            "coord": "N16",
+            "col": 14,
+            "row": 16,
+            "value": null,
+            "merge_range": null,
+            "merge_anchor": false
+          },
+          {
+            "coord": "O16",
+            "col": 15,
+            "row": 16,
+            "value": null,
+            "merge_range": null,
+            "merge_anchor": false
+          },
+          {
+            "coord": "P16",
+            "col": 16,
+            "row": 16,
+            "value": null,
+            "merge_range": null,
+            "merge_anchor": false
+          },
+          {
+            "coord": "Q16",
+            "col": 17,
+            "row": 16,
+            "value": null,
+            "merge_range": null,
+            "merge_anchor": false
+          },
+          {
+            "coord": "R16",
+            "col": 18,
+            "row": 16,
+            "value": null,
+            "merge_range": null,
+            "merge_anchor": false
+          },
+          {
+            "coord": "S16",
+            "col": 19,
+            "row": 16,
+            "value": null,
+            "merge_range": null,
+            "merge_anchor": false
+          },
+          {
+            "coord": "T16",
+            "col": 20,
+            "row": 16,
+            "value": null,
+            "merge_range": null,
+            "merge_anchor": false
+          },
+          {
+            "coord": "U16",
+            "col": 21,
+            "row": 16,
+            "value": null,
+            "merge_range": null,
+            "merge_anchor": false
+          },
+          {
+            "coord": "V16",
+            "col": 22,
+            "row": 16,
+            "value": null,
+            "merge_range": null,
+            "merge_anchor": false
+          },
+          {
+            "coord": "W16",
+            "col": 23,
+            "row": 16,
+            "value": null,
+            "merge_range": null,
+            "merge_anchor": false
+          },
+          {
+            "coord": "X16",
+            "col": 24,
+            "row": 16,
+            "value": null,
+            "merge_range": null,
+            "merge_anchor": false
+          },
+          {
+            "coord": "Y16",
+            "col": 25,
+            "row": 16,
+            "value": null,
+            "merge_range": null,
+            "merge_anchor": false
+          },
+          {
+            "coord": "Z16",
+            "col": 26,
+            "row": 16,
+            "value": 1446,
+            "merge_range": null,
+            "merge_anchor": false
+          },
+          {
+            "coord": "AA16",
+            "col": 27,
+            "row": 16,
+            "value": "кг",
+            "merge_range": null,
+            "merge_anchor": false
+          }
+        ]
+      },
+      {
+        "row": 17,
+        "cells": [
+          {
+            "coord": "B17",
+            "col": 2,
+            "row": 17,
+            "value": "Выпуск продукции в смену",
+            "merge_range": "B17:C17",
+            "merge_anchor": true
+          },
+          {
+            "coord": "C17",
+            "col": 3,
+            "row": 17,
+            "value": "Выпуск продукции в смену",
+            "merge_range": "B17:C17",
+            "merge_anchor": false
+          },
+          {
+            "coord": "D17",
+            "col": 4,
+            "row": 17,
+            "value": "кг",
+            "merge_range": null,
+            "merge_anchor": false
+          },
+          {
+            "coord": "E17",
+            "col": 5,
+            "row": 17,
+            "value": null,
+            "merge_range": null,
+            "merge_anchor": false
+          },
+          {
+            "coord": "F17",
+            "col": 6,
+            "row": 17,
+            "value": null,
+            "merge_range": null,
+            "merge_anchor": false
+          },
+          {
+            "coord": "G17",
+            "col": 7,
+            "row": 17,
+            "value": null,
+            "merge_range": null,
+            "merge_anchor": false
+          },
+          {
+            "coord": "H17",
+            "col": 8,
+            "row": 17,
+            "value": null,
+            "merge_range": null,
+            "merge_anchor": false
+          },
+          {
+            "coord": "I17",
+            "col": 9,
+            "row": 17,
+            "value": null,
+            "merge_range": null,
+            "merge_anchor": false
+          },
+          {
+            "coord": "J17",
+            "col": 10,
+            "row": 17,
+            "value": null,
+            "merge_range": null,
+            "merge_anchor": false
+          },
+          {
+            "coord": "K17",
+            "col": 11,
+            "row": 17,
+            "value": null,
+            "merge_range": null,
+            "merge_anchor": false
+          },
+          {
+            "coord": "L17",
+            "col": 12,
+            "row": 17,
+            "value": null,
+            "merge_range": null,
+            "merge_anchor": false
+          },
+          {
+            "coord": "M17",
+            "col": 13,
+            "row": 17,
+            "value": null,
+            "merge_range": null,
+            "merge_anchor": false
+          },
+          {
+            "coord": "N17",
+            "col": 14,
+            "row": 17,
+            "value": null,
+            "merge_range": null,
+            "merge_anchor": false
+          },
+          {
+            "coord": "O17",
+            "col": 15,
+            "row": 17,
+            "value": null,
+            "merge_range": null,
+            "merge_anchor": false
+          },
+          {
+            "coord": "P17",
+            "col": 16,
+            "row": 17,
+            "value": null,
+            "merge_range": null,
+            "merge_anchor": false
+          },
+          {
+            "coord": "Q17",
+            "col": 17,
+            "row": 17,
+            "value": null,
+            "merge_range": null,
+            "merge_anchor": false
+          },
+          {
+            "coord": "R17",
+            "col": 18,
+            "row": 17,
+            "value": null,
+            "merge_range": null,
+            "merge_anchor": false
+          },
+          {
+            "coord": "S17",
+            "col": 19,
+            "row": 17,
+            "value": null,
+            "merge_range": null,
+            "merge_anchor": false
+          },
+          {
+            "coord": "T17",
+            "col": 20,
+            "row": 17,
+            "value": null,
+            "merge_range": null,
+            "merge_anchor": false
+          },
+          {
+            "coord": "U17",
+            "col": 21,
+            "row": 17,
+            "value": null,
+            "merge_range": null,
+            "merge_anchor": false
+          },
+          {
+            "coord": "V17",
+            "col": 22,
+            "row": 17,
+            "value": null,
+            "merge_range": null,
+            "merge_anchor": false
+          },
+          {
+            "coord": "W17",
+            "col": 23,
+            "row": 17,
+            "value": null,
+            "merge_range": null,
+            "merge_anchor": false
+          },
+          {
+            "coord": "X17",
+            "col": 24,
+            "row": 17,
+            "value": null,
+            "merge_range": null,
+            "merge_anchor": false
+          },
+          {
+            "coord": "Y17",
+            "col": 25,
+            "row": 17,
+            "value": null,
+            "merge_range": null,
+            "merge_anchor": false
+          },
+          {
+            "coord": "Z17",
+            "col": 26,
+            "row": 17,
+            "value": 1400,
+            "merge_range": null,
+            "merge_anchor": false
+          },
+          {
+            "coord": "AA17",
+            "col": 27,
+            "row": 17,
+            "value": "кг",
+            "merge_range": null,
+            "merge_anchor": false
+          }
+        ]
+      },
+      {
+        "row": 18,
+        "cells": [
+          {
+            "coord": "B18",
+            "col": 2,
+            "row": 18,
+            "value": "ВПП",
+            "merge_range": "B18:C18",
+            "merge_anchor": true
+          },
+          {
+            "coord": "C18",
+            "col": 3,
+            "row": 18,
+            "value": "ВПП",
+            "merge_range": "B18:C18",
+            "merge_anchor": false
+          },
+          {
+            "coord": "D18",
+            "col": 4,
+            "row": 18,
+            "value": "секунды",
+            "merge_range": null,
+            "merge_anchor": false
+          },
+          {
+            "coord": "E18",
+            "col": 5,
+            "row": 18,
+            "value": null,
+            "merge_range": null,
+            "merge_anchor": false
+          },
+          {
+            "coord": "F18",
+            "col": 6,
+            "row": 18,
+            "value": 20938,
+            "merge_range": "F18:M18",
+            "merge_anchor": true
+          },
+          {
+            "coord": "G18",
+            "col": 7,
+            "row": 18,
+            "value": 20938,
+            "merge_range": "F18:M18",
+            "merge_anchor": false
+          },
+          {
+            "coord": "H18",
+            "col": 8,
+            "row": 18,
+            "value": 20938,
+            "merge_range": "F18:M18",
+            "merge_anchor": false
+          },
+          {
+            "coord": "I18",
+            "col": 9,
+            "row": 18,
+            "value": 20938,
+            "merge_range": "F18:M18",
+            "merge_anchor": false
+          },
+          {
+            "coord": "J18",
+            "col": 10,
+            "row": 18,
+            "value": 20938,
+            "merge_range": "F18:M18",
+            "merge_anchor": false
+          },
+          {
+            "coord": "K18",
+            "col": 11,
+            "row": 18,
+            "value": 20938,
+            "merge_range": "F18:M18",
+            "merge_anchor": false
+          },
+          {
+            "coord": "L18",
+            "col": 12,
+            "row": 18,
+            "value": 20938,
+            "merge_range": "F18:M18",
+            "merge_anchor": false
+          },
+          {
+            "coord": "M18",
+            "col": 13,
+            "row": 18,
+            "value": 20938,
+            "merge_range": "F18:M18",
+            "merge_anchor": false
+          },
+          {
+            "coord": "N18",
+            "col": 14,
+            "row": 18,
+            "value": 3180,
+            "merge_range": null,
+            "merge_anchor": false
+          },
+          {
+            "coord": "O18",
+            "col": 15,
+            "row": 18,
+            "value": 840,
+            "merge_range": null,
+            "merge_anchor": false
+          },
+          {
+            "coord": "P18",
+            "col": 16,
+            "row": 18,
+            "value": 2220,
+            "merge_range": null,
+            "merge_anchor": false
+          },
+          {
+            "coord": "Q18",
+            "col": 17,
+            "row": 18,
+            "value": 10080,
+            "merge_range": "Q18:W18",
+            "merge_anchor": true
+          },
+          {
+            "coord": "R18",
+            "col": 18,
+            "row": 18,
+            "value": 10080,
+            "merge_range": "Q18:W18",
+            "merge_anchor": false
+          },
+          {
+            "coord": "S18",
+            "col": 19,
+            "row": 18,
+            "value": 10080,
+            "merge_range": "Q18:W18",
+            "merge_anchor": false
+          },
+          {
+            "coord": "T18",
+            "col": 20,
+            "row": 18,
+            "value": 10080,
+            "merge_range": "Q18:W18",
+            "merge_anchor": false
+          },
+          {
+            "coord": "U18",
+            "col": 21,
+            "row": 18,
+            "value": 10080,
+            "merge_range": "Q18:W18",
+            "merge_anchor": false
+          },
+          {
+            "coord": "V18",
+            "col": 22,
+            "row": 18,
+            "value": 10080,
+            "merge_range": "Q18:W18",
+            "merge_anchor": false
+          },
+          {
+            "coord": "W18",
+            "col": 23,
+            "row": 18,
+            "value": 10080,
+            "merge_range": "Q18:W18",
+            "merge_anchor": false
+          },
+          {
+            "coord": "X18",
+            "col": 24,
+            "row": 18,
+            "value": 502,
+            "merge_range": null,
+            "merge_anchor": false
+          },
+          {
+            "coord": "Y18",
+            "col": 25,
+            "row": 18,
+            "value": 160,
+            "merge_range": null,
+            "merge_anchor": false
+          },
+          {
+            "coord": "Z18",
+            "col": 26,
+            "row": 18,
+            "value": 37920,
+            "merge_range": null,
+            "merge_anchor": false
+          },
+          {
+            "coord": "AA18",
+            "col": 27,
+            "row": 18,
+            "value": "секунды",
+            "merge_range": null,
+            "merge_anchor": false
+          }
+        ]
+      },
+      {
+        "row": 19,
+        "cells": [
+          {
+            "coord": "B19",
+            "col": 2,
+            "row": 19,
+            "value": "Время добавляющее ценность",
+            "merge_range": "B19:C19",
+            "merge_anchor": true
+          },
+          {
+            "coord": "C19",
+            "col": 3,
+            "row": 19,
+            "value": "Время добавляющее ценность",
+            "merge_range": "B19:C19",
+            "merge_anchor": false
+          },
+          {
+            "coord": "D19",
+            "col": 4,
+            "row": 19,
+            "value": "секунды",
+            "merge_range": null,
+            "merge_anchor": false
+          },
+          {
+            "coord": "E19",
+            "col": 5,
+            "row": 19,
+            "value": null,
+            "merge_range": null,
+            "merge_anchor": false
+          },
+          {
+            "coord": "F19",
+            "col": 6,
+            "row": 19,
+            "value": null,
+            "merge_range": null,
+            "merge_anchor": false
+          },
+          {
+            "coord": "G19",
+            "col": 7,
+            "row": 19,
+            "value": null,
+            "merge_range": null,
+            "merge_anchor": false
+          },
+          {
+            "coord": "H19",
+            "col": 8,
+            "row": 19,
+            "value": 390,
+            "merge_range": null,
+            "merge_anchor": false
+          },
+          {
+            "coord": "I19",
+            "col": 9,
+            "row": 19,
+            "value": null,
+            "merge_range": null,
+            "merge_anchor": false
+          },
+          {
+            "coord": "J19",
+            "col": 10,
+            "row": 19,
+            "value": null,
+            "merge_range": null,
+            "merge_anchor": false
+          },
+          {
+            "coord": "K19",
+            "col": 11,
+            "row": 19,
+            "value": null,
+            "merge_range": null,
+            "merge_anchor": false
+          },
+          {
+            "coord": "L19",
+            "col": 12,
+            "row": 19,
+            "value": 1558,
+            "merge_range": null,
+            "merge_anchor": false
+          },
+          {
+            "coord": "M19",
+            "col": 13,
+            "row": 19,
+            "value": 20938,
+            "merge_range": null,
+            "merge_anchor": false
+          },
+          {
+            "coord": "N19",
+            "col": 14,
+            "row": 19,
+            "value": 3180,
+            "merge_range": null,
+            "merge_anchor": false
+          },
+          {
+            "coord": "O19",
+            "col": 15,
+            "row": 19,
+            "value": 840,
+            "merge_range": null,
+            "merge_anchor": false
+          },
+          {
+            "coord": "P19",
+            "col": 16,
+            "row": 19,
+            "value": 2220,
+            "merge_range": null,
+            "merge_anchor": false
+          },
+          {
+            "coord": "Q19",
+            "col": 17,
+            "row": 19,
+            "value": 10080,
+            "merge_range": null,
+            "merge_anchor": false
+          },
+          {
+            "coord": "R19",
+            "col": 18,
+            "row": 19,
+            "value": null,
+            "merge_range": null,
+            "merge_anchor": false
+          },
+          {
+            "coord": "S19",
+            "col": 19,
+            "row": 19,
+            "value": null,
+            "merge_range": null,
+            "merge_anchor": false
+          },
+          {
+            "coord": "T19",
+            "col": 20,
+            "row": 19,
+            "value": null,
+            "merge_range": null,
+            "merge_anchor": false
+          },
+          {
+            "coord": "U19",
+            "col": 21,
+            "row": 19,
+            "value": 297,
+            "merge_range": null,
+            "merge_anchor": false
+          },
+          {
+            "coord": "V19",
+            "col": 22,
+            "row": 19,
+            "value": null,
+            "merge_range": null,
+            "merge_anchor": false
+          },
+          {
+            "coord": "W19",
+            "col": 23,
+            "row": 19,
+            "value": 120,
+            "merge_range": null,
+            "merge_anchor": false
+          },
+          {
+            "coord": "X19",
+            "col": 24,
+            "row": 19,
+            "value": null,
+            "merge_range": null,
+            "merge_anchor": false
+          },
+          {
+            "coord": "Y19",
+            "col": 25,
+            "row": 19,
+            "value": null,
+            "merge_range": null,
+            "merge_anchor": false
+          },
+          {
+            "coord": "Z19",
+            "col": 26,
+            "row": 19,
+            "value": 39623,
+            "merge_range": null,
+            "merge_anchor": false
+          },
+          {
+            "coord": "AA19",
+            "col": 27,
+            "row": 19,
+            "value": "секунды",
+            "merge_range": null,
+            "merge_anchor": false
+          }
+        ]
+      },
+      {
+        "row": 20,
+        "cells": [
+          {
+            "coord": "B20",
+            "col": 2,
+            "row": 20,
+            "value": "Время не добавляющее ценность",
+            "merge_range": "B20:C20",
+            "merge_anchor": true
+          },
+          {
+            "coord": "C20",
+            "col": 3,
+            "row": 20,
+            "value": "Время не добавляющее ценность",
+            "merge_range": "B20:C20",
+            "merge_anchor": false
+          },
+          {
+            "coord": "D20",
+            "col": 4,
+            "row": 20,
+            "value": "секунды",
+            "merge_range": null,
+            "merge_anchor": false
+          },
+          {
+            "coord": "E20",
+            "col": 5,
+            "row": 20,
+            "value": 306,
+            "merge_range": null,
+            "merge_anchor": false
+          },
+          {
+            "coord": "F20",
+            "col": 6,
+            "row": 20,
+            "value": null,
+            "merge_range": null,
+            "merge_anchor": false
+          },
+          {
+            "coord": "G20",
+            "col": 7,
+            "row": 20,
+            "value": 1397,
+            "merge_range": null,
+            "merge_anchor": false
+          },
+          {
+            "coord": "H20",
+            "col": 8,
+            "row": 20,
+            "value": null,
+            "merge_range": null,
+            "merge_anchor": false
+          },
+          {
+            "coord": "I20",
+            "col": 9,
+            "row": 20,
+            "value": null,
+            "merge_range": null,
+            "merge_anchor": false
+          },
+          {
+            "coord": "J20",
+            "col": 10,
+            "row": 20,
+            "value": 624,
+            "merge_range": null,
+            "merge_anchor": false
+          },
+          {
+            "coord": "K20",
+            "col": 11,
+            "row": 20,
+            "value": null,
+            "merge_range": null,
+            "merge_anchor": false
+          },
+          {
+            "coord": "L20",
+            "col": 12,
+            "row": 20,
+            "value": null,
+            "merge_range": null,
+            "merge_anchor": false
+          },
+          {
+            "coord": "M20",
+            "col": 13,
+            "row": 20,
+            "value": null,
+            "merge_range": null,
+            "merge_anchor": false
+          },
+          {
+            "coord": "N20",
+            "col": 14,
+            "row": 20,
+            "value": null,
+            "merge_range": null,
+            "merge_anchor": false
+          },
+          {
+            "coord": "O20",
+            "col": 15,
+            "row": 20,
+            "value": null,
+            "merge_range": null,
+            "merge_anchor": false
+          },
+          {
+            "coord": "P20",
+            "col": 16,
+            "row": 20,
+            "value": null,
+            "merge_range": null,
+            "merge_anchor": false
+          },
+          {
+            "coord": "Q20",
+            "col": 17,
+            "row": 20,
+            "value": null,
+            "merge_range": null,
+            "merge_anchor": false
+          },
+          {
+            "coord": "R20",
+            "col": 18,
+            "row": 20,
+            "value": 540,
+            "merge_range": null,
+            "merge_anchor": false
+          },
+          {
+            "coord": "S20",
+            "col": 19,
+            "row": 20,
+            "value": null,
+            "merge_range": null,
+            "merge_anchor": false
+          },
+          {
+            "coord": "T20",
+            "col": 20,
+            "row": 20,
+            "value": 288,
+            "merge_range": null,
+            "merge_anchor": false
+          },
+          {
+            "coord": "U20",
+            "col": 21,
+            "row": 20,
+            "value": null,
+            "merge_range": null,
+            "merge_anchor": false
+          },
+          {
+            "coord": "V20",
+            "col": 22,
+            "row": 20,
+            "value": null,
+            "merge_range": null,
+            "merge_anchor": false
+          },
+          {
+            "coord": "W20",
+            "col": 23,
+            "row": 20,
+            "value": null,
+            "merge_range": null,
+            "merge_anchor": false
+          },
+          {
+            "coord": "X20",
+            "col": 24,
+            "row": 20,
+            "value": null,
+            "merge_range": null,
+            "merge_anchor": false
+          },
+          {
+            "coord": "Y20",
+            "col": 25,
+            "row": 20,
+            "value": 160,
+            "merge_range": null,
+            "merge_anchor": false
+          },
+          {
+            "coord": "Z20",
+            "col": 26,
+            "row": 20,
+            "value": 3315,
+            "merge_range": null,
+            "merge_anchor": false
+          },
+          {
+            "coord": "AA20",
+            "col": 27,
+            "row": 20,
+            "value": "секунды",
+            "merge_range": null,
+            "merge_anchor": false
+          }
+        ]
+      },
+      {
+        "row": 21,
+        "cells": [
+          {
+            "coord": "B21",
+            "col": 2,
+            "row": 21,
+            "value": "Потери",
+            "merge_range": "B21:C21",
+            "merge_anchor": true
+          },
+          {
+            "coord": "C21",
+            "col": 3,
+            "row": 21,
+            "value": "Потери",
+            "merge_range": "B21:C21",
+            "merge_anchor": false
+          },
+          {
+            "coord": "D21",
+            "col": 4,
+            "row": 21,
+            "value": "секунды",
+            "merge_range": null,
+            "merge_anchor": false
+          },
+          {
+            "coord": "E21",
+            "col": 5,
+            "row": 21,
+            "value": null,
+            "merge_range": null,
+            "merge_anchor": false
+          },
+          {
+            "coord": "F21",
+            "col": 6,
+            "row": 21,
+            "value": 8334,
+            "merge_range": null,
+            "merge_anchor": false
+          },
+          {
+            "coord": "G21",
+            "col": 7,
+            "row": 21,
+            "value": null,
+            "merge_range": null,
+            "merge_anchor": false
+          },
+          {
+            "coord": "H21",
+            "col": 8,
+            "row": 21,
+            "value": null,
+            "merge_range": null,
+            "merge_anchor": false
+          },
+          {
+            "coord": "I21",
+            "col": 9,
+            "row": 21,
+            "value": 3555,
+            "merge_range": null,
+            "merge_anchor": false
+          },
+          {
+            "coord": "J21",
+            "col": 10,
+            "row": 21,
+            "value": null,
+            "merge_range": null,
+            "merge_anchor": false
+          },
+          {
+            "coord": "K21",
+            "col": 11,
+            "row": 21,
+            "value": 3556,
+            "merge_range": null,
+            "merge_anchor": false
+          },
+          {
+            "coord": "L21",
+            "col": 12,
+            "row": 21,
+            "value": null,
+            "merge_range": null,
+            "merge_anchor": false
+          },
+          {
+            "coord": "M21",
+            "col": 13,
+            "row": 21,
+            "value": null,
+            "merge_range": null,
+            "merge_anchor": false
+          },
+          {
+            "coord": "N21",
+            "col": 14,
+            "row": 21,
+            "value": null,
+            "merge_range": null,
+            "merge_anchor": false
+          },
+          {
+            "coord": "O21",
+            "col": 15,
+            "row": 21,
+            "value": null,
+            "merge_range": null,
+            "merge_anchor": false
+          },
+          {
+            "coord": "P21",
+            "col": 16,
+            "row": 21,
+            "value": null,
+            "merge_range": null,
+            "merge_anchor": false
+          },
+          {
+            "coord": "Q21",
+            "col": 17,
+            "row": 21,
+            "value": null,
+            "merge_range": null,
+            "merge_anchor": false
+          },
+          {
+            "coord": "R21",
+            "col": 18,
+            "row": 21,
+            "value": null,
+            "merge_range": null,
+            "merge_anchor": false
+          },
+          {
+            "coord": "S21",
+            "col": 19,
+            "row": 21,
+            "value": 1770,
+            "merge_range": null,
+            "merge_anchor": false
+          },
+          {
+            "coord": "T21",
+            "col": 20,
+            "row": 21,
+            "value": null,
+            "merge_range": null,
+            "merge_anchor": false
+          },
+          {
+            "coord": "U21",
+            "col": 21,
+            "row": 21,
+            "value": 120,
+            "merge_range": null,
+            "merge_anchor": false
+          },
+          {
+            "coord": "V21",
+            "col": 22,
+            "row": 21,
+            "value": 3671,
+            "merge_range": null,
+            "merge_anchor": false
+          },
+          {
+            "coord": "W21",
+            "col": 23,
+            "row": 21,
+            "value": 234,
+            "merge_range": null,
+            "merge_anchor": false
+          },
+          {
+            "coord": "X21",
+            "col": 24,
+            "row": 21,
+            "value": 502,
+            "merge_range": null,
+            "merge_anchor": false
+          },
+          {
+            "coord": "Y21",
+            "col": 25,
+            "row": 21,
+            "value": null,
+            "merge_range": null,
+            "merge_anchor": false
+          },
+          {
+            "coord": "Z21",
+            "col": 26,
+            "row": 21,
+            "value": 21742,
+            "merge_range": null,
+            "merge_anchor": false
+          },
+          {
+            "coord": "AA21",
+            "col": 27,
+            "row": 21,
+            "value": "секунды",
+            "merge_range": null,
+            "merge_anchor": false
+          }
+        ]
+      },
+      {
+        "row": 22,
+        "cells": [
+          {
+            "coord": "B22",
+            "col": 2,
+            "row": 22,
+            "value": "Перемещения",
+            "merge_range": null,
+            "merge_anchor": false
+          },
+          {
+            "coord": "C22",
+            "col": 3,
+            "row": 22,
+            "value": null,
+            "merge_range": null,
+            "merge_anchor": false
+          },
+          {
+            "coord": "D22",
+            "col": 4,
+            "row": 22,
+            "value": null,
+            "merge_range": null,
+            "merge_anchor": false
+          },
+          {
+            "coord": "E22",
+            "col": 5,
+            "row": 22,
+            "value": null,
+            "merge_range": null,
+            "merge_anchor": false
+          },
+          {
+            "coord": "F22",
+            "col": 6,
+            "row": 22,
+            "value": null,
+            "merge_range": null,
+            "merge_anchor": false
+          },
+          {
+            "coord": "G22",
+            "col": 7,
+            "row": 22,
+            "value": null,
+            "merge_range": null,
+            "merge_anchor": false
+          },
+          {
+            "coord": "H22",
+            "col": 8,
+            "row": 22,
+            "value": null,
+            "merge_range": null,
+            "merge_anchor": false
+          },
+          {
+            "coord": "I22",
+            "col": 9,
+            "row": 22,
+            "value": null,
+            "merge_range": null,
+            "merge_anchor": false
+          },
+          {
+            "coord": "J22",
+            "col": 10,
+            "row": 22,
+            "value": null,
+            "merge_range": null,
+            "merge_anchor": false
+          },
+          {
+            "coord": "K22",
+            "col": 11,
+            "row": 22,
+            "value": null,
+            "merge_range": null,
+            "merge_anchor": false
+          },
+          {
+            "coord": "L22",
+            "col": 12,
+            "row": 22,
+            "value": null,
+            "merge_range": null,
+            "merge_anchor": false
+          },
+          {
+            "coord": "M22",
+            "col": 13,
+            "row": 22,
+            "value": null,
+            "merge_range": null,
+            "merge_anchor": false
+          },
+          {
+            "coord": "N22",
+            "col": 14,
+            "row": 22,
+            "value": null,
+            "merge_range": null,
+            "merge_anchor": false
+          },
+          {
+            "coord": "O22",
+            "col": 15,
+            "row": 22,
+            "value": null,
+            "merge_range": null,
+            "merge_anchor": false
+          },
+          {
+            "coord": "P22",
+            "col": 16,
+            "row": 22,
+            "value": null,
+            "merge_range": null,
+            "merge_anchor": false
+          },
+          {
+            "coord": "Q22",
+            "col": 17,
+            "row": 22,
+            "value": null,
+            "merge_range": null,
+            "merge_anchor": false
+          },
+          {
+            "coord": "R22",
+            "col": 18,
+            "row": 22,
+            "value": null,
+            "merge_range": null,
+            "merge_anchor": false
+          },
+          {
+            "coord": "S22",
+            "col": 19,
+            "row": 22,
+            "value": null,
+            "merge_range": null,
+            "merge_anchor": false
+          },
+          {
+            "coord": "T22",
+            "col": 20,
+            "row": 22,
+            "value": null,
+            "merge_range": null,
+            "merge_anchor": false
+          },
+          {
+            "coord": "U22",
+            "col": 21,
+            "row": 22,
+            "value": null,
+            "merge_range": null,
+            "merge_anchor": false
+          },
+          {
+            "coord": "V22",
+            "col": 22,
+            "row": 22,
+            "value": null,
+            "merge_range": null,
+            "merge_anchor": false
+          },
+          {
+            "coord": "W22",
+            "col": 23,
+            "row": 22,
+            "value": null,
+            "merge_range": null,
+            "merge_anchor": false
+          },
+          {
+            "coord": "X22",
+            "col": 24,
+            "row": 22,
+            "value": null,
+            "merge_range": null,
+            "merge_anchor": false
+          },
+          {
+            "coord": "Y22",
+            "col": 25,
+            "row": 22,
+            "value": null,
+            "merge_range": null,
+            "merge_anchor": false
+          },
+          {
+            "coord": "Z22",
+            "col": 26,
+            "row": 22,
+            "value": null,
+            "merge_range": null,
+            "merge_anchor": false
+          },
+          {
+            "coord": "AA22",
+            "col": 27,
+            "row": 22,
+            "value": null,
+            "merge_range": null,
+            "merge_anchor": false
+          }
+        ]
+      },
+      {
+        "row": 23,
+        "cells": [
+          {
+            "coord": "B23",
+            "col": 2,
+            "row": 23,
+            "value": "Объем загрузки",
+            "merge_range": "B23:C23",
+            "merge_anchor": true
+          },
+          {
+            "coord": "C23",
+            "col": 3,
+            "row": 23,
+            "value": "Объем загрузки",
+            "merge_range": "B23:C23",
+            "merge_anchor": false
+          },
+          {
+            "coord": "D23",
+            "col": 4,
+            "row": 23,
+            "value": null,
+            "merge_range": null,
+            "merge_anchor": false
+          },
+          {
+            "coord": "E23",
+            "col": 5,
+            "row": 23,
+            "value": null,
+            "merge_range": null,
+            "merge_anchor": false
+          },
+          {
+            "coord": "F23",
+            "col": 6,
+            "row": 23,
+            "value": "Общее ожидание 8334 сек (1-414; 2-842; 3-1920; 4-1080;5-4618; 6-540)",
+            "merge_range": null,
+            "merge_anchor": false
+          },
+          {
+            "coord": "G23",
+            "col": 7,
+            "row": 23,
+            "value": "Общее перемещение 1397 сек (1-266; 2-155; 3-105; 4-399;5-260; 6-212)",
+            "merge_range": null,
+            "merge_anchor": false
+          },
+          {
+            "coord": "H23",
+            "col": 8,
+            "row": 23,
+            "value": "Общее время операции - 390 сек(1-75; 2-45; 3-30; 4-105; 5-75; 6-60); \nОбъем1170 кг (1 - 225; 2-135; 3-90; 4-315; 5-225;6-180) ",
+            "merge_range": null,
+            "merge_anchor": false
+          },
+          {
+            "coord": "I23",
+            "col": 9,
+            "row": 23,
+            "value": "Общее ожидание 3553 сек (1-249; 2-674; 3-388; 4-102; 5-82; 6-846; 7-119; 8-1093)",
+            "merge_range": null,
+            "merge_anchor": false
+          },
+          {
+            "coord": "J23",
+            "col": 10,
+            "row": 23,
+            "value": "Общее перемещение 624 сек (1-120; 2-72; 3-48; 4-168;5-120; 6-96)",
+            "merge_range": null,
+            "merge_anchor": false
+          },
+          {
+            "coord": "K23",
+            "col": 11,
+            "row": 23,
+            "value": "Общее ожидание 3558 сек (1-250; 2-674; 3-389; 4-103; 5-82; 6-846; 7-120; 8-1094)",
+            "merge_range": null,
+            "merge_anchor": false
+          },
+          {
+            "coord": "L23",
+            "col": 12,
+            "row": 23,
+            "value": "Общее время операции - 1558 сек (1-298; 2-180; 3-120; 4-420; 5-300; 6-120; 7-60; 8-60); Объем 1170 кг (1 - 225; 2-135; 3-90; 4-315; 5-225; 6-90; 7-45;8-45)+вода",
+            "merge_range": null,
+            "merge_anchor": false
+          },
+          {
+            "coord": "M23",
+            "col": 13,
+            "row": 23,
+            "value": "1200кг",
+            "merge_range": null,
+            "merge_anchor": false
+          },
+          {
+            "coord": "N23",
+            "col": 14,
+            "row": 23,
+            "value": "1200кг",
+            "merge_range": null,
+            "merge_anchor": false
+          },
+          {
+            "coord": "O23",
+            "col": 15,
+            "row": 23,
+            "value": "1200кг",
+            "merge_range": null,
+            "merge_anchor": false
+          },
+          {
+            "coord": "P23",
+            "col": 16,
+            "row": 23,
+            "value": "1200кг",
+            "merge_range": null,
+            "merge_anchor": false
+          },
+          {
+            "coord": "Q23",
+            "col": 17,
+            "row": 23,
+            "value": "200кг",
+            "merge_range": null,
+            "merge_anchor": false
+          },
+          {
+            "coord": "R23",
+            "col": 18,
+            "row": 23,
+            "value": "200кг",
+            "merge_range": null,
+            "merge_anchor": false
+          },
+          {
+            "coord": "S23",
+            "col": 19,
+            "row": 23,
+            "value": "200кг",
+            "merge_range": null,
+            "merge_anchor": false
+          },
+          {
+            "coord": "T23",
+            "col": 20,
+            "row": 23,
+            "value": "400кг",
+            "merge_range": null,
+            "merge_anchor": false
+          },
+          {
+            "coord": "U23",
+            "col": 21,
+            "row": 23,
+            "value": "400кг",
+            "merge_range": null,
+            "merge_anchor": false
+          },
+          {
+            "coord": "V23",
+            "col": 22,
+            "row": 23,
+            "value": "400кг",
+            "merge_range": null,
+            "merge_anchor": false
+          },
+          {
+            "coord": "W23",
+            "col": 23,
+            "row": 23,
+            "value": "800кг",
+            "merge_range": null,
+            "merge_anchor": false
+          },
+          {
+            "coord": "X23",
+            "col": 24,
+            "row": 23,
+            "value": "800кг",
+            "merge_range": null,
+            "merge_anchor": false
+          },
+          {
+            "coord": "Y23",
+            "col": 25,
+            "row": 23,
+            "value": "800кг",
+            "merge_range": null,
+            "merge_anchor": false
+          },
+          {
+            "coord": "Z23",
+            "col": 26,
+            "row": 23,
+            "value": null,
+            "merge_range": null,
+            "merge_anchor": false
+          },
+          {
+            "coord": "AA23",
+            "col": 27,
+            "row": 23,
+            "value": null,
+            "merge_range": null,
+            "merge_anchor": false
+          }
+        ]
+      },
+      {
+        "row": 24,
+        "cells": [
+          {
+            "coord": "B24",
+            "col": 2,
+            "row": 24,
+            "value": "Количество операторов",
+            "merge_range": "B24:C24",
+            "merge_anchor": true
+          },
+          {
+            "coord": "C24",
+            "col": 3,
+            "row": 24,
+            "value": "Количество операторов",
+            "merge_range": "B24:C24",
+            "merge_anchor": false
+          },
+          {
+            "coord": "D24",
+            "col": 4,
+            "row": 24,
+            "value": "человек",
+            "merge_range": null,
+            "merge_anchor": false
+          },
+          {
+            "coord": "E24",
+            "col": 5,
+            "row": 24,
+            "value": 1,
+            "merge_range": null,
+            "merge_anchor": false
+          },
+          {
+            "coord": "F24",
+            "col": 6,
+            "row": 24,
+            "value": null,
+            "merge_range": null,
+            "merge_anchor": false
+          },
+          {
+            "coord": "G24",
+            "col": 7,
+            "row": 24,
+            "value": null,
+            "merge_range": null,
+            "merge_anchor": false
+          },
+          {
+            "coord": "H24",
+            "col": 8,
+            "row": 24,
+            "value": 3,
+            "merge_range": "H24:N24",
+            "merge_anchor": true
+          },
+          {
+            "coord": "I24",
+            "col": 9,
+            "row": 24,
+            "value": 3,
+            "merge_range": "H24:N24",
+            "merge_anchor": false
+          },
+          {
+            "coord": "J24",
+            "col": 10,
+            "row": 24,
+            "value": 3,
+            "merge_range": "H24:N24",
+            "merge_anchor": false
+          },
+          {
+            "coord": "K24",
+            "col": 11,
+            "row": 24,
+            "value": 3,
+            "merge_range": "H24:N24",
+            "merge_anchor": false
+          },
+          {
+            "coord": "L24",
+            "col": 12,
+            "row": 24,
+            "value": 3,
+            "merge_range": "H24:N24",
+            "merge_anchor": false
+          },
+          {
+            "coord": "M24",
+            "col": 13,
+            "row": 24,
+            "value": 3,
+            "merge_range": "H24:N24",
+            "merge_anchor": false
+          },
+          {
+            "coord": "N24",
+            "col": 14,
+            "row": 24,
+            "value": 3,
+            "merge_range": "H24:N24",
+            "merge_anchor": false
+          },
+          {
+            "coord": "O24",
+            "col": 15,
+            "row": 24,
+            "value": 1,
+            "merge_range": "O24:W24",
+            "merge_anchor": true
+          },
+          {
+            "coord": "P24",
+            "col": 16,
+            "row": 24,
+            "value": 1,
+            "merge_range": "O24:W24",
+            "merge_anchor": false
+          },
+          {
+            "coord": "Q24",
+            "col": 17,
+            "row": 24,
+            "value": 1,
+            "merge_range": "O24:W24",
+            "merge_anchor": false
+          },
+          {
+            "coord": "R24",
+            "col": 18,
+            "row": 24,
+            "value": 1,
+            "merge_range": "O24:W24",
+            "merge_anchor": false
+          },
+          {
+            "coord": "S24",
+            "col": 19,
+            "row": 24,
+            "value": 1,
+            "merge_range": "O24:W24",
+            "merge_anchor": false
+          },
+          {
+            "coord": "T24",
+            "col": 20,
+            "row": 24,
+            "value": 1,
+            "merge_range": "O24:W24",
+            "merge_anchor": false
+          },
+          {
+            "coord": "U24",
+            "col": 21,
+            "row": 24,
+            "value": 1,
+            "merge_range": "O24:W24",
+            "merge_anchor": false
+          },
+          {
+            "coord": "V24",
+            "col": 22,
+            "row": 24,
+            "value": 1,
+            "merge_range": "O24:W24",
+            "merge_anchor": false
+          },
+          {
+            "coord": "W24",
+            "col": 23,
+            "row": 24,
+            "value": 1,
+            "merge_range": "O24:W24",
+            "merge_anchor": false
+          },
+          {
+            "coord": "X24",
+            "col": 24,
+            "row": 24,
+            "value": null,
+            "merge_range": null,
+            "merge_anchor": false
+          },
+          {
+            "coord": "Y24",
+            "col": 25,
+            "row": 24,
+            "value": 1,
+            "merge_range": null,
+            "merge_anchor": false
+          },
+          {
+            "coord": "Z24",
+            "col": 26,
+            "row": 24,
+            "value": 5,
+            "merge_range": null,
+            "merge_anchor": false
+          },
+          {
+            "coord": "AA24",
+            "col": 27,
+            "row": 24,
+            "value": "человек",
+            "merge_range": null,
+            "merge_anchor": false
+          }
+        ]
+      },
+      {
+        "row": 25,
+        "cells": [
+          {
+            "coord": "B25",
+            "col": 2,
+            "row": 25,
+            "value": "Количество оборудования на 1 оператора",
+            "merge_range": "B25:C25",
+            "merge_anchor": true
+          },
+          {
+            "coord": "C25",
+            "col": 3,
+            "row": 25,
+            "value": "Количество оборудования на 1 оператора",
+            "merge_range": "B25:C25",
+            "merge_anchor": false
+          },
+          {
+            "coord": "D25",
+            "col": 4,
+            "row": 25,
+            "value": "единиц",
+            "merge_range": null,
+            "merge_anchor": false
+          },
+          {
+            "coord": "E25",
+            "col": 5,
+            "row": 25,
+            "value": null,
+            "merge_range": null,
+            "merge_anchor": false
+          },
+          {
+            "coord": "F25",
+            "col": 6,
+            "row": 25,
+            "value": null,
+            "merge_range": null,
+            "merge_anchor": false
+          },
+          {
+            "coord": "G25",
+            "col": 7,
+            "row": 25,
+            "value": null,
+            "merge_range": null,
+            "merge_anchor": false
+          },
+          {
+            "coord": "H25",
+            "col": 8,
+            "row": 25,
+            "value": 1,
+            "merge_range": null,
+            "merge_anchor": false
+          },
+          {
+            "coord": "I25",
+            "col": 9,
+            "row": 25,
+            "value": null,
+            "merge_range": null,
+            "merge_anchor": false
+          },
+          {
+            "coord": "J25",
+            "col": 10,
+            "row": 25,
+            "value": null,
+            "merge_range": null,
+            "merge_anchor": false
+          },
+          {
+            "coord": "K25",
+            "col": 11,
+            "row": 25,
+            "value": null,
+            "merge_range": null,
+            "merge_anchor": false
+          },
+          {
+            "coord": "L25",
+            "col": 12,
+            "row": 25,
+            "value": null,
+            "merge_range": null,
+            "merge_anchor": false
+          },
+          {
+            "coord": "M25",
+            "col": 13,
+            "row": 25,
+            "value": 1,
+            "merge_range": null,
+            "merge_anchor": false
+          },
+          {
+            "coord": "N25",
+            "col": 14,
+            "row": 25,
+            "value": 1,
+            "merge_range": null,
+            "merge_anchor": false
+          },
+          {
+            "coord": "O25",
+            "col": 15,
+            "row": 25,
+            "value": 1,
+            "merge_range": null,
+            "merge_anchor": false
+          },
+          {
+            "coord": "P25",
+            "col": 16,
+            "row": 25,
+            "value": 1,
+            "merge_range": null,
+            "merge_anchor": false
+          },
+          {
+            "coord": "Q25",
+            "col": 17,
+            "row": 25,
+            "value": 1,
+            "merge_range": null,
+            "merge_anchor": false
+          },
+          {
+            "coord": "R25",
+            "col": 18,
+            "row": 25,
+            "value": null,
+            "merge_range": null,
+            "merge_anchor": false
+          },
+          {
+            "coord": "S25",
+            "col": 19,
+            "row": 25,
+            "value": null,
+            "merge_range": null,
+            "merge_anchor": false
+          },
+          {
+            "coord": "T25",
+            "col": 20,
+            "row": 25,
+            "value": null,
+            "merge_range": null,
+            "merge_anchor": false
+          },
+          {
+            "coord": "U25",
+            "col": 21,
+            "row": 25,
+            "value": null,
+            "merge_range": null,
+            "merge_anchor": false
+          },
+          {
+            "coord": "V25",
+            "col": 22,
+            "row": 25,
+            "value": null,
+            "merge_range": null,
+            "merge_anchor": false
+          },
+          {
+            "coord": "W25",
+            "col": 23,
+            "row": 25,
+            "value": null,
+            "merge_range": null,
+            "merge_anchor": false
+          },
+          {
+            "coord": "X25",
+            "col": 24,
+            "row": 25,
+            "value": null,
+            "merge_range": null,
+            "merge_anchor": false
+          },
+          {
+            "coord": "Y25",
+            "col": 25,
+            "row": 25,
+            "value": null,
+            "merge_range": null,
+            "merge_anchor": false
+          },
+          {
+            "coord": "Z25",
+            "col": 26,
+            "row": 25,
+            "value": 6,
+            "merge_range": null,
+            "merge_anchor": false
+          },
+          {
+            "coord": "AA25",
+            "col": 27,
+            "row": 25,
+            "value": "единиц",
+            "merge_range": null,
+            "merge_anchor": false
+          }
+        ]
+      }
+    ]
+  }
+}
+
+================================================================================
+[STEP 3/6] Извлечение релевантных данных
+Timestamp: 2025-12-09 08:51:21
+================================================================================
+Extracted data:
+{
+  "file_exists": true,
+  "empty_cells": [
+    {
+      "column": 5,
+      "operation_name": "Перемещение на каре"
+    }
+  ],
+  "has_empty": true,
+  "empty_count": 1
+}
+
+================================================================================
+[STEP 4/6] Сформированный промпт для LLM
+Timestamp: 2025-12-09 08:51:21
+================================================================================
+FULL PROMPT:
+
+Ты эксперт по проверке документов КПСЦ (Карта Потока Создания Ценности).
+
+ТРЕБОВАНИЕ ЭКСПЕРТА:
+Все ячейки строки ВПП - заполнены, если нет, выведи список пустых ячеек. Форма вывода: Указать в каком именно показателе из блока "Наименование показателя" отсутствует значение в строке ВПП + номер ячейки. Пример: Упаковка 2-х бочек с пюре на упаковочный поддон X23 ВПП отсутствует.
+
+ТЕХНИЧЕСКОЕ ОПИСАНИЕ:
+Найти строку с меткой "ВПП" в первой колонке (обычно колонка B или C). Для каждой ячейки в этой строке (начиная с операций, колонка E и далее) проверить, что значение не null и не пустое. Для пустых ячеек - найти соответствующее название показателя из заголовка столбца.
+
+КРИТЕРИИ ПРОВЕРКИ:
+- Что проверять: 1. Найти строку с меткой "ВПП" в первой колонке
+2. Для каждой ячейки в этой строке (начиная с колонки E) проверить, что значение не null и не пустое
+3. Для пустых ячеек - найти соответствующее название показателя
+- Условие успеха: Все ячейки в строке ВПП заполнены числовыми значениями
+- Условие ошибки: Есть пустые ячейки
+
+ФАКТИЧЕСКИЕ ДАННЫЕ:
+Пустые ячейки в строке ВПП:
+[
+  {
+    "column": 5,
+    "operation_name": "Перемещение на каре"
+  }
+]
+
+Есть пустые ячейки: True
+Количество пустых: 1
+
+ЗАДАНИЕ:
+Проверь соответствие фактических данных требованию эксперта и критериям проверки.
+
+ФОРМАТ ОТВЕТА (строго JSON):
+{
+  "rule_index": "4.1",
+  "rule_title": "Все ячейки строки ВПП заполнены",
+  "target_document": "КПСЦ и Спагетти ТС_Предприятие.xlsx",
+  "status": "PASS или FAIL",
+  "discrepancy": "Описание проблемы если FAIL, иначе пустая строка"
+}
+
+Верни только JSON, без дополнительного текста.
+
+
+================================================================================
+[STEP 5/6] Ответ от LLM
+Timestamp: 2025-12-09 08:51:24
+================================================================================
+LLM Response:
+{
+  "rule_index": "4.1",
+  "rule_title": "Все ячейки строки ВПП заполнены",
+  "target_document": "КПСЦ и Спагетти ТС_Предприятие.xlsx",
+  "status": "FAIL",
+  "discrepancy": "Перемещение на каре ВПП отсутствует."
+}
+
+================================================================================
+[STEP 6/6] Финальный результат
+Timestamp: 2025-12-09 08:51:24
+================================================================================
+Status: FAIL
+Discrepancy: Перемещение на каре ВПП отсутствует.
+Result saved to: validation_outputs/validate_4_1.json

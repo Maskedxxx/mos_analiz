@@ -1,0 +1,34 @@
+services:
+  drivers_excel:
+    build: ./drivers_excel
+    ports:
+      - "8000:8000"
+    environment:
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - RUNS_DIR=/data/runs/drivers_excel
+      - DRIVERS_MODEL=${DRIVERS_MODEL:-gpt-4.1-mini-2025-04-14}
+    volumes:
+      - ./runs:/data/runs
+
+  word_audit:
+    build: ./word_audit
+    ports:
+      - "8001:8000"
+    environment:
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - RUNS_DIR=/data/runs/word_audit
+      - WORD_AUDIT_MODEL=${WORD_AUDIT_MODEL:-gpt-4.1-2025-04-14}
+    volumes:
+      - ./runs:/data/runs
+
+  kpsc_validation:
+    build: ./kpsc_validation
+    ports:
+      - "8002:8000"
+    environment:
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - RUNS_DIR=/data/runs/kpsc_validation
+      - KPSC_MODEL=${KPSC_MODEL:-gpt-4.1-mini-2025-04-14}
+    volumes:
+      - ./runs:/data/runs
+

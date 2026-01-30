@@ -1,0 +1,31 @@
+# Результаты сессий аудита
+logs_result/
+*.log
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info/
+.eggs/
+.venv/
+venv/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Временные файлы Word
+~$*.docx
+
+# Временные файлы
+*.tmp
+*.temp

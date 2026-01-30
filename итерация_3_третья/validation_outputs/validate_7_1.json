@@ -1,0 +1,7 @@
+{
+  "rule_index": "7.1",
+  "rule_title": "Наличие и заполнение листа \"КПСЦ\"",
+  "target_document": "КПСЦ и Спагетти ТС_Предприятие.xlsx",
+  "status": "PASS",
+  "discrepancy": ""
+}

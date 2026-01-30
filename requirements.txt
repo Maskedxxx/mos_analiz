@@ -1,0 +1,8 @@
+openai
+openpyxl
+pyyaml
+fastapi
+uvicorn[standard]
+python-multipart
+jinja2
+websockets

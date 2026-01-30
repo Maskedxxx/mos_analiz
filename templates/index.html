@@ -1,0 +1,415 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Анализ драйверов производительности</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .container {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            max-width: 600px;
+            width: 100%;
+            padding: 40px;
+        }
+
+        h1 {
+            color: #333;
+            font-size: 28px;
+            margin-bottom: 10px;
+            text-align: center;
+        }
+
+        .subtitle {
+            color: #666;
+            text-align: center;
+            margin-bottom: 30px;
+            font-size: 14px;
+        }
+
+        .upload-area {
+            border: 3px dashed #667eea;
+            border-radius: 15px;
+            padding: 50px 20px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            background: #f8f9ff;
+        }
+
+        .upload-area:hover {
+            border-color: #764ba2;
+            background: #f0f1ff;
+        }
+
+        .upload-area.dragover {
+            border-color: #764ba2;
+            background: #e8eaff;
+        }
+
+        .upload-icon {
+            font-size: 60px;
+            margin-bottom: 15px;
+        }
+
+        .upload-text {
+            color: #667eea;
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 10px;
+        }
+
+        .upload-hint {
+            color: #999;
+            font-size: 14px;
+        }
+
+        #fileInput {
+            display: none;
+        }
+
+        .progress-container {
+            display: none;
+            margin-top: 30px;
+        }
+
+        .progress-bar-wrapper {
+            background: #e9ecef;
+            border-radius: 10px;
+            height: 30px;
+            overflow: hidden;
+            margin-bottom: 15px;
+        }
+
+        .progress-bar {
+            height: 100%;
+            background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+            transition: width 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: 600;
+            font-size: 14px;
+        }
+
+        .progress-message {
+            color: #667eea;
+            font-weight: 600;
+            text-align: center;
+            margin-bottom: 10px;
+        }
+
+        .progress-details {
+            color: #999;
+            text-align: center;
+            font-size: 14px;
+        }
+
+        .result-container {
+            display: none;
+            margin-top: 30px;
+            text-align: center;
+        }
+
+        .success-icon {
+            font-size: 80px;
+            margin-bottom: 20px;
+        }
+
+        .result-title {
+            color: #333;
+            font-size: 24px;
+            margin-bottom: 15px;
+            font-weight: 600;
+        }
+
+        .result-info {
+            color: #666;
+            margin-bottom: 25px;
+        }
+
+        .btn {
+            display: inline-block;
+            padding: 15px 30px;
+            border-radius: 10px;
+            text-decoration: none;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            border: none;
+            cursor: pointer;
+            font-size: 16px;
+            margin: 5px;
+        }
+
+        .btn-primary {
+            background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn-secondary {
+            background: #f8f9fa;
+            color: #667eea;
+            border: 2px solid #667eea;
+        }
+
+        .btn-secondary:hover {
+            background: #667eea;
+            color: white;
+        }
+
+        .error-container {
+            display: none;
+            margin-top: 30px;
+            padding: 20px;
+            background: #fee;
+            border-radius: 10px;
+            border-left: 5px solid #dc3545;
+        }
+
+        .error-title {
+            color: #dc3545;
+            font-weight: 600;
+            margin-bottom: 10px;
+        }
+
+        .error-message {
+            color: #666;
+        }
+
+        .spinner {
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #667eea;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 20px auto;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        @media (max-width: 600px) {
+            .container {
+                padding: 30px 20px;
+            }
+
+            h1 {
+                font-size: 24px;
+            }
+
+            .upload-area {
+                padding: 40px 15px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>📊 Анализ драйверов производительности</h1>
+        <p class="subtitle">Загрузите Excel файл для автоматического анализа с помощью AI</p>
+
+        <!-- Область загрузки -->
+        <div class="upload-area" id="uploadArea">
+            <div class="upload-icon">📁</div>
+            <div class="upload-text">Перетащите файл сюда</div>
+            <div class="upload-hint">или нажмите для выбора (.xlsx)</div>
+            <input type="file" id="fileInput" accept=".xlsx">
+        </div>
+
+        <!-- Прогресс обработки -->
+        <div class="progress-container" id="progressContainer">
+            <div class="progress-message" id="progressMessage">Загрузка...</div>
+            <div class="progress-bar-wrapper">
+                <div class="progress-bar" id="progressBar">0%</div>
+            </div>
+            <div class="progress-details" id="progressDetails">Подготовка...</div>
+        </div>
+
+        <!-- Результат -->
+        <div class="result-container" id="resultContainer">
+            <div class="success-icon">✅</div>
+            <div class="result-title">Анализ завершен!</div>
+            <div class="result-info" id="resultInfo">Найдено замечаний: <strong>0</strong></div>
+            <div>
+                <a href="#" class="btn btn-primary" id="downloadExcelBtn">📥 Скачать отчет (Excel)</a>
+                <a href="#" class="btn btn-secondary" id="downloadJsonBtn">📄 Скачать JSON</a>
+            </div>
+            <div style="margin-top: 20px;">
+                <button class="btn btn-secondary" onclick="location.reload()">🔄 Загрузить новый файл</button>
+            </div>
+        </div>
+
+        <!-- Ошибка -->
+        <div class="error-container" id="errorContainer">
+            <div class="error-title">⚠️ Ошибка</div>
+            <div class="error-message" id="errorMessage"></div>
+            <div style="margin-top: 15px;">
+                <button class="btn btn-secondary" onclick="location.reload()">🔄 Попробовать снова</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const uploadArea = document.getElementById('uploadArea');
+        const fileInput = document.getElementById('fileInput');
+        const progressContainer = document.getElementById('progressContainer');
+        const progressBar = document.getElementById('progressBar');
+        const progressMessage = document.getElementById('progressMessage');
+        const progressDetails = document.getElementById('progressDetails');
+        const resultContainer = document.getElementById('resultContainer');
+        const resultInfo = document.getElementById('resultInfo');
+        const downloadExcelBtn = document.getElementById('downloadExcelBtn');
+        const downloadJsonBtn = document.getElementById('downloadJsonBtn');
+        const errorContainer = document.getElementById('errorContainer');
+        const errorMessage = document.getElementById('errorMessage');
+
+        let currentSessionId = null;
+        let ws = null;
+
+        // Drag & Drop
+        uploadArea.addEventListener('click', () => fileInput.click());
+
+        uploadArea.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            uploadArea.classList.add('dragover');
+        });
+
+        uploadArea.addEventListener('dragleave', () => {
+            uploadArea.classList.remove('dragover');
+        });
+
+        uploadArea.addEventListener('drop', (e) => {
+            e.preventDefault();
+            uploadArea.classList.remove('dragover');
+            const files = e.dataTransfer.files;
+            if (files.length > 0) {
+                handleFile(files[0]);
+            }
+        });
+
+        fileInput.addEventListener('change', (e) => {
+            if (e.target.files.length > 0) {
+                handleFile(e.target.files[0]);
+            }
+        });
+
+        async function handleFile(file) {
+            if (!file.name.endsWith('.xlsx')) {
+                showError('Пожалуйста, выберите файл формата .xlsx');
+                return;
+            }
+
+            // Скрыть область загрузки, показать прогресс
+            uploadArea.style.display = 'none';
+            progressContainer.style.display = 'block';
+            errorContainer.style.display = 'none';
+            resultContainer.style.display = 'none';
+
+            try {
+                // Загрузка файла
+                const formData = new FormData();
+                formData.append('file', file);
+
+                const response = await fetch('/upload', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                if (!response.ok) {
+                    throw new Error('Ошибка загрузки файла');
+                }
+
+                const data = await response.json();
+                currentSessionId = data.session_id;
+
+                // Подключение к WebSocket для отслеживания прогресса
+                connectWebSocket(currentSessionId);
+
+            } catch (error) {
+                showError(error.message);
+            }
+        }
+
+        function connectWebSocket(sessionId) {
+            const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+            const wsUrl = `${protocol}//${window.location.host}/ws/${sessionId}`;
+            ws = new WebSocket(wsUrl);
+
+            ws.onmessage = (event) => {
+                const data = JSON.parse(event.data);
+
+                if (data.status === 'progress') {
+                    updateProgress(data.message, data.current, data.total);
+                } else if (data.status === 'complete') {
+                    showResult(data.remarks_count);
+                } else if (data.status === 'error') {
+                    showError(data.error);
+                }
+            };
+
+            ws.onerror = () => {
+                showError('Ошибка подключения к серверу');
+            };
+        }
+
+        function updateProgress(message, current, total) {
+            const percentage = Math.round((current / total) * 100);
+            progressBar.style.width = percentage + '%';
+            progressBar.textContent = percentage + '%';
+            progressMessage.textContent = message;
+            progressDetails.textContent = `Шаг ${current} из ${total}`;
+        }
+
+        function showResult(remarksCount) {
+            progressContainer.style.display = 'none';
+            resultContainer.style.display = 'block';
+
+            resultInfo.innerHTML = `Найдено замечаний: <strong>${remarksCount}</strong>`;
+            downloadExcelBtn.href = `/download/${currentSessionId}/report`;
+            downloadJsonBtn.href = `/download/${currentSessionId}/json`;
+
+            if (ws) {
+                ws.close();
+            }
+        }
+
+        function showError(message) {
+            uploadArea.style.display = 'block';
+            progressContainer.style.display = 'none';
+            resultContainer.style.display = 'none';
+            errorContainer.style.display = 'block';
+            errorMessage.textContent = message;
+
+            if (ws) {
+                ws.close();
+            }
+        }
+    </script>
+</body>
+</html>

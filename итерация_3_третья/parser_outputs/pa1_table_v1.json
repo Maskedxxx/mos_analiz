@@ -1,0 +1,2476 @@
+{
+  "meta": {
+    "workbook": "/Users/mask/Documents/Проеты_2025/мос_мониторинг/третья_итерация/КПСЦ и Спагетти ТС_Предприятие.xlsx",
+    "sheet": "ПА-1",
+    "header_row": 1
+  },
+  "bounds": {
+    "top_row": 1,
+    "bottom_row": 13,
+    "left_col": 1,
+    "right_col": 23,
+    "left_letter": "A",
+    "right_letter": "W",
+    "height": 13,
+    "width": 23
+  },
+  "rows": [
+    {
+      "row": 1,
+      "cells": [
+        {
+          "coord": "A1",
+          "row": 1,
+          "col": 1,
+          "value": null,
+          "merge_range": "A1:A2",
+          "merge_anchor": true
+        },
+        {
+          "coord": "B1",
+          "row": 1,
+          "col": 2,
+          "value": "Перемещение на каре",
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "C1",
+          "row": 1,
+          "col": 3,
+          "value": "Подготовитель-размораживатель",
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "D1",
+          "row": 1,
+          "col": 4,
+          "value": "Ожидание ягоды в коробе",
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "E1",
+          "row": 1,
+          "col": 5,
+          "value": "Перемещение сырья в ведре",
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "F1",
+          "row": 1,
+          "col": 6,
+          "value": "Измельчитель ягоды",
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "G1",
+          "row": 1,
+          "col": 7,
+          "value": "Ожидание ягоды в ручной тележке ",
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "H1",
+          "row": 1,
+          "col": 8,
+          "value": "Перемещение ягоды в ручной тележке ",
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "I1",
+          "row": 1,
+          "col": 9,
+          "value": "Ожидание ягоды в ручной тележке ",
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "J1",
+          "row": 1,
+          "col": 10,
+          "value": "Загрузка подготовителя-размораживателя",
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "K1",
+          "row": 1,
+          "col": 11,
+          "value": "Протирочная машина",
+          "merge_range": "K1:K2",
+          "merge_anchor": true
+        },
+        {
+          "coord": "L1",
+          "row": 1,
+          "col": 12,
+          "value": "Вакуумно-варочный котел",
+          "merge_range": "L1:L2",
+          "merge_anchor": true
+        },
+        {
+          "coord": "M1",
+          "row": 1,
+          "col": 13,
+          "value": "Буферная емкость",
+          "merge_range": "M1:M2",
+          "merge_anchor": true
+        },
+        {
+          "coord": "N1",
+          "row": 1,
+          "col": 14,
+          "value": "Фасовка",
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "O1",
+          "row": 1,
+          "col": 15,
+          "value": "Перемещение бочки с пюре на пластиковый поддон ",
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "P1",
+          "row": 1,
+          "col": 16,
+          "value": "Ожидание 2-й бочки с пюре на поддоне ",
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "Q1",
+          "row": 1,
+          "col": 17,
+          "value": "Перемещение 2-х бочек с пюре на поддон на склад ВХ",
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "R1",
+          "row": 1,
+          "col": 18,
+          "value": "Упаковка 2-х бочек с пюре на упаковочный поддон ",
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "S1",
+          "row": 1,
+          "col": 19,
+          "value": "Ожидание 2-х бочек с пюре на поддоне на складе ВХ",
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "T1",
+          "row": 1,
+          "col": 20,
+          "value": "Упаковка 4-х бочек",
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "U1",
+          "row": 1,
+          "col": 21,
+          "value": "Ожидание 4-х бочек с пюре на поддоне на складе ВХ",
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "V1",
+          "row": 1,
+          "col": 22,
+          "value": "Перемещение на каре 4-х бочек с пюре на поддоне на склад ГП",
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "W1",
+          "row": 1,
+          "col": 23,
+          "value": "ИТОГО",
+          "merge_range": null,
+          "merge_anchor": false
+        }
+      ]
+    },
+    {
+      "row": 2,
+      "cells": [
+        {
+          "coord": "A2",
+          "row": 2,
+          "col": 1,
+          "value": null,
+          "merge_range": "A1:A2",
+          "merge_anchor": false
+        },
+        {
+          "coord": "B2",
+          "row": 2,
+          "col": 2,
+          "value": null,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "C2",
+          "row": 2,
+          "col": 3,
+          "value": "Подготовитель-размораживатель",
+          "merge_range": "C2:J2",
+          "merge_anchor": true
+        },
+        {
+          "coord": "D2",
+          "row": 2,
+          "col": 4,
+          "value": "Подготовитель-размораживатель",
+          "merge_range": "C2:J2",
+          "merge_anchor": false
+        },
+        {
+          "coord": "E2",
+          "row": 2,
+          "col": 5,
+          "value": "Подготовитель-размораживатель",
+          "merge_range": "C2:J2",
+          "merge_anchor": false
+        },
+        {
+          "coord": "F2",
+          "row": 2,
+          "col": 6,
+          "value": "Подготовитель-размораживатель",
+          "merge_range": "C2:J2",
+          "merge_anchor": false
+        },
+        {
+          "coord": "G2",
+          "row": 2,
+          "col": 7,
+          "value": "Подготовитель-размораживатель",
+          "merge_range": "C2:J2",
+          "merge_anchor": false
+        },
+        {
+          "coord": "H2",
+          "row": 2,
+          "col": 8,
+          "value": "Подготовитель-размораживатель",
+          "merge_range": "C2:J2",
+          "merge_anchor": false
+        },
+        {
+          "coord": "I2",
+          "row": 2,
+          "col": 9,
+          "value": "Подготовитель-размораживатель",
+          "merge_range": "C2:J2",
+          "merge_anchor": false
+        },
+        {
+          "coord": "J2",
+          "row": 2,
+          "col": 10,
+          "value": "Подготовитель-размораживатель",
+          "merge_range": "C2:J2",
+          "merge_anchor": false
+        },
+        {
+          "coord": "K2",
+          "row": 2,
+          "col": 11,
+          "value": "Протирочная машина",
+          "merge_range": "K1:K2",
+          "merge_anchor": false
+        },
+        {
+          "coord": "L2",
+          "row": 2,
+          "col": 12,
+          "value": "Вакуумно-варочный котел",
+          "merge_range": "L1:L2",
+          "merge_anchor": false
+        },
+        {
+          "coord": "M2",
+          "row": 2,
+          "col": 13,
+          "value": "Буферная емкость",
+          "merge_range": "M1:M2",
+          "merge_anchor": false
+        },
+        {
+          "coord": "N2",
+          "row": 2,
+          "col": 14,
+          "value": "Фасовка",
+          "merge_range": "N2:T2",
+          "merge_anchor": true
+        },
+        {
+          "coord": "O2",
+          "row": 2,
+          "col": 15,
+          "value": "Фасовка",
+          "merge_range": "N2:T2",
+          "merge_anchor": false
+        },
+        {
+          "coord": "P2",
+          "row": 2,
+          "col": 16,
+          "value": "Фасовка",
+          "merge_range": "N2:T2",
+          "merge_anchor": false
+        },
+        {
+          "coord": "Q2",
+          "row": 2,
+          "col": 17,
+          "value": "Фасовка",
+          "merge_range": "N2:T2",
+          "merge_anchor": false
+        },
+        {
+          "coord": "R2",
+          "row": 2,
+          "col": 18,
+          "value": "Фасовка",
+          "merge_range": "N2:T2",
+          "merge_anchor": false
+        },
+        {
+          "coord": "S2",
+          "row": 2,
+          "col": 19,
+          "value": "Фасовка",
+          "merge_range": "N2:T2",
+          "merge_anchor": false
+        },
+        {
+          "coord": "T2",
+          "row": 2,
+          "col": 20,
+          "value": "Фасовка",
+          "merge_range": "N2:T2",
+          "merge_anchor": false
+        },
+        {
+          "coord": "U2",
+          "row": 2,
+          "col": 21,
+          "value": null,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "V2",
+          "row": 2,
+          "col": 22,
+          "value": null,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "W2",
+          "row": 2,
+          "col": 23,
+          "value": null,
+          "merge_range": null,
+          "merge_anchor": false
+        }
+      ]
+    },
+    {
+      "row": 3,
+      "cells": [
+        {
+          "coord": "A3",
+          "row": 3,
+          "col": 1,
+          "value": "Замер 1",
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "B3",
+          "row": 3,
+          "col": 2,
+          "value": 306,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "C3",
+          "row": 3,
+          "col": 3,
+          "value": 20929,
+          "merge_range": "C3:J3",
+          "merge_anchor": true
+        },
+        {
+          "coord": "D3",
+          "row": 3,
+          "col": 4,
+          "value": 20929,
+          "merge_range": "C3:J3",
+          "merge_anchor": false
+        },
+        {
+          "coord": "E3",
+          "row": 3,
+          "col": 5,
+          "value": 20929,
+          "merge_range": "C3:J3",
+          "merge_anchor": false
+        },
+        {
+          "coord": "F3",
+          "row": 3,
+          "col": 6,
+          "value": 20929,
+          "merge_range": "C3:J3",
+          "merge_anchor": false
+        },
+        {
+          "coord": "G3",
+          "row": 3,
+          "col": 7,
+          "value": 20929,
+          "merge_range": "C3:J3",
+          "merge_anchor": false
+        },
+        {
+          "coord": "H3",
+          "row": 3,
+          "col": 8,
+          "value": 20929,
+          "merge_range": "C3:J3",
+          "merge_anchor": false
+        },
+        {
+          "coord": "I3",
+          "row": 3,
+          "col": 9,
+          "value": 20929,
+          "merge_range": "C3:J3",
+          "merge_anchor": false
+        },
+        {
+          "coord": "J3",
+          "row": 3,
+          "col": 10,
+          "value": 20929,
+          "merge_range": "C3:J3",
+          "merge_anchor": false
+        },
+        {
+          "coord": "K3",
+          "row": 3,
+          "col": 11,
+          "value": 3098,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "L3",
+          "row": 3,
+          "col": 12,
+          "value": 815,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "M3",
+          "row": 3,
+          "col": 13,
+          "value": 2280,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "N3",
+          "row": 3,
+          "col": 14,
+          "value": 10135,
+          "merge_range": "N3:T3",
+          "merge_anchor": true
+        },
+        {
+          "coord": "O3",
+          "row": 3,
+          "col": 15,
+          "value": 10135,
+          "merge_range": "N3:T3",
+          "merge_anchor": false
+        },
+        {
+          "coord": "P3",
+          "row": 3,
+          "col": 16,
+          "value": 10135,
+          "merge_range": "N3:T3",
+          "merge_anchor": false
+        },
+        {
+          "coord": "Q3",
+          "row": 3,
+          "col": 17,
+          "value": 10135,
+          "merge_range": "N3:T3",
+          "merge_anchor": false
+        },
+        {
+          "coord": "R3",
+          "row": 3,
+          "col": 18,
+          "value": 10135,
+          "merge_range": "N3:T3",
+          "merge_anchor": false
+        },
+        {
+          "coord": "S3",
+          "row": 3,
+          "col": 19,
+          "value": 10135,
+          "merge_range": "N3:T3",
+          "merge_anchor": false
+        },
+        {
+          "coord": "T3",
+          "row": 3,
+          "col": 20,
+          "value": 10135,
+          "merge_range": "N3:T3",
+          "merge_anchor": false
+        },
+        {
+          "coord": "U3",
+          "row": 3,
+          "col": 21,
+          "value": 495,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "V3",
+          "row": 3,
+          "col": 22,
+          "value": 160,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "W3",
+          "row": 3,
+          "col": 23,
+          "value": 38218,
+          "merge_range": null,
+          "merge_anchor": false
+        }
+      ]
+    },
+    {
+      "row": 4,
+      "cells": [
+        {
+          "coord": "A4",
+          "row": 4,
+          "col": 1,
+          "value": "Замер 2",
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "B4",
+          "row": 4,
+          "col": 2,
+          "value": 321,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "C4",
+          "row": 4,
+          "col": 3,
+          "value": 20935,
+          "merge_range": "C4:J4",
+          "merge_anchor": true
+        },
+        {
+          "coord": "D4",
+          "row": 4,
+          "col": 4,
+          "value": 20935,
+          "merge_range": "C4:J4",
+          "merge_anchor": false
+        },
+        {
+          "coord": "E4",
+          "row": 4,
+          "col": 5,
+          "value": 20935,
+          "merge_range": "C4:J4",
+          "merge_anchor": false
+        },
+        {
+          "coord": "F4",
+          "row": 4,
+          "col": 6,
+          "value": 20935,
+          "merge_range": "C4:J4",
+          "merge_anchor": false
+        },
+        {
+          "coord": "G4",
+          "row": 4,
+          "col": 7,
+          "value": 20935,
+          "merge_range": "C4:J4",
+          "merge_anchor": false
+        },
+        {
+          "coord": "H4",
+          "row": 4,
+          "col": 8,
+          "value": 20935,
+          "merge_range": "C4:J4",
+          "merge_anchor": false
+        },
+        {
+          "coord": "I4",
+          "row": 4,
+          "col": 9,
+          "value": 20935,
+          "merge_range": "C4:J4",
+          "merge_anchor": false
+        },
+        {
+          "coord": "J4",
+          "row": 4,
+          "col": 10,
+          "value": 20935,
+          "merge_range": "C4:J4",
+          "merge_anchor": false
+        },
+        {
+          "coord": "K4",
+          "row": 4,
+          "col": 11,
+          "value": 3106,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "L4",
+          "row": 4,
+          "col": 12,
+          "value": 784,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "M4",
+          "row": 4,
+          "col": 13,
+          "value": 2311,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "N4",
+          "row": 4,
+          "col": 14,
+          "value": 10076,
+          "merge_range": "N4:T4",
+          "merge_anchor": true
+        },
+        {
+          "coord": "O4",
+          "row": 4,
+          "col": 15,
+          "value": 10076,
+          "merge_range": "N4:T4",
+          "merge_anchor": false
+        },
+        {
+          "coord": "P4",
+          "row": 4,
+          "col": 16,
+          "value": 10076,
+          "merge_range": "N4:T4",
+          "merge_anchor": false
+        },
+        {
+          "coord": "Q4",
+          "row": 4,
+          "col": 17,
+          "value": 10076,
+          "merge_range": "N4:T4",
+          "merge_anchor": false
+        },
+        {
+          "coord": "R4",
+          "row": 4,
+          "col": 18,
+          "value": 10076,
+          "merge_range": "N4:T4",
+          "merge_anchor": false
+        },
+        {
+          "coord": "S4",
+          "row": 4,
+          "col": 19,
+          "value": 10076,
+          "merge_range": "N4:T4",
+          "merge_anchor": false
+        },
+        {
+          "coord": "T4",
+          "row": 4,
+          "col": 20,
+          "value": 10076,
+          "merge_range": "N4:T4",
+          "merge_anchor": false
+        },
+        {
+          "coord": "U4",
+          "row": 4,
+          "col": 21,
+          "value": 505,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "V4",
+          "row": 4,
+          "col": 22,
+          "value": 160,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "W4",
+          "row": 4,
+          "col": 23,
+          "value": 38198,
+          "merge_range": null,
+          "merge_anchor": false
+        }
+      ]
+    },
+    {
+      "row": 5,
+      "cells": [
+        {
+          "coord": "A5",
+          "row": 5,
+          "col": 1,
+          "value": "Замер 3",
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "B5",
+          "row": 5,
+          "col": 2,
+          "value": 303,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "C5",
+          "row": 5,
+          "col": 3,
+          "value": 20940,
+          "merge_range": "C5:J5",
+          "merge_anchor": true
+        },
+        {
+          "coord": "D5",
+          "row": 5,
+          "col": 4,
+          "value": 20940,
+          "merge_range": "C5:J5",
+          "merge_anchor": false
+        },
+        {
+          "coord": "E5",
+          "row": 5,
+          "col": 5,
+          "value": 20940,
+          "merge_range": "C5:J5",
+          "merge_anchor": false
+        },
+        {
+          "coord": "F5",
+          "row": 5,
+          "col": 6,
+          "value": 20940,
+          "merge_range": "C5:J5",
+          "merge_anchor": false
+        },
+        {
+          "coord": "G5",
+          "row": 5,
+          "col": 7,
+          "value": 20940,
+          "merge_range": "C5:J5",
+          "merge_anchor": false
+        },
+        {
+          "coord": "H5",
+          "row": 5,
+          "col": 8,
+          "value": 20940,
+          "merge_range": "C5:J5",
+          "merge_anchor": false
+        },
+        {
+          "coord": "I5",
+          "row": 5,
+          "col": 9,
+          "value": 20940,
+          "merge_range": "C5:J5",
+          "merge_anchor": false
+        },
+        {
+          "coord": "J5",
+          "row": 5,
+          "col": 10,
+          "value": 20940,
+          "merge_range": "C5:J5",
+          "merge_anchor": false
+        },
+        {
+          "coord": "K5",
+          "row": 5,
+          "col": 11,
+          "value": 3045,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "L5",
+          "row": 5,
+          "col": 12,
+          "value": 879,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "M5",
+          "row": 5,
+          "col": 13,
+          "value": 2419,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "N5",
+          "row": 5,
+          "col": 14,
+          "value": 9992,
+          "merge_range": "N5:T5",
+          "merge_anchor": true
+        },
+        {
+          "coord": "O5",
+          "row": 5,
+          "col": 15,
+          "value": 9992,
+          "merge_range": "N5:T5",
+          "merge_anchor": false
+        },
+        {
+          "coord": "P5",
+          "row": 5,
+          "col": 16,
+          "value": 9992,
+          "merge_range": "N5:T5",
+          "merge_anchor": false
+        },
+        {
+          "coord": "Q5",
+          "row": 5,
+          "col": 17,
+          "value": 9992,
+          "merge_range": "N5:T5",
+          "merge_anchor": false
+        },
+        {
+          "coord": "R5",
+          "row": 5,
+          "col": 18,
+          "value": 9992,
+          "merge_range": "N5:T5",
+          "merge_anchor": false
+        },
+        {
+          "coord": "S5",
+          "row": 5,
+          "col": 19,
+          "value": 9992,
+          "merge_range": "N5:T5",
+          "merge_anchor": false
+        },
+        {
+          "coord": "T5",
+          "row": 5,
+          "col": 20,
+          "value": 9992,
+          "merge_range": "N5:T5",
+          "merge_anchor": false
+        },
+        {
+          "coord": "U5",
+          "row": 5,
+          "col": 21,
+          "value": 507,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "V5",
+          "row": 5,
+          "col": 22,
+          "value": 160,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "W5",
+          "row": 5,
+          "col": 23,
+          "value": 38245,
+          "merge_range": null,
+          "merge_anchor": false
+        }
+      ]
+    },
+    {
+      "row": 6,
+      "cells": [
+        {
+          "coord": "A6",
+          "row": 6,
+          "col": 1,
+          "value": "Замер 4",
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "B6",
+          "row": 6,
+          "col": 2,
+          "value": 304,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "C6",
+          "row": 6,
+          "col": 3,
+          "value": 20937,
+          "merge_range": "C6:J6",
+          "merge_anchor": true
+        },
+        {
+          "coord": "D6",
+          "row": 6,
+          "col": 4,
+          "value": 20937,
+          "merge_range": "C6:J6",
+          "merge_anchor": false
+        },
+        {
+          "coord": "E6",
+          "row": 6,
+          "col": 5,
+          "value": 20937,
+          "merge_range": "C6:J6",
+          "merge_anchor": false
+        },
+        {
+          "coord": "F6",
+          "row": 6,
+          "col": 6,
+          "value": 20937,
+          "merge_range": "C6:J6",
+          "merge_anchor": false
+        },
+        {
+          "coord": "G6",
+          "row": 6,
+          "col": 7,
+          "value": 20937,
+          "merge_range": "C6:J6",
+          "merge_anchor": false
+        },
+        {
+          "coord": "H6",
+          "row": 6,
+          "col": 8,
+          "value": 20937,
+          "merge_range": "C6:J6",
+          "merge_anchor": false
+        },
+        {
+          "coord": "I6",
+          "row": 6,
+          "col": 9,
+          "value": 20937,
+          "merge_range": "C6:J6",
+          "merge_anchor": false
+        },
+        {
+          "coord": "J6",
+          "row": 6,
+          "col": 10,
+          "value": 20937,
+          "merge_range": "C6:J6",
+          "merge_anchor": false
+        },
+        {
+          "coord": "K6",
+          "row": 6,
+          "col": 11,
+          "value": 3325,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "L6",
+          "row": 6,
+          "col": 12,
+          "value": 874,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "M6",
+          "row": 6,
+          "col": 13,
+          "value": 2005,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "N6",
+          "row": 6,
+          "col": 14,
+          "value": 10084,
+          "merge_range": "N6:T6",
+          "merge_anchor": true
+        },
+        {
+          "coord": "O6",
+          "row": 6,
+          "col": 15,
+          "value": 10084,
+          "merge_range": "N6:T6",
+          "merge_anchor": false
+        },
+        {
+          "coord": "P6",
+          "row": 6,
+          "col": 16,
+          "value": 10084,
+          "merge_range": "N6:T6",
+          "merge_anchor": false
+        },
+        {
+          "coord": "Q6",
+          "row": 6,
+          "col": 17,
+          "value": 10084,
+          "merge_range": "N6:T6",
+          "merge_anchor": false
+        },
+        {
+          "coord": "R6",
+          "row": 6,
+          "col": 18,
+          "value": 10084,
+          "merge_range": "N6:T6",
+          "merge_anchor": false
+        },
+        {
+          "coord": "S6",
+          "row": 6,
+          "col": 19,
+          "value": 10084,
+          "merge_range": "N6:T6",
+          "merge_anchor": false
+        },
+        {
+          "coord": "T6",
+          "row": 6,
+          "col": 20,
+          "value": 10084,
+          "merge_range": "N6:T6",
+          "merge_anchor": false
+        },
+        {
+          "coord": "U6",
+          "row": 6,
+          "col": 21,
+          "value": 492,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "V6",
+          "row": 6,
+          "col": 22,
+          "value": 160,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "W6",
+          "row": 6,
+          "col": 23,
+          "value": 38181,
+          "merge_range": null,
+          "merge_anchor": false
+        }
+      ]
+    },
+    {
+      "row": 7,
+      "cells": [
+        {
+          "coord": "A7",
+          "row": 7,
+          "col": 1,
+          "value": "Замер 5",
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "B7",
+          "row": 7,
+          "col": 2,
+          "value": 313,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "C7",
+          "row": 7,
+          "col": 3,
+          "value": 20942,
+          "merge_range": "C7:J7",
+          "merge_anchor": true
+        },
+        {
+          "coord": "D7",
+          "row": 7,
+          "col": 4,
+          "value": 20942,
+          "merge_range": "C7:J7",
+          "merge_anchor": false
+        },
+        {
+          "coord": "E7",
+          "row": 7,
+          "col": 5,
+          "value": 20942,
+          "merge_range": "C7:J7",
+          "merge_anchor": false
+        },
+        {
+          "coord": "F7",
+          "row": 7,
+          "col": 6,
+          "value": 20942,
+          "merge_range": "C7:J7",
+          "merge_anchor": false
+        },
+        {
+          "coord": "G7",
+          "row": 7,
+          "col": 7,
+          "value": 20942,
+          "merge_range": "C7:J7",
+          "merge_anchor": false
+        },
+        {
+          "coord": "H7",
+          "row": 7,
+          "col": 8,
+          "value": 20942,
+          "merge_range": "C7:J7",
+          "merge_anchor": false
+        },
+        {
+          "coord": "I7",
+          "row": 7,
+          "col": 9,
+          "value": 20942,
+          "merge_range": "C7:J7",
+          "merge_anchor": false
+        },
+        {
+          "coord": "J7",
+          "row": 7,
+          "col": 10,
+          "value": 20942,
+          "merge_range": "C7:J7",
+          "merge_anchor": false
+        },
+        {
+          "coord": "K7",
+          "row": 7,
+          "col": 11,
+          "value": 3282,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "L7",
+          "row": 7,
+          "col": 12,
+          "value": 840,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "M7",
+          "row": 7,
+          "col": 13,
+          "value": 2117,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "N7",
+          "row": 7,
+          "col": 14,
+          "value": 10105,
+          "merge_range": "N7:T7",
+          "merge_anchor": true
+        },
+        {
+          "coord": "O7",
+          "row": 7,
+          "col": 15,
+          "value": 10105,
+          "merge_range": "N7:T7",
+          "merge_anchor": false
+        },
+        {
+          "coord": "P7",
+          "row": 7,
+          "col": 16,
+          "value": 10105,
+          "merge_range": "N7:T7",
+          "merge_anchor": false
+        },
+        {
+          "coord": "Q7",
+          "row": 7,
+          "col": 17,
+          "value": 10105,
+          "merge_range": "N7:T7",
+          "merge_anchor": false
+        },
+        {
+          "coord": "R7",
+          "row": 7,
+          "col": 18,
+          "value": 10105,
+          "merge_range": "N7:T7",
+          "merge_anchor": false
+        },
+        {
+          "coord": "S7",
+          "row": 7,
+          "col": 19,
+          "value": 10105,
+          "merge_range": "N7:T7",
+          "merge_anchor": false
+        },
+        {
+          "coord": "T7",
+          "row": 7,
+          "col": 20,
+          "value": 10105,
+          "merge_range": "N7:T7",
+          "merge_anchor": false
+        },
+        {
+          "coord": "U7",
+          "row": 7,
+          "col": 21,
+          "value": 502,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "V7",
+          "row": 7,
+          "col": 22,
+          "value": 160,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "W7",
+          "row": 7,
+          "col": 23,
+          "value": 38261,
+          "merge_range": null,
+          "merge_anchor": false
+        }
+      ]
+    },
+    {
+      "row": 8,
+      "cells": [
+        {
+          "coord": "A8",
+          "row": 8,
+          "col": 1,
+          "value": "Замер 6",
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "B8",
+          "row": 8,
+          "col": 2,
+          "value": 309,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "C8",
+          "row": 8,
+          "col": 3,
+          "value": 20940,
+          "merge_range": "C8:J8",
+          "merge_anchor": true
+        },
+        {
+          "coord": "D8",
+          "row": 8,
+          "col": 4,
+          "value": 20940,
+          "merge_range": "C8:J8",
+          "merge_anchor": false
+        },
+        {
+          "coord": "E8",
+          "row": 8,
+          "col": 5,
+          "value": 20940,
+          "merge_range": "C8:J8",
+          "merge_anchor": false
+        },
+        {
+          "coord": "F8",
+          "row": 8,
+          "col": 6,
+          "value": 20940,
+          "merge_range": "C8:J8",
+          "merge_anchor": false
+        },
+        {
+          "coord": "G8",
+          "row": 8,
+          "col": 7,
+          "value": 20940,
+          "merge_range": "C8:J8",
+          "merge_anchor": false
+        },
+        {
+          "coord": "H8",
+          "row": 8,
+          "col": 8,
+          "value": 20940,
+          "merge_range": "C8:J8",
+          "merge_anchor": false
+        },
+        {
+          "coord": "I8",
+          "row": 8,
+          "col": 9,
+          "value": 20940,
+          "merge_range": "C8:J8",
+          "merge_anchor": false
+        },
+        {
+          "coord": "J8",
+          "row": 8,
+          "col": 10,
+          "value": 20940,
+          "merge_range": "C8:J8",
+          "merge_anchor": false
+        },
+        {
+          "coord": "K8",
+          "row": 8,
+          "col": 11,
+          "value": 3291,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "L8",
+          "row": 8,
+          "col": 12,
+          "value": 863,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "M8",
+          "row": 8,
+          "col": 13,
+          "value": 2244,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "N8",
+          "row": 8,
+          "col": 14,
+          "value": 9993,
+          "merge_range": "N8:T8",
+          "merge_anchor": true
+        },
+        {
+          "coord": "O8",
+          "row": 8,
+          "col": 15,
+          "value": 9993,
+          "merge_range": "N8:T8",
+          "merge_anchor": false
+        },
+        {
+          "coord": "P8",
+          "row": 8,
+          "col": 16,
+          "value": 9993,
+          "merge_range": "N8:T8",
+          "merge_anchor": false
+        },
+        {
+          "coord": "Q8",
+          "row": 8,
+          "col": 17,
+          "value": 9993,
+          "merge_range": "N8:T8",
+          "merge_anchor": false
+        },
+        {
+          "coord": "R8",
+          "row": 8,
+          "col": 18,
+          "value": 9993,
+          "merge_range": "N8:T8",
+          "merge_anchor": false
+        },
+        {
+          "coord": "S8",
+          "row": 8,
+          "col": 19,
+          "value": 9993,
+          "merge_range": "N8:T8",
+          "merge_anchor": false
+        },
+        {
+          "coord": "T8",
+          "row": 8,
+          "col": 20,
+          "value": 9993,
+          "merge_range": "N8:T8",
+          "merge_anchor": false
+        },
+        {
+          "coord": "U8",
+          "row": 8,
+          "col": 21,
+          "value": 509,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "V8",
+          "row": 8,
+          "col": 22,
+          "value": 160,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "W8",
+          "row": 8,
+          "col": 23,
+          "value": 38309,
+          "merge_range": null,
+          "merge_anchor": false
+        }
+      ]
+    },
+    {
+      "row": 9,
+      "cells": [
+        {
+          "coord": "A9",
+          "row": 9,
+          "col": 1,
+          "value": "Замер 7",
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "B9",
+          "row": 9,
+          "col": 2,
+          "value": 305,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "C9",
+          "row": 9,
+          "col": 3,
+          "value": 20944,
+          "merge_range": "C9:J9",
+          "merge_anchor": true
+        },
+        {
+          "coord": "D9",
+          "row": 9,
+          "col": 4,
+          "value": 20944,
+          "merge_range": "C9:J9",
+          "merge_anchor": false
+        },
+        {
+          "coord": "E9",
+          "row": 9,
+          "col": 5,
+          "value": 20944,
+          "merge_range": "C9:J9",
+          "merge_anchor": false
+        },
+        {
+          "coord": "F9",
+          "row": 9,
+          "col": 6,
+          "value": 20944,
+          "merge_range": "C9:J9",
+          "merge_anchor": false
+        },
+        {
+          "coord": "G9",
+          "row": 9,
+          "col": 7,
+          "value": 20944,
+          "merge_range": "C9:J9",
+          "merge_anchor": false
+        },
+        {
+          "coord": "H9",
+          "row": 9,
+          "col": 8,
+          "value": 20944,
+          "merge_range": "C9:J9",
+          "merge_anchor": false
+        },
+        {
+          "coord": "I9",
+          "row": 9,
+          "col": 9,
+          "value": 20944,
+          "merge_range": "C9:J9",
+          "merge_anchor": false
+        },
+        {
+          "coord": "J9",
+          "row": 9,
+          "col": 10,
+          "value": 20944,
+          "merge_range": "C9:J9",
+          "merge_anchor": false
+        },
+        {
+          "coord": "K9",
+          "row": 9,
+          "col": 11,
+          "value": 3103,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "L9",
+          "row": 9,
+          "col": 12,
+          "value": 799,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "M9",
+          "row": 9,
+          "col": 13,
+          "value": 2338,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "N9",
+          "row": 9,
+          "col": 14,
+          "value": 10033,
+          "merge_range": "N9:T9",
+          "merge_anchor": true
+        },
+        {
+          "coord": "O9",
+          "row": 9,
+          "col": 15,
+          "value": 10033,
+          "merge_range": "N9:T9",
+          "merge_anchor": false
+        },
+        {
+          "coord": "P9",
+          "row": 9,
+          "col": 16,
+          "value": 10033,
+          "merge_range": "N9:T9",
+          "merge_anchor": false
+        },
+        {
+          "coord": "Q9",
+          "row": 9,
+          "col": 17,
+          "value": 10033,
+          "merge_range": "N9:T9",
+          "merge_anchor": false
+        },
+        {
+          "coord": "R9",
+          "row": 9,
+          "col": 18,
+          "value": 10033,
+          "merge_range": "N9:T9",
+          "merge_anchor": false
+        },
+        {
+          "coord": "S9",
+          "row": 9,
+          "col": 19,
+          "value": 10033,
+          "merge_range": "N9:T9",
+          "merge_anchor": false
+        },
+        {
+          "coord": "T9",
+          "row": 9,
+          "col": 20,
+          "value": 10033,
+          "merge_range": "N9:T9",
+          "merge_anchor": false
+        },
+        {
+          "coord": "U9",
+          "row": 9,
+          "col": 21,
+          "value": 493,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "V9",
+          "row": 9,
+          "col": 22,
+          "value": 160,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "W9",
+          "row": 9,
+          "col": 23,
+          "value": 38175,
+          "merge_range": null,
+          "merge_anchor": false
+        }
+      ]
+    },
+    {
+      "row": 10,
+      "cells": [
+        {
+          "coord": "A10",
+          "row": 10,
+          "col": 1,
+          "value": "Замер 8",
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "B10",
+          "row": 10,
+          "col": 2,
+          "value": 287,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "C10",
+          "row": 10,
+          "col": 3,
+          "value": 20939,
+          "merge_range": "C10:J10",
+          "merge_anchor": true
+        },
+        {
+          "coord": "D10",
+          "row": 10,
+          "col": 4,
+          "value": 20939,
+          "merge_range": "C10:J10",
+          "merge_anchor": false
+        },
+        {
+          "coord": "E10",
+          "row": 10,
+          "col": 5,
+          "value": 20939,
+          "merge_range": "C10:J10",
+          "merge_anchor": false
+        },
+        {
+          "coord": "F10",
+          "row": 10,
+          "col": 6,
+          "value": 20939,
+          "merge_range": "C10:J10",
+          "merge_anchor": false
+        },
+        {
+          "coord": "G10",
+          "row": 10,
+          "col": 7,
+          "value": 20939,
+          "merge_range": "C10:J10",
+          "merge_anchor": false
+        },
+        {
+          "coord": "H10",
+          "row": 10,
+          "col": 8,
+          "value": 20939,
+          "merge_range": "C10:J10",
+          "merge_anchor": false
+        },
+        {
+          "coord": "I10",
+          "row": 10,
+          "col": 9,
+          "value": 20939,
+          "merge_range": "C10:J10",
+          "merge_anchor": false
+        },
+        {
+          "coord": "J10",
+          "row": 10,
+          "col": 10,
+          "value": 20939,
+          "merge_range": "C10:J10",
+          "merge_anchor": false
+        },
+        {
+          "coord": "K10",
+          "row": 10,
+          "col": 11,
+          "value": 3184,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "L10",
+          "row": 10,
+          "col": 12,
+          "value": 802,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "M10",
+          "row": 10,
+          "col": 13,
+          "value": 2022,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "N10",
+          "row": 10,
+          "col": 14,
+          "value": 10129,
+          "merge_range": "N10:T10",
+          "merge_anchor": true
+        },
+        {
+          "coord": "O10",
+          "row": 10,
+          "col": 15,
+          "value": 10129,
+          "merge_range": "N10:T10",
+          "merge_anchor": false
+        },
+        {
+          "coord": "P10",
+          "row": 10,
+          "col": 16,
+          "value": 10129,
+          "merge_range": "N10:T10",
+          "merge_anchor": false
+        },
+        {
+          "coord": "Q10",
+          "row": 10,
+          "col": 17,
+          "value": 10129,
+          "merge_range": "N10:T10",
+          "merge_anchor": false
+        },
+        {
+          "coord": "R10",
+          "row": 10,
+          "col": 18,
+          "value": 10129,
+          "merge_range": "N10:T10",
+          "merge_anchor": false
+        },
+        {
+          "coord": "S10",
+          "row": 10,
+          "col": 19,
+          "value": 10129,
+          "merge_range": "N10:T10",
+          "merge_anchor": false
+        },
+        {
+          "coord": "T10",
+          "row": 10,
+          "col": 20,
+          "value": 10129,
+          "merge_range": "N10:T10",
+          "merge_anchor": false
+        },
+        {
+          "coord": "U10",
+          "row": 10,
+          "col": 21,
+          "value": 498,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "V10",
+          "row": 10,
+          "col": 22,
+          "value": 160,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "W10",
+          "row": 10,
+          "col": 23,
+          "value": 38021,
+          "merge_range": null,
+          "merge_anchor": false
+        }
+      ]
+    },
+    {
+      "row": 11,
+      "cells": [
+        {
+          "coord": "A11",
+          "row": 11,
+          "col": 1,
+          "value": "Замер 9",
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "B11",
+          "row": 11,
+          "col": 2,
+          "value": 301,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "C11",
+          "row": 11,
+          "col": 3,
+          "value": 20928,
+          "merge_range": "C11:J11",
+          "merge_anchor": true
+        },
+        {
+          "coord": "D11",
+          "row": 11,
+          "col": 4,
+          "value": 20928,
+          "merge_range": "C11:J11",
+          "merge_anchor": false
+        },
+        {
+          "coord": "E11",
+          "row": 11,
+          "col": 5,
+          "value": 20928,
+          "merge_range": "C11:J11",
+          "merge_anchor": false
+        },
+        {
+          "coord": "F11",
+          "row": 11,
+          "col": 6,
+          "value": 20928,
+          "merge_range": "C11:J11",
+          "merge_anchor": false
+        },
+        {
+          "coord": "G11",
+          "row": 11,
+          "col": 7,
+          "value": 20928,
+          "merge_range": "C11:J11",
+          "merge_anchor": false
+        },
+        {
+          "coord": "H11",
+          "row": 11,
+          "col": 8,
+          "value": 20928,
+          "merge_range": "C11:J11",
+          "merge_anchor": false
+        },
+        {
+          "coord": "I11",
+          "row": 11,
+          "col": 9,
+          "value": 20928,
+          "merge_range": "C11:J11",
+          "merge_anchor": false
+        },
+        {
+          "coord": "J11",
+          "row": 11,
+          "col": 10,
+          "value": 20928,
+          "merge_range": "C11:J11",
+          "merge_anchor": false
+        },
+        {
+          "coord": "K11",
+          "row": 11,
+          "col": 11,
+          "value": 3215,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "L11",
+          "row": 11,
+          "col": 12,
+          "value": 876,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "M11",
+          "row": 11,
+          "col": 13,
+          "value": 2123,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "N11",
+          "row": 11,
+          "col": 14,
+          "value": 10128,
+          "merge_range": "N11:T11",
+          "merge_anchor": true
+        },
+        {
+          "coord": "O11",
+          "row": 11,
+          "col": 15,
+          "value": 10128,
+          "merge_range": "N11:T11",
+          "merge_anchor": false
+        },
+        {
+          "coord": "P11",
+          "row": 11,
+          "col": 16,
+          "value": 10128,
+          "merge_range": "N11:T11",
+          "merge_anchor": false
+        },
+        {
+          "coord": "Q11",
+          "row": 11,
+          "col": 17,
+          "value": 10128,
+          "merge_range": "N11:T11",
+          "merge_anchor": false
+        },
+        {
+          "coord": "R11",
+          "row": 11,
+          "col": 18,
+          "value": 10128,
+          "merge_range": "N11:T11",
+          "merge_anchor": false
+        },
+        {
+          "coord": "S11",
+          "row": 11,
+          "col": 19,
+          "value": 10128,
+          "merge_range": "N11:T11",
+          "merge_anchor": false
+        },
+        {
+          "coord": "T11",
+          "row": 11,
+          "col": 20,
+          "value": 10128,
+          "merge_range": "N11:T11",
+          "merge_anchor": false
+        },
+        {
+          "coord": "U11",
+          "row": 11,
+          "col": 21,
+          "value": 511,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "V11",
+          "row": 11,
+          "col": 22,
+          "value": 160,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "W11",
+          "row": 11,
+          "col": 23,
+          "value": 38242,
+          "merge_range": null,
+          "merge_anchor": false
+        }
+      ]
+    },
+    {
+      "row": 12,
+      "cells": [
+        {
+          "coord": "A12",
+          "row": 12,
+          "col": 1,
+          "value": "Замер 10",
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "B12",
+          "row": 12,
+          "col": 2,
+          "value": 311,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "C12",
+          "row": 12,
+          "col": 3,
+          "value": 20946,
+          "merge_range": "C12:J12",
+          "merge_anchor": true
+        },
+        {
+          "coord": "D12",
+          "row": 12,
+          "col": 4,
+          "value": 20946,
+          "merge_range": "C12:J12",
+          "merge_anchor": false
+        },
+        {
+          "coord": "E12",
+          "row": 12,
+          "col": 5,
+          "value": 20946,
+          "merge_range": "C12:J12",
+          "merge_anchor": false
+        },
+        {
+          "coord": "F12",
+          "row": 12,
+          "col": 6,
+          "value": 20946,
+          "merge_range": "C12:J12",
+          "merge_anchor": false
+        },
+        {
+          "coord": "G12",
+          "row": 12,
+          "col": 7,
+          "value": 20946,
+          "merge_range": "C12:J12",
+          "merge_anchor": false
+        },
+        {
+          "coord": "H12",
+          "row": 12,
+          "col": 8,
+          "value": 20946,
+          "merge_range": "C12:J12",
+          "merge_anchor": false
+        },
+        {
+          "coord": "I12",
+          "row": 12,
+          "col": 9,
+          "value": 20946,
+          "merge_range": "C12:J12",
+          "merge_anchor": false
+        },
+        {
+          "coord": "J12",
+          "row": 12,
+          "col": 10,
+          "value": 20946,
+          "merge_range": "C12:J12",
+          "merge_anchor": false
+        },
+        {
+          "coord": "K12",
+          "row": 12,
+          "col": 11,
+          "value": 3151,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "L12",
+          "row": 12,
+          "col": 12,
+          "value": 868,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "M12",
+          "row": 12,
+          "col": 13,
+          "value": 2341,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "N12",
+          "row": 12,
+          "col": 14,
+          "value": 10125,
+          "merge_range": "N12:T12",
+          "merge_anchor": true
+        },
+        {
+          "coord": "O12",
+          "row": 12,
+          "col": 15,
+          "value": 10125,
+          "merge_range": "N12:T12",
+          "merge_anchor": false
+        },
+        {
+          "coord": "P12",
+          "row": 12,
+          "col": 16,
+          "value": 10125,
+          "merge_range": "N12:T12",
+          "merge_anchor": false
+        },
+        {
+          "coord": "Q12",
+          "row": 12,
+          "col": 17,
+          "value": 10125,
+          "merge_range": "N12:T12",
+          "merge_anchor": false
+        },
+        {
+          "coord": "R12",
+          "row": 12,
+          "col": 18,
+          "value": 10125,
+          "merge_range": "N12:T12",
+          "merge_anchor": false
+        },
+        {
+          "coord": "S12",
+          "row": 12,
+          "col": 19,
+          "value": 10125,
+          "merge_range": "N12:T12",
+          "merge_anchor": false
+        },
+        {
+          "coord": "T12",
+          "row": 12,
+          "col": 20,
+          "value": 10125,
+          "merge_range": "N12:T12",
+          "merge_anchor": false
+        },
+        {
+          "coord": "U12",
+          "row": 12,
+          "col": 21,
+          "value": 508,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "V12",
+          "row": 12,
+          "col": 22,
+          "value": 160,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "W12",
+          "row": 12,
+          "col": 23,
+          "value": 38410,
+          "merge_range": null,
+          "merge_anchor": false
+        }
+      ]
+    },
+    {
+      "row": 13,
+      "cells": [
+        {
+          "coord": "A13",
+          "row": 13,
+          "col": 1,
+          "value": null,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "B13",
+          "row": 13,
+          "col": 2,
+          "value": 306,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "C13",
+          "row": 13,
+          "col": 3,
+          "value": 20938,
+          "merge_range": "C13:J13",
+          "merge_anchor": true
+        },
+        {
+          "coord": "D13",
+          "row": 13,
+          "col": 4,
+          "value": 20938,
+          "merge_range": "C13:J13",
+          "merge_anchor": false
+        },
+        {
+          "coord": "E13",
+          "row": 13,
+          "col": 5,
+          "value": 20938,
+          "merge_range": "C13:J13",
+          "merge_anchor": false
+        },
+        {
+          "coord": "F13",
+          "row": 13,
+          "col": 6,
+          "value": 20938,
+          "merge_range": "C13:J13",
+          "merge_anchor": false
+        },
+        {
+          "coord": "G13",
+          "row": 13,
+          "col": 7,
+          "value": 20938,
+          "merge_range": "C13:J13",
+          "merge_anchor": false
+        },
+        {
+          "coord": "H13",
+          "row": 13,
+          "col": 8,
+          "value": 20938,
+          "merge_range": "C13:J13",
+          "merge_anchor": false
+        },
+        {
+          "coord": "I13",
+          "row": 13,
+          "col": 9,
+          "value": 20938,
+          "merge_range": "C13:J13",
+          "merge_anchor": false
+        },
+        {
+          "coord": "J13",
+          "row": 13,
+          "col": 10,
+          "value": 20938,
+          "merge_range": "C13:J13",
+          "merge_anchor": false
+        },
+        {
+          "coord": "K13",
+          "row": 13,
+          "col": 11,
+          "value": 3180,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "L13",
+          "row": 13,
+          "col": 12,
+          "value": 840,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "M13",
+          "row": 13,
+          "col": 13,
+          "value": 2220,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "N13",
+          "row": 13,
+          "col": 14,
+          "value": 10080,
+          "merge_range": "N13:T13",
+          "merge_anchor": true
+        },
+        {
+          "coord": "O13",
+          "row": 13,
+          "col": 15,
+          "value": 10080,
+          "merge_range": "N13:T13",
+          "merge_anchor": false
+        },
+        {
+          "coord": "P13",
+          "row": 13,
+          "col": 16,
+          "value": 10080,
+          "merge_range": "N13:T13",
+          "merge_anchor": false
+        },
+        {
+          "coord": "Q13",
+          "row": 13,
+          "col": 17,
+          "value": 10080,
+          "merge_range": "N13:T13",
+          "merge_anchor": false
+        },
+        {
+          "coord": "R13",
+          "row": 13,
+          "col": 18,
+          "value": 10080,
+          "merge_range": "N13:T13",
+          "merge_anchor": false
+        },
+        {
+          "coord": "S13",
+          "row": 13,
+          "col": 19,
+          "value": 10080,
+          "merge_range": "N13:T13",
+          "merge_anchor": false
+        },
+        {
+          "coord": "T13",
+          "row": 13,
+          "col": 20,
+          "value": 10080,
+          "merge_range": "N13:T13",
+          "merge_anchor": false
+        },
+        {
+          "coord": "U13",
+          "row": 13,
+          "col": 21,
+          "value": 502,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "V13",
+          "row": 13,
+          "col": 22,
+          "value": 160,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "W13",
+          "row": 13,
+          "col": 23,
+          "value": 38226,
+          "merge_range": null,
+          "merge_anchor": false
+        }
+      ]
+    }
+  ]
+}

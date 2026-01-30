@@ -1,0 +1,326 @@
+{
+  "meta": {
+    "workbook": "/Users/mask/Documents/Проеты_2025/мос_мониторинг/третья_итерация/КПСЦ и Спагетти ТС_Предприятие.xlsx",
+    "sheet": "КПСЦ",
+    "drawing_xml": "xl/drawings/drawing2.xml",
+    "chart_xml": "xl/charts/chart3.xml"
+  },
+  "anchor": {
+    "from": {
+      "col": 2,
+      "row": 113,
+      "cell": "B113"
+    },
+    "to": {
+      "col": 27,
+      "row": 140,
+      "cell": "AA140"
+    }
+  },
+  "series": [
+    {
+      "chart_type": "bar",
+      "name_formula": "КПСЦ!$B$109",
+      "name_values": [
+        "Время выполнения 1 партии "
+      ],
+      "value_formula": "КПСЦ!$E$109:$W$109",
+      "points": [
+        {
+          "coord": "E109",
+          "row": 109,
+          "col": 5,
+          "value": null,
+          "header": null
+        },
+        {
+          "coord": "F109",
+          "row": 109,
+          "col": 6,
+          "value": null,
+          "header": null
+        },
+        {
+          "coord": "G109",
+          "row": 109,
+          "col": 7,
+          "value": null,
+          "header": null
+        },
+        {
+          "coord": "H109",
+          "row": 109,
+          "col": 8,
+          "value": 10121,
+          "header": "Измельчитель ягоды"
+        },
+        {
+          "coord": "I109",
+          "row": 109,
+          "col": 9,
+          "value": null,
+          "header": null
+        },
+        {
+          "coord": "J109",
+          "row": 109,
+          "col": 10,
+          "value": null,
+          "header": null
+        },
+        {
+          "coord": "K109",
+          "row": 109,
+          "col": 11,
+          "value": null,
+          "header": null
+        },
+        {
+          "coord": "L109",
+          "row": 109,
+          "col": 12,
+          "value": 9293,
+          "header": "Загрузка подготовителя-размораживателя"
+        },
+        {
+          "coord": "M109",
+          "row": 109,
+          "col": 13,
+          "value": 20938,
+          "header": "Подготовитель-размораживатель"
+        },
+        {
+          "coord": "N109",
+          "row": 109,
+          "col": 14,
+          "value": 3180,
+          "header": "Протирочная машина"
+        },
+        {
+          "coord": "O109",
+          "row": 109,
+          "col": 15,
+          "value": 840,
+          "header": "Вакуумно-варочный котел"
+        },
+        {
+          "coord": "P109",
+          "row": 109,
+          "col": 16,
+          "value": 2220,
+          "header": "Буферная ёмкость"
+        },
+        {
+          "coord": "Q109",
+          "row": 109,
+          "col": 17,
+          "value": 10080,
+          "header": "Фасовка"
+        },
+        {
+          "coord": "R109",
+          "row": 109,
+          "col": 18,
+          "value": null,
+          "header": null
+        },
+        {
+          "coord": "S109",
+          "row": 109,
+          "col": 19,
+          "value": null,
+          "header": null
+        },
+        {
+          "coord": "T109",
+          "row": 109,
+          "col": 20,
+          "value": null,
+          "header": null
+        },
+        {
+          "coord": "U109",
+          "row": 109,
+          "col": 21,
+          "value": 417,
+          "header": "Упаковка 2-х бочек с пюре на упаковочный поддон "
+        },
+        {
+          "coord": "V109",
+          "row": 109,
+          "col": 22,
+          "value": null,
+          "header": null
+        },
+        {
+          "coord": "W109",
+          "row": 109,
+          "col": 23,
+          "value": 354,
+          "header": "Упаковка 4-х бочек"
+        }
+      ]
+    },
+    {
+      "chart_type": "line",
+      "name_formula": "КПСЦ!$B$110",
+      "name_values": [
+        "Время такта"
+      ],
+      "value_formula": "КПСЦ!$E$110:$W$110",
+      "points": [
+        {
+          "coord": "E110",
+          "row": 110,
+          "col": 5,
+          "value": 19200,
+          "header": null
+        },
+        {
+          "coord": "F110",
+          "row": 110,
+          "col": 6,
+          "value": 19200,
+          "header": null
+        },
+        {
+          "coord": "G110",
+          "row": 110,
+          "col": 7,
+          "value": 19200,
+          "header": null
+        },
+        {
+          "coord": "H110",
+          "row": 110,
+          "col": 8,
+          "value": 19200,
+          "header": "Измельчитель ягоды"
+        },
+        {
+          "coord": "I110",
+          "row": 110,
+          "col": 9,
+          "value": 19200,
+          "header": null
+        },
+        {
+          "coord": "J110",
+          "row": 110,
+          "col": 10,
+          "value": 19200,
+          "header": null
+        },
+        {
+          "coord": "K110",
+          "row": 110,
+          "col": 11,
+          "value": 19200,
+          "header": null
+        },
+        {
+          "coord": "L110",
+          "row": 110,
+          "col": 12,
+          "value": 19200,
+          "header": "Загрузка подготовителя-размораживателя"
+        },
+        {
+          "coord": "M110",
+          "row": 110,
+          "col": 13,
+          "value": 19200,
+          "header": "Подготовитель-размораживатель"
+        },
+        {
+          "coord": "N110",
+          "row": 110,
+          "col": 14,
+          "value": 19200,
+          "header": "Протирочная машина"
+        },
+        {
+          "coord": "O110",
+          "row": 110,
+          "col": 15,
+          "value": 19200,
+          "header": "Вакуумно-варочный котел"
+        },
+        {
+          "coord": "P110",
+          "row": 110,
+          "col": 16,
+          "value": 19200,
+          "header": "Буферная ёмкость"
+        },
+        {
+          "coord": "Q110",
+          "row": 110,
+          "col": 17,
+          "value": 19200,
+          "header": "Фасовка"
+        },
+        {
+          "coord": "R110",
+          "row": 110,
+          "col": 18,
+          "value": 19200,
+          "header": null
+        },
+        {
+          "coord": "S110",
+          "row": 110,
+          "col": 19,
+          "value": 19200,
+          "header": null
+        },
+        {
+          "coord": "T110",
+          "row": 110,
+          "col": 20,
+          "value": 19200,
+          "header": null
+        },
+        {
+          "coord": "U110",
+          "row": 110,
+          "col": 21,
+          "value": 19200,
+          "header": "Упаковка 2-х бочек с пюре на упаковочный поддон "
+        },
+        {
+          "coord": "V110",
+          "row": 110,
+          "col": 22,
+          "value": 19200,
+          "header": null
+        },
+        {
+          "coord": "W110",
+          "row": 110,
+          "col": 23,
+          "value": 19200,
+          "header": "Упаковка 4-х бочек"
+        }
+      ]
+    }
+  ],
+  "intersections": [
+    {
+      "bar_series_name": [
+        "Время выполнения 1 партии "
+      ],
+      "line_series_name": [
+        "Время такта"
+      ],
+      "line_value": 19200,
+      "points": [
+        {
+          "coord": "M109",
+          "header": "Подготовитель-размораживатель",
+          "value": 20938
+        }
+      ]
+    }
+  ]
+}

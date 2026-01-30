@@ -1,0 +1,775 @@
+{
+  "meta": {
+    "workbook": "/Users/mask/Documents/Проеты_2025/мос_мониторинг/третья_итерация/КПСЦ и Спагетти ТС_Предприятие.xlsx",
+    "sheet": "КПСЦ",
+    "section_title_cell": "B61"
+  },
+  "bounds": {
+    "top_row": 62,
+    "bottom_row": 65,
+    "left_col": 2,
+    "right_col": 24,
+    "left_letter": "B",
+    "right_letter": "X",
+    "height": 4,
+    "width": 23
+  },
+  "rows": [
+    {
+      "row": 62,
+      "cells": [
+        {
+          "coord": "B62",
+          "col": 2,
+          "row": 62,
+          "value": "Показатель",
+          "merge_range": "B62:C62",
+          "merge_anchor": true
+        },
+        {
+          "coord": "C62",
+          "col": 3,
+          "row": 62,
+          "value": "Показатель",
+          "merge_range": "B62:C62",
+          "merge_anchor": false
+        },
+        {
+          "coord": "D62",
+          "col": 4,
+          "row": 62,
+          "value": "Ед. измерения",
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "E62",
+          "col": 5,
+          "row": 62,
+          "value": null,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "F62",
+          "col": 6,
+          "row": 62,
+          "value": null,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "G62",
+          "col": 7,
+          "row": 62,
+          "value": null,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "H62",
+          "col": 8,
+          "row": 62,
+          "value": "Измельчитель ягоды",
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "I62",
+          "col": 9,
+          "row": 62,
+          "value": null,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "J62",
+          "col": 10,
+          "row": 62,
+          "value": null,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "K62",
+          "col": 11,
+          "row": 62,
+          "value": null,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "L62",
+          "col": 12,
+          "row": 62,
+          "value": "Загрузка подготовителя-размораживателя",
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "M62",
+          "col": 13,
+          "row": 62,
+          "value": "Подготовитель-размораживатель",
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "N62",
+          "col": 14,
+          "row": 62,
+          "value": "Протирочная машина",
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "O62",
+          "col": 15,
+          "row": 62,
+          "value": "Вакуумно-варочный котел",
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "P62",
+          "col": 16,
+          "row": 62,
+          "value": "Буферная ёмкость",
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "Q62",
+          "col": 17,
+          "row": 62,
+          "value": "Фасовка",
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "R62",
+          "col": 18,
+          "row": 62,
+          "value": null,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "S62",
+          "col": 19,
+          "row": 62,
+          "value": null,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "T62",
+          "col": 20,
+          "row": 62,
+          "value": null,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "U62",
+          "col": 21,
+          "row": 62,
+          "value": "Упаковка 2-х бочек с пюре на упаковочный поддон ",
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "V62",
+          "col": 22,
+          "row": 62,
+          "value": null,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "W62",
+          "col": 23,
+          "row": 62,
+          "value": "Упаковка 4-х бочек",
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "X62",
+          "col": 24,
+          "row": 62,
+          "value": "Склад ГП",
+          "merge_range": null,
+          "merge_anchor": false
+        }
+      ]
+    },
+    {
+      "row": 63,
+      "cells": [
+        {
+          "coord": "B63",
+          "col": 2,
+          "row": 63,
+          "value": "Общее время работы",
+          "merge_range": "B63:C63",
+          "merge_anchor": true
+        },
+        {
+          "coord": "C63",
+          "col": 3,
+          "row": 63,
+          "value": "Общее время работы",
+          "merge_range": "B63:C63",
+          "merge_anchor": false
+        },
+        {
+          "coord": "D63",
+          "col": 4,
+          "row": 63,
+          "value": "секунды",
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "E63",
+          "col": 5,
+          "row": 63,
+          "value": 28800,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "F63",
+          "col": 6,
+          "row": 63,
+          "value": null,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "G63",
+          "col": 7,
+          "row": 63,
+          "value": null,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "H63",
+          "col": 8,
+          "row": 63,
+          "value": 43200,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "I63",
+          "col": 9,
+          "row": 63,
+          "value": null,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "J63",
+          "col": 10,
+          "row": 63,
+          "value": null,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "K63",
+          "col": 11,
+          "row": 63,
+          "value": null,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "L63",
+          "col": 12,
+          "row": 63,
+          "value": 43200,
+          "merge_range": "L63:M63",
+          "merge_anchor": true
+        },
+        {
+          "coord": "M63",
+          "col": 13,
+          "row": 63,
+          "value": 43200,
+          "merge_range": "L63:M63",
+          "merge_anchor": false
+        },
+        {
+          "coord": "N63",
+          "col": 14,
+          "row": 63,
+          "value": 43200,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "O63",
+          "col": 15,
+          "row": 63,
+          "value": 43200,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "P63",
+          "col": 16,
+          "row": 63,
+          "value": 43200,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "Q63",
+          "col": 17,
+          "row": 63,
+          "value": 43200,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "R63",
+          "col": 18,
+          "row": 63,
+          "value": null,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "S63",
+          "col": 19,
+          "row": 63,
+          "value": null,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "T63",
+          "col": 20,
+          "row": 63,
+          "value": null,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "U63",
+          "col": 21,
+          "row": 63,
+          "value": 43200,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "V63",
+          "col": 22,
+          "row": 63,
+          "value": null,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "W63",
+          "col": 23,
+          "row": 63,
+          "value": 43200,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "X63",
+          "col": 24,
+          "row": 63,
+          "value": 28800,
+          "merge_range": null,
+          "merge_anchor": false
+        }
+      ]
+    },
+    {
+      "row": 64,
+      "cells": [
+        {
+          "coord": "B64",
+          "col": 2,
+          "row": 64,
+          "value": "Время перерывов",
+          "merge_range": "B64:C64",
+          "merge_anchor": true
+        },
+        {
+          "coord": "C64",
+          "col": 3,
+          "row": 64,
+          "value": "Время перерывов",
+          "merge_range": "B64:C64",
+          "merge_anchor": false
+        },
+        {
+          "coord": "D64",
+          "col": 4,
+          "row": 64,
+          "value": "секунды",
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "E64",
+          "col": 5,
+          "row": 64,
+          "value": 3600,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "F64",
+          "col": 6,
+          "row": 64,
+          "value": null,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "G64",
+          "col": 7,
+          "row": 64,
+          "value": null,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "H64",
+          "col": 8,
+          "row": 64,
+          "value": 4800,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "I64",
+          "col": 9,
+          "row": 64,
+          "value": null,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "J64",
+          "col": 10,
+          "row": 64,
+          "value": null,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "K64",
+          "col": 11,
+          "row": 64,
+          "value": null,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "L64",
+          "col": 12,
+          "row": 64,
+          "value": 4800,
+          "merge_range": "L64:M64",
+          "merge_anchor": true
+        },
+        {
+          "coord": "M64",
+          "col": 13,
+          "row": 64,
+          "value": 4800,
+          "merge_range": "L64:M64",
+          "merge_anchor": false
+        },
+        {
+          "coord": "N64",
+          "col": 14,
+          "row": 64,
+          "value": 4800,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "O64",
+          "col": 15,
+          "row": 64,
+          "value": 4800,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "P64",
+          "col": 16,
+          "row": 64,
+          "value": 4800,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "Q64",
+          "col": 17,
+          "row": 64,
+          "value": 4800,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "R64",
+          "col": 18,
+          "row": 64,
+          "value": null,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "S64",
+          "col": 19,
+          "row": 64,
+          "value": null,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "T64",
+          "col": 20,
+          "row": 64,
+          "value": null,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "U64",
+          "col": 21,
+          "row": 64,
+          "value": 4800,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "V64",
+          "col": 22,
+          "row": 64,
+          "value": null,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "W64",
+          "col": 23,
+          "row": 64,
+          "value": 4800,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "X64",
+          "col": 24,
+          "row": 64,
+          "value": 3600,
+          "merge_range": null,
+          "merge_anchor": false
+        }
+      ]
+    },
+    {
+      "row": 65,
+      "cells": [
+        {
+          "coord": "B65",
+          "col": 2,
+          "row": 65,
+          "value": "Доступное рабочее время",
+          "merge_range": "B65:C65",
+          "merge_anchor": true
+        },
+        {
+          "coord": "C65",
+          "col": 3,
+          "row": 65,
+          "value": "Доступное рабочее время",
+          "merge_range": "B65:C65",
+          "merge_anchor": false
+        },
+        {
+          "coord": "D65",
+          "col": 4,
+          "row": 65,
+          "value": "секунды",
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "E65",
+          "col": 5,
+          "row": 65,
+          "value": 25200,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "F65",
+          "col": 6,
+          "row": 65,
+          "value": 38400,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "G65",
+          "col": 7,
+          "row": 65,
+          "value": 38400,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "H65",
+          "col": 8,
+          "row": 65,
+          "value": 38400,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "I65",
+          "col": 9,
+          "row": 65,
+          "value": 38400,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "J65",
+          "col": 10,
+          "row": 65,
+          "value": 38400,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "K65",
+          "col": 11,
+          "row": 65,
+          "value": 38400,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "L65",
+          "col": 12,
+          "row": 65,
+          "value": 38400,
+          "merge_range": "L65:M65",
+          "merge_anchor": true
+        },
+        {
+          "coord": "M65",
+          "col": 13,
+          "row": 65,
+          "value": 38400,
+          "merge_range": "L65:M65",
+          "merge_anchor": false
+        },
+        {
+          "coord": "N65",
+          "col": 14,
+          "row": 65,
+          "value": 38400,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "O65",
+          "col": 15,
+          "row": 65,
+          "value": 38400,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "P65",
+          "col": 16,
+          "row": 65,
+          "value": 38400,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "Q65",
+          "col": 17,
+          "row": 65,
+          "value": 38400,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "R65",
+          "col": 18,
+          "row": 65,
+          "value": null,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "S65",
+          "col": 19,
+          "row": 65,
+          "value": null,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "T65",
+          "col": 20,
+          "row": 65,
+          "value": null,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "U65",
+          "col": 21,
+          "row": 65,
+          "value": 38400,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "V65",
+          "col": 22,
+          "row": 65,
+          "value": null,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "W65",
+          "col": 23,
+          "row": 65,
+          "value": 38400,
+          "merge_range": null,
+          "merge_anchor": false
+        },
+        {
+          "coord": "X65",
+          "col": 24,
+          "row": 65,
+          "value": 25200,
+          "merge_range": null,
+          "merge_anchor": false
+        }
+      ]
+    }
+  ]
+}

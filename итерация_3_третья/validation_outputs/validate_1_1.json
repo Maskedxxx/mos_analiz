@@ -1,0 +1,7 @@
+{
+  "rule_index": "1.1",
+  "rule_title": "Наличие слов 'КПСЦ ТС' в заголовке",
+  "target_document": "КПСЦ и Спагетти ТС_Предприятие.xlsx",
+  "status": "PASS",
+  "discrepancy": ""
+}

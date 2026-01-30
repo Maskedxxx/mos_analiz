@@ -1,0 +1,1537 @@
+ВАЛИДАТОР 2.2: Последовательность номеров проблем (пропуски в нумерации)
+Запуск: 2025-12-09 08:51:19
+Целевой документ: КПСЦ и Спагетти ТС_Предприятие.xlsx
+
+================================================================================
+[STEP 1/6] Загрузка правила проверки
+Timestamp: 2025-12-09 08:51:19
+================================================================================
+Rule loaded:
+{
+  "rule_index": "2.2",
+  "rule_title": "Последовательность номеров проблем (пропуски в нумерации)",
+  "section": "РАЗДЕЛ 2: ПРОВЕРКА НУМЕРАЦИИ ПРОБЛЕМ В ТАБЛИЦЕ \"ОЦИФРОВКА ПОТЕРЬ\"",
+  "requirement_expert": "Если во вкладке \"оцифровка потерь\" чего-то нет. Выведи в результат.",
+  "technical_description": "Извлечь все номера проблем из первой колонки таблицы. Проверить, что нумерация идет последовательно: 1, 2, 3, ..., N. Найти пропуски в последовательности.",
+  "source_files": [
+    "ocifrovka_poteri_v2.json"
+  ],
+  "source_path": "rows",
+  "validation_criteria": {
+    "what_to_check": "1. Извлечь все номера проблем из первой колонки таблицы\n2. Проверить, что нумерация идет последовательно: 1, 2, 3, ..., N\n3. Найти пропуски в последовательности",
+    "success_condition": "Нумерация последовательна, без пропусков",
+    "error_condition": "Есть пропущенные номера"
+  }
+}
+
+================================================================================
+[STEP 2/6] Загрузка данных
+Timestamp: 2025-12-09 08:51:19
+================================================================================
+Source files loaded
+Data: {
+  "file_exists": true,
+  "data": {
+    "meta": {
+      "workbook": "/Users/mask/Documents/Проеты_2025/мос_мониторинг/третья_итерация/КПСЦ и Спагетти ТС_Предприятие.xlsx",
+      "sheet": "Оцифровка потерь КПСЦ",
+      "header_row": 1
+    },
+    "bounds": {
+      "top_row": 1,
+      "bottom_row": 15,
+      "left_col": 2,
+      "right_col": 12,
+      "left_letter": "B",
+      "right_letter": "L",
+      "height": 15,
+      "width": 11
+    },
+    "rows": [
+      {
+        "row": 1,
+        "cells": [
+          {
+            "coord": "B1",
+            "row": 1,
+            "col": 2,
+            "value": "№",
+            "merge_range": null,
+            "merge_anchor": false
+          },
+          {
+            "coord": "C1",
+            "row": 1,
+            "col": 3,
+            "value": "На каком элементе карты потока выявлена проблема",
+            "merge_range": null,
+            "merge_anchor": false
+          },
+          {
+            "coord": "D1",
+            "row": 1,
+            "col": 4,
+            "value": "Описание проблемы",
+            "merge_range": null,
+            "merge_anchor": false
+          },
+          {
+            "coord": "E1",
+            "row": 1,
+            "col": 5,
+            "value": "Вид потери",
+            "merge_range": null,
+            "merge_anchor": false
+          },
+          {
+            "coord": "F1",
+            "row": 1,
+            "col": 6,
+            "value": "Последствия проблемы",
+            "merge_range": null,
+            "merge_anchor": false
+          },
+          {
+            "coord": "G1",
+            "row": 1,
+            "col": 7,
+            "value": "Как часто?",
+            "merge_range": null,
+            "merge_anchor": false
+          },
+          {
+            "coord": "H1",
+            "row": 1,
+            "col": 8,
+            "value": "Измерение",
+            "merge_range": null,
+            "merge_anchor": false
+          },
+          {
+            "coord": "I1",
+            "row": 1,
+            "col": 9,
+            "value": "Ед.изм",
+            "merge_range": null,
+            "merge_anchor": false
+          },
+          {
+            "coord": "J1",
+            "row": 1,
+            "col": 10,
+            "value": "Влияние на показатель выработка, тонн на человека в смену ",
+            "merge_range": null,
+            "merge_anchor": false
+          },
+          {
+            "coord": "K1",
+            "row": 1,
+            "col": 11,
+            "value": "Запасы в потоке, тонна",
+            "merge_range": null,
+            "merge_anchor": false
+          },
+          {
+            "coord": "L1",
+            "row": 1,
+            "col": 12,
+            "value": "Влияние на показатель ВПП, час",
+            "merge_range": null,
+            "merge_anchor": false
+          }
+        ]
+      },
+      {
+        "row": 2,
+        "cells": [
+          {
+            "coord": "B2",
+            "row": 2,
+            "col": 2,
+            "value": 1,
+            "merge_range": null,
+            "merge_anchor": false
+          },
+          {
+            "coord": "C2",
+            "row": 2,
+            "col": 3,
+            "value": "Операция измельчения",
+            "merge_range": null,
+            "merge_anchor": false
+          },
+          {
+            "coord": "D2",
+            "row": 2,
+            "col": 4,
+            "value": "Излишние запасы перед операцией измельчения. Карщик привозит сразу три короба ягоды (1671 кг), хотя для запуска партии требуется 225 кг)",
+            "merge_range": null,
+            "merge_anchor": false
+          },
+          {
+            "coord": "E2",
+            "row": 2,
+            "col": 5,
+            "value": "Излишние запасы",
+            "merge_range": null,
+            "merge_anchor": false
+          },
+          {
+            "coord": "F2",
+            "row": 2,
+            "col": 6,
+            "value": "Затраты времени при перемещении продукта",
+            "merge_range": null,
+            "merge_anchor": false
+          },
+          {
+            "coord": "G2",
+            "row": 2,
+            "col": 7,
+            "value": "2 раза в смену",
+            "merge_range": null,
+            "merge_anchor": false
+          },
+          {
+            "coord": "H2",
+            "row": 2,
+            "col": 8,
+            "value": 1.446,
+            "merge_range": null,
+            "merge_anchor": false
+          },
+          {
+            "coord": "I2",
+            "row": 2,
+            "col": 9,
+            "value": "тонна",
+            "merge_range": null,
+            "merge_anchor": false
+          },
+          {
+            "coord": "J2",
+            "row": 2,
+            "col": 10,
+            "value": null,
+            "merge_range": null,
+            "merge_anchor": false
+          },
+          {
+            "coord": "K2",
+            "row": 2,
+            "col": 11,
+            "value": 1.446,
+            "merge_range": null,
+            "merge_anchor": false
+          },
+          {
+            "coord": "L2",
+            "row": 2,
+            "col": 12,
+            "value": 0.09,
+            "merge_range": null,
+            "merge_anchor": false
+          }
+        ]
+      },
+      {
+        "row": 3,
+        "cells": [
+          {
+            "coord": "B3",
+            "row": 3,
+            "col": 2,
+            "value": 2,
+            "merge_range": null,
+            "merge_anchor": false
+          },
+          {
+            "coord": "C3",
+            "row": 3,
+            "col": 3,
+            "value": "Операция измельчения",
+            "merge_range": null,
+            "merge_anchor": false
+          },
+          {
+            "coord": "D3",
+            "row": 3,
+            "col": 4,
+            "value": "Затраты времени на перемещения из-за излишних запасов возле измельчителя, подготовителю приходиться обходить короба (5 м)",
+            "merge_range": null,
+            "merge_anchor": false
+          },
+          {
+            "coord": "E3",
+            "row": 3,
+            "col": 5,
+            "value": "Лишние движения",
+            "merge_range": null,
+            "merge_anchor": false
+          },
+          {
+            "coord": "F3",
+            "row": 3,
+            "col": 6,
+            "value": "Затраты времени при перемещении продукта на измельчитель",
+            "merge_range": null,
+            "merge_anchor": false
+          },
+          {
+            "coord": "G3",
+            "row": 3,
+            "col": 7,
+            "value": "130 раз на партию (6 бочек (1200 кг))",
+            "merge_range": null,
+            "merge_anchor": false
+          },
+          {
+            "coord": "H3",
+            "row": 3,
+            "col": 8,
+            "value": 10.745,
+            "merge_range": null,
+            "merge_anchor": false
+          },
+          {
+            "coord": "I3",
+            "row": 3,
+            "col": 9,
+            "value": "секунды ",
+            "merge_range": null,
+            "merge_anchor": false
+          },
+          {
+            "coord": "J3",
+            "row": 3,
+            "col": 10,
+            "value": 0.04366,
+            "merge_range": null,
+            "merge_anchor": false
+          },
+          {
+            "coord": "K3",
+            "row": 3,
+            "col": 11,
+            "value": null,
+            "merge_range": null,
+            "merge_anchor": false
+          },
+          {
+            "coord": "L3",
+            "row": 3,
+            "col": 12,
+            "value": 0.3880138888888889,
+            "merge_range": null,
+            "merge_anchor": false
+          }
+        ]
+      },
+      {
+        "row": 4,
+        "cells": [
+          {
+            "coord": "B4",
+            "row": 4,
+            "col": 2,
+            "value": 3,
+            "merge_range": null,
+            "merge_anchor": false
+          },
+          {
+            "coord": "C4",
+            "row": 4,
+            "col": 3,
+            "value": "Операция измельчения",
+            "merge_range": null,
+            "merge_anchor": false
+          },
+          {
+            "coord": "D4",
+            "row": 4,
+            "col": 4,
+            "value": "Затраты времени из-за неорганизованности рабочего места (отсутствие аварийного останова измельчителя - подготовителю приходится выключать измельчитель из розетки, которая находится на расстоянии около 3-х метров; отсутствует фиксация измельчителя - при смещении измельчителя в процессе работы, приходиться выключать измельчитель, после чего поправлять; шланги от  керхера затрудняют перемещения подготовителя)",
+            "merge_range": null,
+            "merge_anchor": false
+          },
+          {
+            "coord": "E4",
+            "row": 4,
+            "col": 5,
+            "value": "Ожидание",
+            "merge_range": null,
+            "merge_anchor": false
+          },
+          {
+            "coord": "F4",
+            "row": 4,
+            "col": 6,
+            "value": "Снижение производительности ",
+            "merge_range": null,
+            "merge_anchor": false
+          },
+          {
+            "coord": "G4",
+            "row": 4,
+            "col": 7,
+            "value": "6 раз на партию (6 бочек (1200 кг))",
+            "merge_range": null,
+            "merge_anchor": false
+          },
+          {
+            "coord": "H4",
+            "row": 4,
+            "col": 8,
+            "value": 48,
+            "merge_range": null,
+            "merge_anchor": false
+          },
+          {
+            "coord": "I4",
+            "row": 4,
+            "col": 9,
+            "value": "секунды ",
+            "merge_range": null,
+            "merge_anchor": false
+          },
+          {
+            "coord": "J4",
+            "row": 4,
+            "col": 10,
+            "value": 0.009,
+            "merge_range": null,
+            "merge_anchor": false
+          },
+          {
+            "coord": "K4",
+            "row": 4,
+            "col": 11,
+            "value": null,
+            "merge_range": null,
+            "merge_anchor": false
+          },
+          {
+            "coord": "L4",
+            "row": 4,
+            "col": 12,
+            "value": 0.08,
+            "merge_range": null,
+            "merge_anchor": false
+          }
+        ]
+      },
+      {
+        "row": 5,
+        "cells": [
+          {
+            "coord": "B5",
+            "row": 5,
+            "col": 2,
+            "value": 4,
+            "merge_range": null,
+            "merge_anchor": false
+          },
+          {
+            "coord": "C5",
+            "row": 5,
+            "col": 3,
+            "value": "Операция измельчения",
+            "merge_range": null,
+            "merge_anchor": false
+          },
+          {
+            "coord": "D5",
+            "row": 5,
+            "col": 4,
+            "value": "Простой из-за поломки измельчителя ",
+            "merge_range": null,
+            "merge_anchor": false
+          },
+          {
+            "coord": "E5",
+            "row": 5,
+            "col": 5,
+            "value": "Ожидание",
+            "merge_range": null,
+            "merge_anchor": false
+          },
+          {
+            "coord": "F5",
+            "row": 5,
+            "col": 6,
+            "value": "Не выполнение плана",
+            "merge_range": null,
+            "merge_anchor": false
+          },
+          {
+            "coord": "G5",
+            "row": 5,
+            "col": 7,
+            "value": "1 раз в неделю",
+            "merge_range": null,
+            "merge_anchor": false
+          },
+          {
+            "coord": "H5",
+            "row": 5,
+            "col": 8,
+            "value": 2700,
+            "merge_range": null,
+            "merge_anchor": false
+          },
+          {
+            "coord": "I5",
+            "row": 5,
+            "col": 9,
+            "value": "секунды ",
+            "merge_range": null,
+            "merge_anchor": false
+          },
+          {
+            "coord": "J5",
+            "row": 5,
+            "col": 10,
+            "value": 0.084,
+            "merge_range": null,
+            "merge_anchor": false
+          },
+          {
+            "coord": "K5",
+            "row": 5,
+            "col": 11,
+            "value": null,
+            "merge_range": null,
+            "merge_anchor": false
+          },
+          {
+            "coord": "L5",
+            "row": 5,
+            "col": 12,
+            "value": 0.75,
+            "merge_range": null,
+            "merge_anchor": false
+          }
+        ]
+      },
+      {
+        "row": 6,
+        "cells": [
+          {
+            "coord": "B6",
+            "row": 6,
+            "col": 2,
+            "value": 5,
+            "merge_range": null,
+            "merge_anchor": false
+          },
+          {
+            "coord": "C6",
+            "row": 6,
+            "col": 3,
+            "value": "Операция загрузки подготвителя-размораживателя",
+            "merge_range": null,
+            "merge_anchor": false
+          },
+          {
+            "coord": "D6",
+            "row": 6,
+            "col": 4,
+            "value": "Затраты времени на переходы от измельчителя к подготовителю-размораживателю, из-за удаленного размещения измельчителя (12 м)",
+            "merge_range": null,
+            "merge_anchor": false
+          },
+          {
+            "coord": "E6",
+            "row": 6,
+            "col": 5,
+            "value": "Лишние движения",
+            "merge_range": null,
+            "merge_anchor": false
+          },
+          {
+            "coord": "F6",
+            "row": 6,
+            "col": 6,
+            "value": "Затраты времени при перемещении измельченной ягоды к размораживателю",
+            "merge_range": null,
+            "merge_anchor": false
+          },
+          {
+            "coord": "G6",
+            "row": 6,
+            "col": 7,
+            "value": "26 раз на партию (6 бочек (1200 кг))",
+            "merge_range": null,
+            "merge_anchor": false
+          },
+          {
+            "coord": "H6",
+            "row": 6,
+            "col": 8,
+            "value": 24,
+            "merge_range": null,
+            "merge_anchor": false
+          },
+          {
+            "coord": "I6",
+            "row": 6,
+            "col": 9,
+            "value": "секунды ",
+            "merge_range": null,
+            "merge_anchor": false
+          },
+          {
+            "coord": "J6",
+            "row": 6,
+            "col": 10,
+            "value": 0.0195,
+            "merge_range": null,
+            "merge_anchor": false
+          },
+          {
+            "coord": "K6",
+            "row": 6,
+            "col": 11,
+            "value": null,
+            "merge_range": null,
+            "merge_anchor": false
+          },
+          {
+            "coord": "L6",
+            "row": 6,
+            "col": 12,
+            "value": 0.17333333333333334,
+            "merge_range": null,
+            "merge_anchor": false
+          }
+        ]
+      },
+      {
+        "row": 7,
+        "cells": [
+          {
+            "coord": "B7",
+            "row": 7,
+            "col": 2,
+            "value": 6,
+            "merge_range": null,
+            "merge_anchor": false
+          },
+          {
+            "coord": "C7",
+            "row": 7,
+            "col": 3,
+            "value": "Операция загрузки подготовителя-размораживателя ВВА ",
+            "merge_range": null,
+            "merge_anchor": false
+          },
+          {
+            "coord": "D7",
+            "row": 7,
+            "col": 4,
+            "value": "Высокие эргономические риски персонала при загрузки подготовителя-размораживателя",
+            "merge_range": null,
+            "merge_anchor": false
+          },
+          {
+            "coord": "E7",
+            "row": 7,
+            "col": 5,
+            "value": null,
+            "merge_range": null,
+            "merge_anchor": false
+          },
+          {
+            "coord": "F7",
+            "row": 7,
+            "col": 6,
+            "value": "Риски заболевания персонала, невыхода на работу",
+            "merge_range": null,
+            "merge_anchor": false
+          },
+          {
+            "coord": "G7",
+            "row": 7,
+            "col": 7,
+            "value": "в течении смены",
+            "merge_range": null,
+            "merge_anchor": false
+          },
+          {
+            "coord": "H7",
+            "row": 7,
+            "col": 8,
+            "value": 0.51,
+            "merge_range": null,
+            "merge_anchor": false
+          },
+          {
+            "coord": "I7",
+            "row": 7,
+            "col": 9,
+            "value": "чел. ч.",
+            "merge_range": null,
+            "merge_anchor": false
+          },
+          {
+            "coord": "J7",
+            "row": 7,
+            "col": 10,
+            "value": null,
+            "merge_range": null,
+            "merge_anchor": false
+          },
+          {
+            "coord": "K7",
+            "row": 7,
+            "col": 11,
+            "value": null,
+            "merge_range": null,
+            "merge_anchor": false
+          },
+          {
+            "coord": "L7",
+            "row": 7,
+            "col": 12,
+            "value": null,
+            "merge_range": null,
+            "merge_anchor": false
+          }
+        ]
+      },
+      {
+        "row": 8,
+        "cells": [
+          {
+            "coord": "B8",
+            "row": 8,
+            "col": 2,
+            "value": 7,
+            "merge_range": null,
+            "merge_anchor": false
+          },
+          {
+            "coord": "C8",
+            "row": 8,
+            "col": 3,
+            "value": "Операция загрузки подготовителя-размораживателя ВВА ",
+            "merge_range": null,
+            "merge_anchor": false
+          },
+          {
+            "coord": "D8",
+            "row": 8,
+            "col": 4,
+            "value": "Лишние движения при заливки воды в подготовитель-размораживатель, подготовитель сначала наливает воду в бутыли, затем из бутылей в котел",
+            "merge_range": null,
+            "merge_anchor": false
+          },
+          {
+            "coord": "E8",
+            "row": 8,
+            "col": 5,
+            "value": "Лишние движения",
+            "merge_range": null,
+            "merge_anchor": false
+          },
+          {
+            "coord": "F8",
+            "row": 8,
+            "col": 6,
+            "value": "Снижение производительности",
+            "merge_range": null,
+            "merge_anchor": false
+          },
+          {
+            "coord": "G8",
+            "row": 8,
+            "col": 7,
+            "value": "6 раз на партию (6 бочек (1200 кг))",
+            "merge_range": null,
+            "merge_anchor": false
+          },
+          {
+            "coord": "H8",
+            "row": 8,
+            "col": 8,
+            "value": 62,
+            "merge_range": null,
+            "merge_anchor": false
+          },
+          {
+            "coord": "I8",
+            "row": 8,
+            "col": 9,
+            "value": "секунды ",
+            "merge_range": null,
+            "merge_anchor": false
+          },
+          {
+            "coord": "J8",
+            "row": 8,
+            "col": 10,
+            "value": 0.011630000000000001,
+            "merge_range": null,
+            "merge_anchor": false
+          },
+          {
+            "coord": "K8",
+            "row": 8,
+            "col": 11,
+            "value": null,
+            "merge_range": null,
+            "merge_anchor": false
+          },
+          {
+            "coord": "L8",
+            "row": 8,
+            "col": 12,
+            "value": 0.10333333333333333,
+            "merge_range": null,
+            "merge_anchor": false
+          }
+        ]
+      },
+      {
+        "row": 9,
+        "cells": [
+          {
+            "coord": "B9",
+            "row": 9,
+            "col": 2,
+            "value": 8,
+            "merge_range": null,
+            "merge_anchor": false
+          },
+          {
+            "coord": "C9",
+            "row": 9,
+            "col": 3,
+            "value": "Подготовитель-размораживатель",
+            "merge_range": null,
+            "merge_anchor": false
+          },
+          {
+            "coord": "D9",
+            "row": 9,
+            "col": 4,
+            "value": "Ожидание, мойка котла с предыдущей смены ",
+            "merge_range": null,
+            "merge_anchor": false
+          },
+          {
+            "coord": "E9",
+            "row": 9,
+            "col": 5,
+            "value": "Ожидание",
+            "merge_range": null,
+            "merge_anchor": false
+          },
+          {
+            "coord": "F9",
+            "row": 9,
+            "col": 6,
+            "value": "Снижение производительности ",
+            "merge_range": null,
+            "merge_anchor": false
+          },
+          {
+            "coord": "G9",
+            "row": 9,
+            "col": 7,
+            "value": "2 раза в неделю",
+            "merge_range": null,
+            "merge_anchor": false
+          },
+          {
+            "coord": "H9",
+            "row": 9,
+            "col": 8,
+            "value": 1380,
+            "merge_range": null,
+            "merge_anchor": false
+          },
+          {
+            "coord": "I9",
+            "row": 9,
+            "col": 9,
+            "value": "секунды ",
+            "merge_range": null,
+            "merge_anchor": false
+          },
+          {
+            "coord": "J9",
+            "row": 9,
+            "col": 10,
+            "value": 0.0123,
+            "merge_range": null,
+            "merge_anchor": false
+          },
+          {
+            "coord": "K9",
+            "row": 9,
+            "col": 11,
+            "value": null,
+            "merge_range": null,
+            "merge_anchor": false
+          },
+          {
+            "coord": "L9",
+            "row": 9,
+            "col": 12,
+            "value": 0.10952380952380952,
+            "merge_range": null,
+            "merge_anchor": false
+          }
+        ]
+      },
+      {
+        "row": 10,
+        "cells": [
+          {
+            "coord": "B10",
+            "row": 10,
+            "col": 2,
+            "value": 9,
+            "merge_range": null,
+            "merge_anchor": false
+          },
+          {
+            "coord": "C10",
+            "row": 10,
+            "col": 3,
+            "value": "Подготовитель-размораживатель ВВА",
+            "merge_range": null,
+            "merge_anchor": false
+          },
+          {
+            "coord": "D10",
+            "row": 10,
+            "col": 4,
+            "value": "Несоблюдение рецептуры сырья из-за отсутствия весов на подготовителях-размораживателях  и ВВА, варщик-бригадир не знает точный вес загруженного сырья, что приводит к браку готовой продукции",
+            "merge_range": null,
+            "merge_anchor": false
+          },
+          {
+            "coord": "E10",
+            "row": 10,
+            "col": 5,
+            "value": "Брак, переделка",
+            "merge_range": null,
+            "merge_anchor": false
+          },
+          {
+            "coord": "F10",
+            "row": 10,
+            "col": 6,
+            "value": "брак (%)",
+            "merge_range": null,
+            "merge_anchor": false
+          },
+          {
+            "coord": "G10",
+            "row": 10,
+            "col": 7,
+            "value": "1 раз в месяц",
+            "merge_range": null,
+            "merge_anchor": false
+          },
+          {
+            "coord": "H10",
+            "row": 10,
+            "col": 8,
+            "value": 1.6,
+            "merge_range": null,
+            "merge_anchor": false
+          },
+          {
+            "coord": "I10",
+            "row": 10,
+            "col": 9,
+            "value": "%",
+            "merge_range": null,
+            "merge_anchor": false
+          },
+          {
+            "coord": "J10",
+            "row": 10,
+            "col": 10,
+            "value": 0.39339999999999997,
+            "merge_range": null,
+            "merge_anchor": false
+          },
+          {
+            "coord": "K10",
+            "row": 10,
+            "col": 11,
+            "value": null,
+            "merge_range": null,
+            "merge_anchor": false
+          },
+          {
+            "coord": "L10",
+            "row": 10,
+            "col": 12,
+            "value": null,
+            "merge_range": null,
+            "merge_anchor": false
+          }
+        ]
+      },
+      {
+        "row": 11,
+        "cells": [
+          {
+            "coord": "B11",
+            "row": 11,
+            "col": 2,
+            "value": 10,
+            "merge_range": null,
+            "merge_anchor": false
+          },
+          {
+            "coord": "C11",
+            "row": 11,
+            "col": 3,
+            "value": "Подготовитель-размораживатель",
+            "merge_range": null,
+            "merge_anchor": false
+          },
+          {
+            "coord": "D11",
+            "row": 11,
+            "col": 4,
+            "value": "Операция процесса нагрева ягоды в подготовителе-размораживателе занимает 20938 секунд, что превышает время такта - 19200 секунд",
+            "merge_range": null,
+            "merge_anchor": false
+          },
+          {
+            "coord": "E11",
+            "row": 11,
+            "col": 5,
+            "value": "Ожидание",
+            "merge_range": null,
+            "merge_anchor": false
+          },
+          {
+            "coord": "F11",
+            "row": 11,
+            "col": 6,
+            "value": "Снижение производительности ",
+            "merge_range": null,
+            "merge_anchor": false
+          },
+          {
+            "coord": "G11",
+            "row": 11,
+            "col": 7,
+            "value": "1 раз на партию на партию (6 бочек (1200 кг))",
+            "merge_range": null,
+            "merge_anchor": false
+          },
+          {
+            "coord": "H11",
+            "row": 11,
+            "col": 8,
+            "value": 1738,
+            "merge_range": null,
+            "merge_anchor": false
+          },
+          {
+            "coord": "I11",
+            "row": 11,
+            "col": 9,
+            "value": "секунды ",
+            "merge_range": null,
+            "merge_anchor": false
+          },
+          {
+            "coord": "J11",
+            "row": 11,
+            "col": 10,
+            "value": 0.05432,
+            "merge_range": null,
+            "merge_anchor": false
+          },
+          {
+            "coord": "K11",
+            "row": 11,
+            "col": 11,
+            "value": null,
+            "merge_range": null,
+            "merge_anchor": false
+          },
+          {
+            "coord": "L11",
+            "row": 11,
+            "col": 12,
+            "value": 0.48277777777777775,
+            "merge_range": null,
+            "merge_anchor": false
+          }
+        ]
+      },
+      {
+        "row": 12,
+        "cells": [
+          {
+            "coord": "B12",
+            "row": 12,
+            "col": 2,
+            "value": 11,
+            "merge_range": null,
+            "merge_anchor": false
+          },
+          {
+            "coord": "C12",
+            "row": 12,
+            "col": 3,
+            "value": "Линия ассептики",
+            "merge_range": null,
+            "merge_anchor": false
+          },
+          {
+            "coord": "D12",
+            "row": 12,
+            "col": 4,
+            "value": "Высокая трудоемкость ручного труда при перекатывание бочек с готовой продукцией 200 кг в ручную",
+            "merge_range": null,
+            "merge_anchor": false
+          },
+          {
+            "coord": "E12",
+            "row": 12,
+            "col": 5,
+            "value": "Высокая трудоемкость",
+            "merge_range": null,
+            "merge_anchor": false
+          },
+          {
+            "coord": "F12",
+            "row": 12,
+            "col": 6,
+            "value": "Физические нагрузки",
+            "merge_range": null,
+            "merge_anchor": false
+          },
+          {
+            "coord": "G12",
+            "row": 12,
+            "col": 7,
+            "value": "12 раз на партию (6 бочек (1200 кг))",
+            "merge_range": null,
+            "merge_anchor": false
+          },
+          {
+            "coord": "H12",
+            "row": 12,
+            "col": 8,
+            "value": 0.15,
+            "merge_range": null,
+            "merge_anchor": false
+          },
+          {
+            "coord": "I12",
+            "row": 12,
+            "col": 9,
+            "value": "чел. ч.",
+            "merge_range": null,
+            "merge_anchor": false
+          },
+          {
+            "coord": "J12",
+            "row": 12,
+            "col": 10,
+            "value": null,
+            "merge_range": null,
+            "merge_anchor": false
+          },
+          {
+            "coord": "K12",
+            "row": 12,
+            "col": 11,
+            "value": null,
+            "merge_range": null,
+            "merge_anchor": false
+          },
+          {
+            "coord": "L12",
+            "row": 12,
+            "col": 12,
+            "value": null,
+            "merge_range": null,
+            "merge_anchor": false
+          }
+        ]
+      },
+      {
+        "row": 13,
+        "cells": [
+          {
+            "coord": "B13",
+            "row": 13,
+            "col": 2,
+            "value": 12,
+            "merge_range": null,
+            "merge_anchor": false
+          },
+          {
+            "coord": "C13",
+            "row": 13,
+            "col": 3,
+            "value": "Склад временного хранения",
+            "merge_range": null,
+            "merge_anchor": false
+          },
+          {
+            "coord": "D13",
+            "row": 13,
+            "col": 4,
+            "value": "Затраты времени из-за неорганизованности рабочего места (поиск ТМЦ)",
+            "merge_range": null,
+            "merge_anchor": false
+          },
+          {
+            "coord": "E13",
+            "row": 13,
+            "col": 5,
+            "value": "Лишние движения, ожидания",
+            "merge_range": null,
+            "merge_anchor": false
+          },
+          {
+            "coord": "F13",
+            "row": 13,
+            "col": 6,
+            "value": "Снижение производительности ",
+            "merge_range": null,
+            "merge_anchor": false
+          },
+          {
+            "coord": "G13",
+            "row": 13,
+            "col": 7,
+            "value": "6 раз на партию (6 бочек (1200 кг))",
+            "merge_range": null,
+            "merge_anchor": false
+          },
+          {
+            "coord": "H13",
+            "row": 13,
+            "col": 8,
+            "value": 157,
+            "merge_range": null,
+            "merge_anchor": false
+          },
+          {
+            "coord": "I13",
+            "row": 13,
+            "col": 9,
+            "value": "секунды ",
+            "merge_range": null,
+            "merge_anchor": false
+          },
+          {
+            "coord": "J13",
+            "row": 13,
+            "col": 10,
+            "value": 0.01472,
+            "merge_range": null,
+            "merge_anchor": false
+          },
+          {
+            "coord": "K13",
+            "row": 13,
+            "col": 11,
+            "value": null,
+            "merge_range": null,
+            "merge_anchor": false
+          },
+          {
+            "coord": "L13",
+            "row": 13,
+            "col": 12,
+            "value": 0.13083333333333333,
+            "merge_range": null,
+            "merge_anchor": false
+          }
+        ]
+      },
+      {
+        "row": 14,
+        "cells": [
+          {
+            "coord": "B14",
+            "row": 14,
+            "col": 2,
+            "value": 13,
+            "merge_range": null,
+            "merge_anchor": false
+          },
+          {
+            "coord": "C14",
+            "row": 14,
+            "col": 3,
+            "value": "Весь поток",
+            "merge_range": null,
+            "merge_anchor": false
+          },
+          {
+            "coord": "D14",
+            "row": 14,
+            "col": 4,
+            "value": "Простой из-за перебоев с электроэнергией",
+            "merge_range": null,
+            "merge_anchor": false
+          },
+          {
+            "coord": "E14",
+            "row": 14,
+            "col": 5,
+            "value": "Ожидание",
+            "merge_range": null,
+            "merge_anchor": false
+          },
+          {
+            "coord": "F14",
+            "row": 14,
+            "col": 6,
+            "value": "Снижение производительности",
+            "merge_range": null,
+            "merge_anchor": false
+          },
+          {
+            "coord": "G14",
+            "row": 14,
+            "col": 7,
+            "value": "1 раз в месяц",
+            "merge_range": null,
+            "merge_anchor": false
+          },
+          {
+            "coord": "H14",
+            "row": 14,
+            "col": 8,
+            "value": 21600,
+            "merge_range": null,
+            "merge_anchor": false
+          },
+          {
+            "coord": "I14",
+            "row": 14,
+            "col": 9,
+            "value": "секунды ",
+            "merge_range": null,
+            "merge_anchor": false
+          },
+          {
+            "coord": "J14",
+            "row": 14,
+            "col": 10,
+            "value": 0.675,
+            "merge_range": null,
+            "merge_anchor": false
+          },
+          {
+            "coord": "K14",
+            "row": 14,
+            "col": 11,
+            "value": null,
+            "merge_range": null,
+            "merge_anchor": false
+          },
+          {
+            "coord": "L14",
+            "row": 14,
+            "col": 12,
+            "value": 6,
+            "merge_range": null,
+            "merge_anchor": false
+          }
+        ]
+      },
+      {
+        "row": 15,
+        "cells": [
+          {
+            "coord": "B15",
+            "row": 15,
+            "col": 2,
+            "value": 14,
+            "merge_range": null,
+            "merge_anchor": false
+          },
+          {
+            "coord": "C15",
+            "row": 15,
+            "col": 3,
+            "value": "Информационный поток",
+            "merge_range": null,
+            "merge_anchor": false
+          },
+          {
+            "coord": "D15",
+            "row": 15,
+            "col": 4,
+            "value": "Затраты времени на переналадку оборудования (мойка подготовителей-размораживателей, протирочной машины) при поступлении незапланированной заявки",
+            "merge_range": null,
+            "merge_anchor": false
+          },
+          {
+            "coord": "E15",
+            "row": 15,
+            "col": 5,
+            "value": "Ожидание",
+            "merge_range": null,
+            "merge_anchor": false
+          },
+          {
+            "coord": "F15",
+            "row": 15,
+            "col": 6,
+            "value": "Снижение производительности",
+            "merge_range": null,
+            "merge_anchor": false
+          },
+          {
+            "coord": "G15",
+            "row": 15,
+            "col": 7,
+            "value": "1 раз в неделю",
+            "merge_range": null,
+            "merge_anchor": false
+          },
+          {
+            "coord": "H15",
+            "row": 15,
+            "col": 8,
+            "value": 14400,
+            "merge_range": null,
+            "merge_anchor": false
+          },
+          {
+            "coord": "I15",
+            "row": 15,
+            "col": 9,
+            "value": "секунды ",
+            "merge_range": null,
+            "merge_anchor": false
+          },
+          {
+            "coord": "J15",
+            "row": 15,
+            "col": 10,
+            "value": 0.45,
+            "merge_range": null,
+            "merge_anchor": false
+          },
+          {
+            "coord": "K15",
+            "row": 15,
+            "col": 11,
+            "value": null,
+            "merge_range": null,
+            "merge_anchor": false
+          },
+          {
+            "coord": "L15",
+            "row": 15,
+            "col": 12,
+            "value": 4,
+            "merge_range": null,
+            "merge_anchor": false
+          }
+        ]
+      }
+    ]
+  }
+}
+
+================================================================================
+[STEP 3/6] Извлечение релевантных данных
+Timestamp: 2025-12-09 08:51:19
+================================================================================
+Extracted data:
+{
+  "file_exists": true,
+  "problem_numbers": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10,
+    11,
+    12,
+    13,
+    14
+  ],
+  "missing_numbers": [],
+  "has_missing": false
+}
+
+================================================================================
+[STEP 4/6] Сформированный промпт для LLM
+Timestamp: 2025-12-09 08:51:19
+================================================================================
+FULL PROMPT:
+
+Ты эксперт по проверке документов КПСЦ (Карта Потока Создания Ценности).
+
+ТРЕБОВАНИЕ ЭКСПЕРТА:
+Если во вкладке "оцифровка потерь" чего-то нет. Выведи в результат.
+
+ТЕХНИЧЕСКОЕ ОПИСАНИЕ:
+Извлечь все номера проблем из первой колонки таблицы. Проверить, что нумерация идет последовательно: 1, 2, 3, ..., N. Найти пропуски в последовательности.
+
+КРИТЕРИИ ПРОВЕРКИ:
+- Что проверять: 1. Извлечь все номера проблем из первой колонки таблицы
+2. Проверить, что нумерация идет последовательно: 1, 2, 3, ..., N
+3. Найти пропуски в последовательности
+- Условие успеха: Нумерация последовательна, без пропусков
+- Условие ошибки: Есть пропущенные номера
+
+ФАКТИЧЕСКИЕ ДАННЫЕ:
+Найденные номера проблем: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14]
+Пропущенные номера: []
+Есть пропуски: False
+
+ЗАДАНИЕ:
+Проверь соответствие фактических данных требованию эксперта и критериям проверки.
+
+ФОРМАТ ОТВЕТА (строго JSON):
+{
+  "rule_index": "2.2",
+  "rule_title": "Последовательность номеров проблем (пропуски в нумерации)",
+  "target_document": "КПСЦ и Спагетти ТС_Предприятие.xlsx",
+  "status": "PASS или FAIL",
+  "discrepancy": "Описание проблемы если FAIL, иначе пустая строка"
+}
+
+Верни только JSON, без дополнительного текста.
+
+
+================================================================================
+[STEP 5/6] Ответ от LLM
+Timestamp: 2025-12-09 08:51:22
+================================================================================
+LLM Response:
+{
+  "rule_index": "2.2",
+  "rule_title": "Последовательность номеров проблем (пропуски в нумерации)",
+  "target_document": "КПСЦ и Спагетти ТС_Предприятие.xlsx",
+  "status": "PASS",
+  "discrepancy": ""
+}
+
+================================================================================
+[STEP 6/6] Финальный результат
+Timestamp: 2025-12-09 08:51:22
+================================================================================
+Status: PASS
+Discrepancy: 
+Result saved to: validation_outputs/validate_2_2.json

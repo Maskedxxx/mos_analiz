@@ -1,0 +1,81 @@
+# Служебные файлы macOS
+.DS_Store
+.vscode/
+
+# Python
+*.pyc
+__pycache__/
+*.pyo
+*.pyd
+.Python
+
+# Jupyter
+.ipynb_checkpoints/
+*.ipynb
+
+# Временные файлы Excel
+~$*.xlsx
+~$*.xls
+~$*.docx
+~$*.doc
+
+# Архивы и временные распаковки
+*_unzip/
+*.zip
+
+# Результаты и отчеты
+results/
+*.xlsx
+*.xls
+parsed_*.json
+
+# Рабочие папки и заметки
+legacy/
+multi_docs_driver/
+diman/
+notes/
+pac_1/
+pac_2/
+pac_3_word/
+Prezentacia/
+uploads/
+scripts/
+ToDo
+archive*/
+
+# Документы Word
+*.docx
+*.doc
+
+# Исключения для итерации 4 (prikaz_ic)
+!итерация_4_четвёртая_prikaz_ic/
+!итерация_4_четвёртая_prikaz_ic/scripts/
+итерация_4_четвёртая_prikaz_ic/logs_result/
+итерация_4_четвёртая_prikaz_ic/results/
+
+# Исключения для итерации 5 (prikaz_ic электронный вид)
+!итерация_5_пятая/
+!итерация_5_пятая/scripts/
+итерация_5_пятая/logs_result/
+
+# Исключения для итерации 6 (приказ о проведении выхода + график обхода)
+!итерация_6_шестая/
+!итерация_6_шестая/scripts/
+!итерация_6_шестая/documents/
+!итерация_6_шестая/templates/
+итерация_6_шестая/logs_result/
+
+# Исключения для итерации 7 (приказ о создании ИЦ потока)
+!итерация_7_седьмая/
+!итерация_7_седьмая/scripts/
+!итерация_7_седьмая/documents/
+!итерация_7_седьмая/templates/
+итерация_7_седьмая/logs_result/
+
+# Vision Parser модуль
+!итерация_vision/
+!итерация_vision/vision_parser/
+
+# Исключения (если нужно отслеживать конкретные файлы, раскомментируйте):
+# !config/*.xlsx
+# !templates/*.docx
