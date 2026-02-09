@@ -1,0 +1,9 @@
+{
+  "doc_type": "prikaz_comp_ppu",
+  "doc_title": "Приказ о проведении конкурсов ППУ",
+  "model": "gpt-4.1-mini",
+  "system_prompt": "default.txt",
+  "filename_pattern": "order_comp_ppu",
+  "max_workers": 4,
+  "temperature": 0.0
+}

@@ -1,0 +1,14 @@
+# Ядро аудита
+openai>=1.0.0
+openpyxl>=3.0.0
+pandas>=2.0.0
+pyyaml>=6.0
+
+# Vision Parser (DOCX/PPTX → PDF → PNG → Vision API)
+Pillow>=10.0.0
+pdf2image>=1.16.0
+tenacity>=8.0.0
+
+# Системная зависимость (установить отдельно):
+# brew install --cask libreoffice   # macOS
+# apt-get install libreoffice       # Linux

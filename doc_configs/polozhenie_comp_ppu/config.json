@@ -1,0 +1,9 @@
+{
+  "doc_type": "polozhenie_comp_ppu",
+  "doc_title": "Положение о конкурсах ППУ",
+  "model": "gpt-4.1-mini",
+  "system_prompt": "default.txt",
+  "filename_pattern": "reg_comp_ppu",
+  "max_workers": 3,
+  "temperature": 0.0
+}
