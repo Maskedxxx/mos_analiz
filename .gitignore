@@ -40,5 +40,9 @@ doc_configs/*/template/template_cached.json
 # Тестовые документы (тяжёлые, хранятся локально)
 test_docs/
 
+# Node.js
+node_modules/
+dist/
+
 # Архивы
 *.zip
