@@ -1,0 +1,171 @@
+{
+  "rules": [
+    {
+      "rule_index": "1",
+      "rule_title": "Название файла",
+      "section": "МЕТАДАННЫЕ",
+      "requirement_expert": "Название проверяемого файла соответствует заданному тексту из БД 'список документов': '2.4 Утвержденная карточка проекта «наименование предприятия»'",
+      "technical_description": "Имя файла (без расширения) должно начинаться с '0.2 Карточка проекта' и содержать наименование предприятия.",
+      "source_files": ["kartochka_main.json"],
+      "source_path": "meta.workbook",
+      "validation_criteria": {
+        "what_to_check": "Имя XLSX-файла соответствует паттерну из БД",
+        "success_condition": "Имя файла содержит '0.2 Карточка проекта' и наименование предприятия",
+        "error_condition": "Имя файла не соответствует ожидаемому шаблону"
+      },
+      "mock_note": "Ожидаемое имя файла захардкожено; в Этапе 2 — из БД через API"
+    },
+    {
+      "rule_index": "2",
+      "rule_title": "Вид организации и название предприятия",
+      "section": "ЗАГОЛОВОК",
+      "requirement_expert": "Проверка наличия юридической формы (ООО, ЗАО, АО) и наименования предприятия",
+      "technical_description": "Ячейка B2 должна содержать юридическую форму и наименование. Формат: '<ЮР_ФОРМА> \"НАЗВАНИЕ\"'.",
+      "source_files": ["kartochka_main.json"],
+      "source_path": "header.org_name",
+      "validation_criteria": {
+        "what_to_check": "Наличие юридической формы (ООО|ЗАО|АО|ПАО|ИП) и наименования предприятия",
+        "success_condition": "Юридическая форма найдена И за ней следует непустое название",
+        "error_condition": "Юридическая форма отсутствует или наименование пустое"
+      },
+      "deferred_conditions": ["Условие 2: сверка с Соглашением (cross_file, Этап 2)"]
+    },
+    {
+      "rule_index": "3",
+      "rule_title": "Название потока",
+      "section": "ЗАГОЛОВОК",
+      "requirement_expert": "Проверка на наличие названия потока в названии проекта",
+      "technical_description": "Ячейка B4 должна содержать непустое название проекта (потока).",
+      "source_files": ["kartochka_main.json"],
+      "source_path": "header.project_name",
+      "validation_criteria": {
+        "what_to_check": "Наличие непустого названия проекта/потока",
+        "success_condition": "Поле project_name не пустое и содержит осмысленный текст",
+        "error_condition": "Поле project_name пустое или содержит placeholder"
+      },
+      "deferred_conditions": ["Условие 2: сверка с 'Протокол выбора потока' (cross_file, Этап 2)"]
+    },
+    {
+      "rule_index": "4",
+      "rule_title": "Должность, ФИО подписанта, дата и подпись",
+      "section": "ЗАГОЛОВОК",
+      "requirement_expert": "Проверка наличия должности, ФИО подписанта, даты подписания",
+      "technical_description": "Ячейки K4 (должность), K7 (ФИО), K8 (дата) должны быть заполнены. ФИО — формат 'И.О. Фамилия' или 'Фамилия И.О.'. Дата не должна содержать незаполненные placeholder ('___').",
+      "source_files": ["kartochka_main.json"],
+      "source_path": "header.signee_position, header.signee_name, header.signee_date",
+      "validation_criteria": {
+        "what_to_check": "Наличие и заполненность должности, ФИО и даты подписанта",
+        "success_condition": "Все три поля заполнены реальными данными (без placeholder)",
+        "error_condition": "Хотя бы одно поле отсутствует или содержит placeholder ('___', '20__ г.')"
+      },
+      "deferred_conditions": [
+        "Условие 2: сверка ФИО/должности с Соглашением (cross_file, Этап 2)",
+        "Условие 3: дата не позднее даты окончания мероприятия 1.4 из ССР (cross_file, Этап 2)"
+      ]
+    },
+    {
+      "rule_index": "5",
+      "rule_title": "Обязательные поля секции 1",
+      "section": "СЕКЦИЯ 1: ВОВЛЕЧЁННЫЕ ЛИЦА",
+      "requirement_expert": "Проверка наличия: клиенты процесса, периметр, владелец, границы, руководитель, команда",
+      "technical_description": "Поля section1.clients, perimeter, owner, boundaries, leader, team должны быть непустыми. Владелец, руководитель, команда — формат 'ФИО - должность'.",
+      "source_files": ["kartochka_main.json"],
+      "source_path": "section1.*",
+      "validation_criteria": {
+        "what_to_check": "Все 6 полей секции 1 заполнены; формат ФИО-должность в owner/leader/team",
+        "success_condition": "Все поля заполнены И owner/leader/team содержат хотя бы 'ФИО - должность'",
+        "error_condition": "Хотя бы одно поле пустое ИЛИ неверный формат ФИО-должность"
+      },
+      "deferred_conditions": ["Условие 3: команда проекта совпадает с Приложением 1 Приказа (cross_file, Этап 2)"]
+    },
+    {
+      "rule_index": "6",
+      "rule_title": "Обоснование и ключевой риск",
+      "section": "СЕКЦИЯ 2: ОБОСНОВАНИЕ",
+      "requirement_expert": "Проверка наличия обоснования выбора потока и ключевого риска",
+      "technical_description": "Поля section2.key_risk и section2.justification должны быть непустыми.",
+      "source_files": ["kartochka_main.json"],
+      "source_path": "section2.key_risk, section2.justification",
+      "validation_criteria": {
+        "what_to_check": "Оба поля (ключевой риск и обоснование) заполнены",
+        "success_condition": "Оба поля содержат непустой осмысленный текст",
+        "error_condition": "Хотя бы одно из полей пустое"
+      }
+    },
+    {
+      "rule_index": "7",
+      "rule_title": "Даты мероприятий",
+      "section": "СЕКЦИЯ 4: КЛЮЧЕВЫЕ СОБЫТИЯ",
+      "requirement_expert": "Проверка наличия дат начала и окончания мероприятий",
+      "technical_description": "Каждое событие в events[] должно иметь start_date. События типа этапов (1-4) должны иметь и end_date.",
+      "source_files": ["kartochka_main.json"],
+      "source_path": "events",
+      "validation_criteria": {
+        "what_to_check": "Все события имеют заполненные даты начала, этапные события имеют даты окончания",
+        "success_condition": "Все обязательные даты заполнены и являются валидными датами",
+        "error_condition": "Хотя бы одно событие не имеет даты начала или этапное событие без даты окончания"
+      },
+      "deferred_conditions": ["Условие 2: сверка дат с Битрикс (cross_file, Этап 2)"]
+    },
+    {
+      "rule_index": "8",
+      "rule_title": "Показатели и даты",
+      "section": "СЕКЦИЯ 3: ЦЕЛИ ПРОЕКТА",
+      "requirement_expert": "Проверка наличия показателей (название, единица, значения база/цель/идеал) и дат периодов",
+      "technical_description": "Массив indicators[] должен содержать хотя бы 1 показатель. Каждый показатель: name, unit, base_value, target_value, ideal_value — заполнены. indicator_dates: base_date, target_date, ideal_date — заполнены и являются валидными.",
+      "source_files": ["kartochka_main.json"],
+      "source_path": "indicators, indicator_dates",
+      "validation_criteria": {
+        "what_to_check": "Показатели заполнены полностью; даты периодов заполнены",
+        "success_condition": "Есть >=1 показатель с заполненными полями И все 3 даты валидны",
+        "error_condition": "Нет показателей ИЛИ у показателя пустые поля ИЛИ пустые даты"
+      },
+      "deferred_conditions": [
+        "Условие 2 (даты): сверка с событиями из секции 4 (cross_check, Этап 2)",
+        "Условие 2 (значения): сверка с текущей/целевой/идеальной КПСЦ (cross_file, Этап 2)"
+      ]
+    },
+    {
+      "rule_index": "9",
+      "rule_title": "Единицы измерения (карточка)",
+      "section": "СЕКЦИЯ 3: ЕДИНИЦЫ ИЗМЕРЕНИЯ",
+      "requirement_expert": "Единицы измерения присутствуют для каждого показателя и соответствуют справочнику",
+      "technical_description": "Для каждого indicators[].unit: (1) не пустое, (2) входит в допустимый список из листа 'выпадающий список'.",
+      "source_files": ["kartochka_main.json", "dropdown_units.json"],
+      "source_path": "indicators[].unit vs dropdown_units.categories",
+      "validation_criteria": {
+        "what_to_check": "Каждая единица измерения заполнена И входит в справочник допустимых",
+        "success_condition": "Все единицы заполнены И каждая найдена в соответствующей категории справочника",
+        "error_condition": "Единица пустая ИЛИ не найдена в справочнике"
+      }
+    },
+    {
+      "rule_index": "10",
+      "rule_title": "Единицы измерения (методика расчета)",
+      "section": "МЕТОДИКА РАСЧЁТА",
+      "requirement_expert": "Единицы измерения в методике присутствуют и совпадают с единицами в карточке",
+      "technical_description": "Для каждого показателя в metodika.json: (1) unit не пустое, (2) unit совпадает с соответствующим indicators[].unit из kartochka_main.json.",
+      "source_files": ["kartochka_main.json", "metodika.json"],
+      "source_path": "metodika.indicators[].unit vs kartochka.indicators[].unit",
+      "validation_criteria": {
+        "what_to_check": "Единицы в методике заполнены И совпадают с единицами в карточке",
+        "success_condition": "Все единицы заполнены И совпадают попарно с карточкой",
+        "error_condition": "Единица пустая ИЛИ не совпадает с соответствующей единицей в карточке"
+      }
+    },
+    {
+      "rule_index": "11",
+      "rule_title": "Способ расчёта и источник данных",
+      "section": "МЕТОДИКА РАСЧЁТА",
+      "requirement_expert": "Проверка наличия способа расчёта и источника данных для каждого показателя",
+      "technical_description": "Для каждого показателя в metodika.json: calc_method и data_source не пустые.",
+      "source_files": ["metodika.json"],
+      "source_path": "metodika.indicators[].calc_method, data_source",
+      "validation_criteria": {
+        "what_to_check": "Способ расчёта и источник данных заполнены для каждого показателя",
+        "success_condition": "Оба поля заполнены для всех показателей, у которых есть единица измерения",
+        "error_condition": "Хотя бы одно поле пустое при наличии единицы измерения"
+      }
+    }
+  ]
+}

@@ -10,7 +10,7 @@ number,service,done,has_tests,test_docs_path,doc_type
 9,2.1,да,да,test_docs/kpsc,kpsc
 10,2.2,нет,нет,,
 11,2.3,нет,нет,,
-12,2.4,нет,нет,,
+12,2.4,да,да,test_docs/kartochka_proekta,kartochka_proekta
 13,2.5,да,да,test_docs/cheklist_eu; test_docs/presentation_eu,cheklist_eu; presentation_eu
 14,2.6,нет,нет,,
 15,3.3,нет,нет,,

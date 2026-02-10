@@ -32,6 +32,7 @@ from audit_engine import AuditEngine
 SPECIAL_ENGINES = {
     "drivers": "audit_engine.drivers",
     "kpsc": "audit_engine.kpsc",
+    "kartochka_proekta": "audit_engine.kartochka_proekta",
 }
 
 
