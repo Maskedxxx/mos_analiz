@@ -1,18 +1,66 @@
-# Мос Мониторинг — Project Instructions
+# МосМониторинг — ИИ-аудит документов
 
-## OpenAI API Key
-# Ключ хранится локально в переменной окружения, не коммитится
-# export OPENAI_API_KEY="ваш_ключ"
+Система автоматической проверки организационно-распорядительных документов (приказы, положения, акты, чек-листы) на соответствие внутренним стандартам и ГОСТ. Ядро — LLM-анализ (OpenAI) + детерминированные проверки (реквизиты, структура, форматирование). 16 типов документов, каждый со своим набором правил.
 
-## Python venv
-# Пока используем общий semantic_venv:
-source /Users/mask/Documents/ПРОЕКТЫ_2024/СОЮЗ_СНАБ_workRepo/knowledge_map_release_v2/ai-neuro/semantic_venv/bin/activate
+## Вложенные CLAUDE.md
 
-# Собственный .venv/ будет создан позже под прод:
-# python3 -m venv .venv && source .venv/bin/activate && pip install -r requirements.txt
+Детали каждого модуля — в его собственном CLAUDE.md:
+- `audit_engine/CLAUDE.md` — архитектура ядра, поток данных, модули
+- `doc_configs/CLAUDE.md` — формат конфигов, как добавить новый тип документа
+- `ui-demo/CLAUDE.md` — стек, экраны, запуск, план интеграции с бэкендом
+
+## Дерево проекта
+
+```text
+мос_мониторинг/
+├── run_audit.py              # Точка входа CLI
+├── requirements.txt          # Python-зависимости
+│
+├── audit_engine/             # Ядро аудита (Python)
+│   ├── engine.py             #   Главный оркестратор проверки
+│   ├── llm_client.py         #   Обёртка OpenAI API
+│   ├── models.py             #   Pydantic-модели (Violation, AuditResult)
+│   ├── context_builder.py    #   Сборка контекста для LLM-промпта
+│   ├── logger.py             #   Логирование сессий аудита
+│   ├── excel_reporter.py     #   Генерация Excel-отчётов
+│   ├── parsers/              #   Парсеры входных файлов (DOCX, XLSX)
+│   ├── preprocessors/        #   Предобработка по типам документов
+│   ├── non_llm_checks/       #   Детерминированные проверки (имя файла, шапка, чек-лист)
+│   ├── vision_parser/        #   OCR/Vision-парсинг шаблонов
+│   ├── system_prompts/       #   Системные промпты для LLM
+│   ├── drivers/              #   Модуль анализа драйверов производства
+│   └── kpsc/                 #   Модуль валидации КПСЦ (карта потока)
+│
+├── doc_configs/              # Конфигурации типов документов (16 шт.)
+│   └── <тип>/                #   Каждый тип содержит:
+│       ├── config.json       #     Метаданные и параметры
+│       ├── rules.json        #     Правила проверки
+│       ├── chunks_vision.json#     Разметка для Vision-парсера
+│       └── template/         #     Эталонный шаблон документа
+│
+├── ui-demo/                  # Веб-интерфейс (React + Vite + Tailwind v4)
+│   └── src/App.jsx           #   Демо: загрузка → анализ → отчёт (mock-данные)
+│
+├── docs/                     # Проектная документация
+│   └── bd_document_types.csv #   Трекер: 22 типа документов, статус реализации (done/has_tests/doc_type)
+├── logs_result/              # Логи сессий аудита (gitignored)
+└── test_docs/                # Тестовые документы (gitignored)
+```
 
 ## Запуск
+
+```bash
+# Python (аудит)
 source /Users/mask/Documents/ПРОЕКТЫ_2024/СОЮЗ_СНАБ_workRepo/knowledge_map_release_v2/ai-neuro/semantic_venv/bin/activate
 export OPENAI_API_KEY="$OPENAI_API_KEY"
 python run_audit.py --doc-type <type> --target <file>
 python run_audit.py --list-types
+
+# UI-демо
+cd ui-demo && npm run dev
+```
+
+## Ключи и секреты
+
+- `OPENAI_API_KEY` — переменная окружения, не коммитится
+- `.env` — локальные переменные (в .gitignore)
