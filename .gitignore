@@ -34,6 +34,9 @@ venv/
 # Логи сессий аудита
 logs_result/
 
+# Результаты тестовых прогонов
+test_results/
+
 # Кэш Vision-парсинга шаблонов
 doc_configs/*/template/template_cached.json
 
