@@ -1,0 +1,301 @@
+{
+  "description": "Матрица тестов: маппинг тестовых файлов на типы документов и движки",
+  "version": 1,
+  "test_suites": [
+    {
+      "doc_type": "kartochka_proekta",
+      "engine": "kartochka_proekta",
+      "files": [
+        {
+          "path": "test_docs/kartochka_proekta/0.2 Карточка проекта наименование предприятия OM (1).xlsx",
+          "company": "sample",
+          "notes": "Образец-шаблон с placeholder данными"
+        }
+      ]
+    },
+    {
+      "doc_type": "kpsc",
+      "engine": "kpsc",
+      "files": [
+        {
+          "path": "test_docs/kpsc/biznes_otel/КПСЦ_ТС_ООО_Бизнес_Отель_v3.xlsx",
+          "company": "biznes_otel"
+        },
+        {
+          "path": "test_docs/kpsc/mapper/КПСЦ Текущее состояние ООО МАППЕР версия 2.xlsx",
+          "company": "mapper"
+        },
+        {
+          "path": "test_docs/kpsc/rotosnab/КПСЦ_и_Спагетти_ТС_ООО_Ротоснаб_итог.xlsx",
+          "company": "rotosnab"
+        },
+        {
+          "path": "test_docs/kpsc/ruslet/КПСЦ и Спагетти ТС_ООО РУСЛЕТ_v.04.1.xlsx",
+          "company": "ruslet"
+        },
+        {
+          "path": "test_docs/kpsc/sodex/КПСЦ Текущее состояние ООО СОДЕКС версия 4 (1).xlsx",
+          "company": "sodex"
+        }
+      ]
+    },
+    {
+      "doc_type": "prikaz_vyhod",
+      "engine": "vision",
+      "multi_file": true,
+      "files": [
+        {
+          "primary": "test_docs/prikaz_vyhod/biznes_otel/Приказ_№2_об_проведении_выхода_ООО_Бизнес_отель.docx",
+          "secondary": "test_docs/prikaz_vyhod/biznes_otel/График_обхода_ООО_Бизнес_отель,_факт.xlsx",
+          "company": "biznes_otel"
+        },
+        {
+          "primary": "test_docs/prikaz_vyhod/mapper/Приказ_об_проведении_выхода_ООО_Маппер.docx",
+          "secondary": "test_docs/prikaz_vyhod/mapper/Приложение_№1 Приказу_№5_График_обхода_ООО_Маппер.xlsx",
+          "company": "mapper"
+        },
+        {
+          "primary": "test_docs/prikaz_vyhod/rotosnab/Приказ_о_проведении_выходов_ООО_Ротоснаб.docx",
+          "secondary": "test_docs/prikaz_vyhod/rotosnab/График обхода ООО Ротоснаб.xlsx",
+          "company": "rotosnab"
+        },
+        {
+          "primary": "test_docs/prikaz_vyhod/ruslet/Приказ РЛОД250031.docx",
+          "secondary": "test_docs/prikaz_vyhod/ruslet/Приложение 1_График обхода Руслет.xlsx",
+          "company": "ruslet"
+        },
+        {
+          "primary": "test_docs/prikaz_vyhod/sodex/Приказ об проведении выхода Содекс.docx",
+          "secondary": "test_docs/prikaz_vyhod/sodex/Приложение_№1 Приказу_№1-10_График_обхода_ООО_Содекс.xlsx",
+          "company": "sodex"
+        }
+      ]
+    },
+    {
+      "doc_type": "cheklist_eu",
+      "engine": "vision",
+      "files": [
+        {
+          "path": "test_docs/cheklist_eu/biznes_otel/1_2_Чек_лист_выбора_ЭУ_ООО_Бизнес_Отель_номерн_фонд.docx",
+          "company": "biznes_otel_nf"
+        },
+        {
+          "path": "test_docs/cheklist_eu/biznes_otel/1_3_Чек_лист_выбора_ЭУ_ООО_Бизнес_Отель_СПиР.docx",
+          "company": "biznes_otel_spir"
+        },
+        {
+          "path": "test_docs/cheklist_eu/rotosnab/Чек лист выбора ЭУ ООО Ротоснаб.docx",
+          "company": "rotosnab"
+        },
+        {
+          "path": "test_docs/cheklist_eu/sodex/Чек лист выбора ЭУ (2).docx",
+          "company": "sodex_1"
+        },
+        {
+          "path": "test_docs/cheklist_eu/sodex/Чек лист выбора ЭУ Содекс.docx",
+          "company": "sodex_2"
+        }
+      ]
+    },
+    {
+      "doc_type": "prikaz_comp_ppu",
+      "engine": "vision",
+      "files": [
+        {
+          "path": "test_docs/prikaz_comp_ppu/biznes_otel/3_ПРИКАЗ_о_конкурсах_ППУ_ООО_Бизнес_отель.docx",
+          "company": "biznes_otel"
+        },
+        {
+          "path": "test_docs/prikaz_comp_ppu/mapper/ПРИКАЗ о конкурсах ППУ Маппер.docx",
+          "company": "mapper"
+        },
+        {
+          "path": "test_docs/prikaz_comp_ppu/rotosnab/ПРИКАЗ о конкурсах ППУ.docx",
+          "company": "rotosnab"
+        },
+        {
+          "path": "test_docs/prikaz_comp_ppu/ruslet/Приказ о проведении конкурсов ППУ_от 14.10.2025.docx",
+          "company": "ruslet"
+        },
+        {
+          "path": "test_docs/prikaz_comp_ppu/sodex/ПРИКАЗ о конкурсах ППУ ООО Содекс.docx",
+          "company": "sodex"
+        }
+      ]
+    },
+    {
+      "doc_type": "prikaz_ic_potoka",
+      "engine": "vision",
+      "files": [
+        {
+          "path": "test_docs/prikaz_ic_potoka/biznes_otel/1_Приказ_о_создании_ИЦ_потока_с_прилож_ООО_Бизнес_Отель.docx",
+          "company": "biznes_otel"
+        },
+        {
+          "path": "test_docs/prikaz_ic_potoka/mapper/Приказ о ИЦ потока ООО Маппер.docx",
+          "company": "mapper"
+        },
+        {
+          "path": "test_docs/prikaz_ic_potoka/rotosnab/Приказ о создании ИЦ потока.docx",
+          "company": "rotosnab"
+        },
+        {
+          "path": "test_docs/prikaz_ic_potoka/ruslet/Приказ о создании ИЦ потока  с прилож. ООО Руслет.docx",
+          "company": "ruslet"
+        },
+        {
+          "path": "test_docs/prikaz_ic_potoka/sodex/Приказ о ИЦ потока ООО Содекс.docx",
+          "company": "sodex"
+        }
+      ]
+    },
+    {
+      "doc_type": "prikaz_formirovanie_po",
+      "engine": "vision",
+      "files": [
+        {
+          "path": "test_docs/prikaz_formirovanie_po/biznes_otel/Приказ_№1_о_формировании_ПО_ООО_Бизнес_отель_1.docx",
+          "company": "biznes_otel"
+        },
+        {
+          "path": "test_docs/prikaz_formirovanie_po/rotosnab/Приказ о ПО ООО Ротоснаб.docx",
+          "company": "rotosnab"
+        },
+        {
+          "path": "test_docs/prikaz_formirovanie_po/rotosnab/Приказ о ПО ООО Ротоснаб доп..docx",
+          "company": "rotosnab_dop"
+        },
+        {
+          "path": "test_docs/prikaz_formirovanie_po/ruslet/Приказ о формировании ПО в.2.docx",
+          "company": "ruslet"
+        }
+      ]
+    },
+    {
+      "doc_type": "polozhenie_ppu",
+      "engine": "vision",
+      "files": [
+        {
+          "path": "test_docs/polozhenie_ppu/biznes_otel/2_Положение_о_ППУ_ООО_Бизнес_отель.docx",
+          "company": "biznes_otel"
+        },
+        {
+          "path": "test_docs/polozhenie_ppu/rotosnab/Положение о ППУ.docx",
+          "company": "rotosnab"
+        },
+        {
+          "path": "test_docs/polozhenie_ppu/ruslet/ПРД-РТ-11-002_ППУ.docx",
+          "company": "ruslet"
+        },
+        {
+          "path": "test_docs/polozhenie_ppu/sodex/Положение о ППУ ООО Содекс.docx",
+          "company": "sodex"
+        }
+      ]
+    },
+    {
+      "doc_type": "polozhenie_po",
+      "engine": "vision",
+      "files": [
+        {
+          "path": "test_docs/polozhenie_po/biznes_otel/Приложение_№1_к_Приказу_№1_Положение_о_ПО_1.docx",
+          "company": "biznes_otel"
+        },
+        {
+          "path": "test_docs/polozhenie_po/mapper/Положение о ПО ООО Маппер.docx",
+          "company": "mapper"
+        },
+        {
+          "path": "test_docs/polozhenie_po/rotosnab/Положение о ПО ООО Ротоснаб.docx",
+          "company": "rotosnab"
+        },
+        {
+          "path": "test_docs/polozhenie_po/sodex/Положение о ПО Содекс.docx",
+          "company": "sodex"
+        }
+      ]
+    },
+    {
+      "doc_type": "prikaz_ppu",
+      "engine": "vision",
+      "files": [
+        {
+          "path": "test_docs/prikaz_ppu/biznes_otel/1. ПРИКАЗ о ППУ ООО Бизнес-отель.docx",
+          "company": "biznes_otel"
+        },
+        {
+          "path": "test_docs/prikaz_ppu/rotosnab/ПРИКАЗ о ППУ.docx",
+          "company": "rotosnab"
+        },
+        {
+          "path": "test_docs/prikaz_ppu/sodex/ПРИКАЗ о ППУ ООО Содекс.docx",
+          "company": "sodex"
+        }
+      ]
+    },
+    {
+      "doc_type": "polozhenie_comp_ppu",
+      "engine": "vision",
+      "files": [
+        {
+          "path": "test_docs/polozhenie_comp_ppu/biznes_otel/4_Положение_о_конкурсах_проектов_и_ППУ_ООО_Бизнес_отель.docx",
+          "company": "biznes_otel"
+        },
+        {
+          "path": "test_docs/polozhenie_comp_ppu/rotosnab/Положение_о_конкурсах_проектов_и_ППУ.docx",
+          "company": "rotosnab"
+        },
+        {
+          "path": "test_docs/polozhenie_comp_ppu/sodex/Положение о конкурсах проектов и ППУ ООО СОДЕКС.docx",
+          "company": "sodex"
+        }
+      ]
+    },
+    {
+      "doc_type": "presentation_eu",
+      "engine": "vision",
+      "files": [
+        {
+          "path": "test_docs/presentation_eu/rotosnab/Создание_ЭУ_ООО Ротоснаб (1).pptx",
+          "company": "rotosnab"
+        },
+        {
+          "path": "test_docs/presentation_eu/ruslet/Создание_ЭУ_ООО_РУСЛЕТ.pptx",
+          "company": "ruslet"
+        }
+      ]
+    },
+    {
+      "doc_type": "prikaz_ic",
+      "engine": "vision",
+      "files": [
+        {
+          "path": "test_docs/prikaz_ic/biznes_otel/Приказ_о_создании_ИЦ_предпр_с_прилож_Бизнес_отель.docx",
+          "company": "biznes_otel"
+        },
+        {
+          "path": "test_docs/prikaz_ic/rotosnab/Приказ_о_создании_ИЦ_предприятия_Ротоснаб.docx",
+          "company": "rotosnab"
+        },
+        {
+          "path": "test_docs/prikaz_ic/ruslet/Приказ о создании ИЦ с прилож. Руслет.docx",
+          "company": "ruslet"
+        },
+        {
+          "path": "test_docs/prikaz_ic/sodex/Приказ о ИЦ предприятия ООО Содекс.docx",
+          "company": "sodex"
+        }
+      ]
+    },
+    {
+      "doc_type": "prikaz_ic_el",
+      "engine": "vision",
+      "files": [
+        {
+          "path": "test_docs/prikaz_ic_el/mapper/Приказ_о_создании_ИЦ_с_прилож_наименование_предприятия_эл_вид.docx",
+          "company": "mapper"
+        }
+      ]
+    }
+  ]
+}
