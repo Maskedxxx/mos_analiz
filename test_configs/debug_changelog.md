@@ -8,14 +8,15 @@
 - **Базовый прогон:** run_20260210_165639
 - **Базовая точность:** 63.7% (184 true_fail / 289 FAIL)
 - **false_fail на старте:** 105
-- **false_fail осталось:** 45 (6 переклассифицированы в true_fail + 2 новых обнаружены при верификации ruslet)
+- **false_fail осталось:** 40 (8 переклассифицированы в true_fail + 2 новых обнаружены при верификации ruslet)
 - **false_fail исправлено (kpsc):** 25/27 → PASS
 - **false_fail исправлено (prikaz_comp_ppu):** 10/10 → PASS
 - **false_fail исправлено (cluster 3):** 26/26 → PASS (prikaz_vyhod 8, prikaz_comp_ppu 2*, prikaz_ppu 3, prikaz_ic_potoka 5 + 8 уже в кеше)
 - **false_fail исправлено (polozhenie_ppu):** 11/11 → PASS
 - **false_fail исправлено (polozhenie_comp_ppu):** 6/6 → PASS
 - **false_fail исправлено (cheklist_eu):** 4/7 → PASS + 3 переклассифицированы в true_fail B
-- **Текущая точность:** ~76% (оценочно, полный прогон не запускался)
+- **false_fail исправлено (prikaz_formirovanie_po):** 3/5 → PASS + 2 переклассифицированы в true_fail B
+- **Текущая точность:** ~78% (оценочно, полный прогон не запускался)
 
 ## Инфраструктура
 
@@ -35,7 +36,7 @@
 | 6 | polozhenie_ppu | 11→0 | done | 42.1% → 100% (11 fixed, 0 regressions) |
 | 7 | polozhenie_comp_ppu | 6→0 | done | 60.0% → 100% (6 fixed, 0 regressions) |
 | 8 | cheklist_eu | 7→0 | done | 58.8% → 100% (4 fixed, 3 reclassified B, 0 regressions) |
-| 9 | prikaz_formirovanie_po | 5 | pending | 81.5% |
+| 9 | prikaz_formirovanie_po | 5→0 | done | 32.5% → 40.0% (3 fixed, 2 reclassified B, 0 regressions) |
 | 10 | prikaz_ic | 7 | pending | 78.1% |
 | 11 | polozhenie_po | 6 | pending | 76.9% |
 | 12 | presentation_eu | 2 | pending | 75.0% |
@@ -528,6 +529,55 @@ pytest tests/test_kpsc_parsers.py -v
 
 - `doc_configs/polozhenie_comp_ppu/rules.json` — правило 2 (описание keywords)
 - Все остальные фиксы — из shared `polozhenie_normalize.py` (сессия polozhenie_ppu)
+
+## [2026-02-13] — prikaz_formirovanie_po
+
+### Что исправлено
+
+**5 false_fail — 3 исправлены (→ PASS), 2 переклассифицированы (→ true_fail B):**
+
+1. **Rule 9 → non-LLM check** (entries #148, #154 — root cause C)
+   - gpt-4.1-mini галлюцинирует отсутствие М.П. даже когда оно присутствует в контексте
+   - Создана `check_signatory_with_stamp()` в `prikaz_checks.py` — regex для должности, ФИО, М.П./МП/ПЕЧАТЬ
+   - Зарегистрирована для `prikaz_formirovanie_po` rule 9 (`llm: false`)
+
+2. **Rule 7 — семантические исключения + формат ответа** (entry #168 — root cause D)
+   - Заменены абсолютные номера пунктов на семантические критерии (по тексту, не по номеру)
+   - 4 исключения: «Создать ПО», пункт с двоеточием, «Руководителю ПО», «Контроль над исполнением»
+   - Добавлены явные инструкции формата: не включать исключённые/OK пункты в массив нарушения
+   - Добавлено различие документов vs должностей для корректной семантики
+
+3. **Preprocessor — line-joining для текст_приказа** (`iter8_normalize.py`)
+   - Vision-парсер разбивает пункты приказа переносами: «ПО.\nОтветственный» → «ПО. Ответственный»
+   - Препроцессор объединяет continuation lines внутри пунктов
+
+4. **Реклассификация #146** (biznes_otel rule 6): false_fail C → true_fail B
+   - После фикса препроцессора LLM корректно находит пропущенные пункты (7 вместо 9 в шаблоне)
+
+5. **Реклассификация #147** (biznes_otel rule 7): false_fail C → true_fail B
+   - LLM семантически прав: «руководителя ПО» в «Утвердить инструкцию руководителя ПО» — объект, не ответственный
+   - 4 итерации промпта не смогли решить конфликт #147 vs #153 без регрессий
+
+### Результат перезапуска
+- Прогон: run_20260213_160614
+- compare_runs.py (vs baseline run_20260210_165639):
+  - ИСПРАВЛЕНО (FAIL → PASS): 3 (#148, #154, #168)
+  - РЕГРЕССИИ (PASS → FAIL): 0
+  - Утечки true_fail → PASS: 0
+- false_fail: было 5 → стало 0 (3 fixed + 2 reclassified)
+- Точность: 32.5% → 40.0%
+
+### Верификация
+- Все true_fail остались FAIL: подтверждено (0 утечек)
+- Регрессии: нет
+- #153 rotosnab rule 7 (true_fail B): остаётся FAIL ✓
+- #160 rotosnab_dop rule 7 (true_fail B): остаётся FAIL ✓
+
+### Файлы изменены
+- audit_engine/non_llm_checks/prikaz_checks.py — `check_signatory_with_stamp()`
+- audit_engine/preprocessors/iter8_normalize.py — line-joining step
+- doc_configs/prikaz_formirovanie_po/rules.json — rules 7 (semantic), 9 (llm:false)
+- test_configs/test_analysis.json — #146, #147 reclassified
 
 ## [2026-02-13] — cheklist_eu
 

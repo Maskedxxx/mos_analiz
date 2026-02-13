@@ -562,3 +562,87 @@ def check_responsible_fio_ic_potoka(target_doc, config):
                 break
 
     return violations
+
+
+# ============================================================================
+# check_signatory_with_stamp — подпись + М.П./МП/ПЕЧАТЬ
+# ============================================================================
+
+def check_signatory_with_stamp(
+    target_doc: Dict[str, Any],
+    config: Any,
+    rule_index: int = 9,
+    rule_title: str = "Проверка подписи директора и М.П.",
+    scopes: List[str] = None
+) -> List[Dict[str, Any]]:
+    """
+    Проверяет наличие должности, ФИО и печати (М.П./МП/ПЕЧАТЬ) в подписанте.
+
+    Переведено с LLM на non-LLM: gpt-4.1-mini не видит «М.П.» в собственном
+    контексте (hallucination) и не распознаёт «МП» без точек как аналог «М.П.».
+    """
+    if scopes is None:
+        scopes = ["подписант"]
+    text = _get_scopes_text(target_doc, scopes)
+
+    violations = []
+    if not text or len(text.strip()) < 3:
+        violations.append({
+            "rule_index": rule_index,
+            "rule_title": rule_title,
+            "Целевой документ": "(текст подписанта отсутствует)",
+            "Различие": "Отсутствует блок подписанта"
+        })
+        return violations
+
+    # --- Проверка должности ---
+    position_words = [
+        'директор', 'руководитель', 'начальник', 'управляющ',
+        'заместител', 'президент', 'председател'
+    ]
+    text_lower = text.lower()
+    has_position = any(w in text_lower for w in position_words)
+    if not has_position:
+        violations.append({
+            "rule_index": rule_index,
+            "rule_title": rule_title,
+            "Целевой документ": text.strip()[:200],
+            "Различие": "Отсутствует должность подписанта (Генеральный директор и т.п.)"
+        })
+
+    # --- Проверка ФИО ---
+    fio_pattern = r'[А-ЯЁ][а-яё]+\s+[А-ЯЁ]\.[А-ЯЁ]\.|[А-ЯЁ]\.[А-ЯЁ]\.\s*[А-ЯЁ][а-яё]+'
+    placeholder_pattern = r'_{4,}|И\.О\.\s*Фамилия|Фамилия\s*И\.О\.'
+    has_fio = bool(re.search(fio_pattern, text))
+    has_placeholder = bool(re.search(placeholder_pattern, text))
+    if not has_fio or has_placeholder:
+        violations.append({
+            "rule_index": rule_index,
+            "rule_title": rule_title,
+            "Целевой документ": text.strip()[:200],
+            "Различие": "ФИО подписанта не заполнено (плейсхолдер или отсутствует)"
+        })
+
+    # --- Проверка печати (М.П. / МП / ПЕЧАТЬ) ---
+    # М.П., М. П., МП (с точками или без), ПЕЧАТЬ, печать
+    stamp_pattern = r'М\.?\s*П\.?|ПЕЧАТЬ|печать'
+    has_stamp = bool(re.search(stamp_pattern, text))
+    if not has_stamp:
+        violations.append({
+            "rule_index": rule_index,
+            "rule_title": rule_title,
+            "Целевой документ": text.strip()[:200],
+            "Различие": "Отсутствует указание на печать (М.П., МП или ПЕЧАТЬ)"
+        })
+
+    return violations
+
+
+# ============================================================================
+# Регистрация для prikaz_formirovanie_po
+# ============================================================================
+
+@register("prikaz_formirovanie_po", 9)
+def check_stamp_formirovanie_po(target_doc, config):
+    """Правило #9: должность + ФИО + М.П./ПЕЧАТЬ для Приказа о формировании ПО."""
+    return check_signatory_with_stamp(target_doc, config, 9, "Проверка подписи директора и М.П.")
