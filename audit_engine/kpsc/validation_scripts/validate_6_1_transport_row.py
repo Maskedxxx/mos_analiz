@@ -48,7 +48,7 @@ def extract_relevant_data(data: dict) -> dict:
     rows = data["data"].get("rows", [])
 
     # Ищем строку с текстом "перемещени" (регистронезависимо)
-    # Проверяем в колонках B (col=2) или C (col=3)
+    # Проверяем в колонках A-C (col 1-3): разные компании размещают данные в разных колонках
     has_transport_row = False
     transport_row_num = None
 
@@ -56,9 +56,9 @@ def extract_relevant_data(data: dict) -> dict:
         cells = row.get("cells", [])
         row_num = row.get("row")
 
-        # Проверяем колонки B и C (col 2 и 3) на наличие текста "перемещени"
+        # Проверяем колонки A, B и C (col 1, 2, 3) на наличие текста "перемещени"
         for cell in cells:
-            if cell.get("col") in [2, 3]:
+            if cell.get("col") in [1, 2, 3]:
                 cell_value = str(cell.get("value", "")).lower()
                 if "перемещени" in cell_value:
                     has_transport_row = True

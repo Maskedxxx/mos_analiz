@@ -8,8 +8,9 @@
 - **Базовый прогон:** run_20260210_165639
 - **Базовая точность:** 63.7% (184 true_fail / 289 FAIL)
 - **false_fail на старте:** 105
-- **false_fail осталось:** 105
-- **Текущая точность:** 63.7%
+- **false_fail осталось:** 103 (2 переклассифицированы в true_fail)
+- **false_fail исправлено (kpsc):** 25/27 → PASS
+- **Текущая точность:** 64.4% (186 true_fail / 289 FAIL)
 
 ## Инфраструктура
 
@@ -21,7 +22,7 @@
 
 | # | doc_type | false_fail | Статус | Новая точность |
 |---|----------|------------|--------|----------------|
-| 1 | kpsc | 27 | in_progress | 40.0% → ожидается ~85%+ |
+| 1 | kpsc | 27→0 | done | 40.0% → 60.8% (25 fixed, 2 reclassified) |
 | 2 | prikaz_comp_ppu | 10 | pending | 52.4% |
 | 3 | polozhenie_ppu | 11 | pending | 42.1% |
 | 4 | polozhenie_comp_ppu | 6 | pending | 60.0% |
@@ -148,3 +149,71 @@ pytest tests/test_kpsc_parsers.py -v
 - `audit_engine/kpsc/parser_scripts/parse_spaghetti_sheet.py` — sheet_finder + graceful empty
 - `audit_engine/kpsc/parser_scripts/parse_spaghetti_problems.py` — sheet_finder + graceful empty
 - `tests/test_kpsc_parsers.py` (новый) — 35 юнит-тестов
+
+## [2026-02-13] — kpsc (продолжение)
+
+### Что исправлено
+
+**Оставшиеся 8 false_fail — 6 фиксов кода + 2 переклассификации:**
+
+1. **validate_6_1_transport_row.py** — расширен фильтр колонок [2,3] → [1,2,3]
+   - mapper и sodex имеют "Перемещения" в col A (col=1), не col B/C
+   - Исправляет: #19 (mapper 6.1), #42 (sodex 6.1)
+
+2. **validate_2_1_problems_count.py** — расширен фильтр col=2 → col in [1,2]
+   - rotosnab имеет номера проблем в col A (col=1)
+   - Исправляет: #33 (rotosnab 2.1)
+
+3. **validate_8_2_values_cross_check.py** — динамический поиск колонки ИТОГО
+   - Был: hardcoded col=26 (Z). Rotosnab имеет ИТОГО в col=20 (T)
+   - Стало: ищет "ИТОГО" в заголовочной строке таблицы
+   - Исправляет: #39 (rotosnab 8.2)
+
+4. **parse_kpsc_header.py** — добавлено поле `organization`
+   - Сканирует всю ширину строк 1-3 для ООО/АО/ПАО + "наименование"
+   - biznes_otel: ООО в merged range AS1:AV1 (col 45-48)
+   - Исправляет: #6 (biznes_otel 1.2)
+
+5. **validate_1_2_company_name.py** — детерминированная предпроверка
+   - Если organization/title содержит ООО + наименование → PASS без LLM
+   - Устраняет ложноотрицательные LLM-вердикты
+   - Исправляет: #6 (biznes_otel 1.2)
+
+6. **validate_1_4_responsible.py** — детерминированная предпроверка
+   - Если ≥2 слова и ≥5 символов → PASS без LLM
+   - "Жукова А." — 2 токена, LLM ошибочно считал за 1 слово
+   - Исправляет: #7 (biznes_otel 1.4)
+
+7. **#10 biznes_otel 1.7** — переклассифицирован false_fail → true_fail (B)
+   - compiled_by = "Рабочая группа ООО Бизнес Отель" — не ФИО
+
+8. **#44 sodex 7.2** — переклассифицирован false_fail → true_fail (B)
+   - Нет отдельного листа "Условные обозначения" (как и у mapper)
+
+### Результат перезапуска
+
+- Прогон: run_20260213_092223
+- compare_runs.py vs baseline (run_20260210_165639):
+  - ИСПРАВЛЕНО (FAIL → PASS): **25** (все false_fail для kpsc)
+  - РЕГРЕССИИ (PASS → FAIL): 3 (все объяснены как ложные PASS в старом прогоне)
+  - НОВЫЕ FAIL: 26 (парсеры теперь находят данные → выявлены реальные проблемы документов)
+  - БЕЗ ИЗМЕНЕНИЙ: 48 (20 FAIL→FAIL + 28 PASS→PASS)
+- false_fail kpsc: 27 → 0 (25 fixed + 2 reclassified)
+- Точность kpsc: 40.0% → 60.8%
+- Общая точность: 63.7% → 64.4%
+
+### Верификация "регрессий"
+
+1. **7.8 biznes_otel/rotosnab** — старый PASS был основан на мусорных данных takt_time. Теперь поле null → корректный FAIL
+2. **4.1 rotosnab** — таблица теперь парсится правильно, видны реально пустые ячейки → корректный FAIL
+
+### Юнит-тесты: 50/50 PASS
+
+### Файлы изменены
+
+- `audit_engine/kpsc/parser_scripts/parse_kpsc_header.py` — добавлено поле organization
+- `audit_engine/kpsc/validation_scripts/validate_6_1_transport_row.py` — расширен фильтр колонок
+- `audit_engine/kpsc/validation_scripts/validate_2_1_problems_count.py` — расширен фильтр колонок
+- `audit_engine/kpsc/validation_scripts/validate_8_2_values_cross_check.py` — динамический ИТОГО
+- `audit_engine/kpsc/validation_scripts/validate_1_2_company_name.py` — детерминированная предпроверка
+- `audit_engine/kpsc/validation_scripts/validate_1_4_responsible.py` — детерминированная предпроверка

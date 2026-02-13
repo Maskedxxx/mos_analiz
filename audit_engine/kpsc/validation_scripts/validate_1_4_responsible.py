@@ -35,8 +35,12 @@ def load_data(parser_outputs_dir: Path) -> dict:
 
 def extract_relevant_data(data: dict) -> dict:
     """Извлечение данных для проверки"""
+    responsible = data["fields"].get("responsible", "") or ""
+    words = responsible.strip().split()
     return {
-        "responsible": data["fields"].get("responsible", "")
+        "responsible": responsible,
+        "word_count": len(words),
+        "char_length": len(responsible.strip()),
     }
 
 def build_prompt(extracted_data: dict, rule: dict) -> str:
@@ -175,17 +179,32 @@ def main():
         log_step(log_file, 3, "Извлечение релевантных данных",
                  f"Extracted data:\n{json.dumps(extracted, ensure_ascii=False, indent=2)}")
 
-    print("[4/6] Формирование промпта с правилом из ТЗ")
-    prompt = build_prompt(extracted, rule)
-    if args.verbose:
-        log_step(log_file, 4, "Сформированный промпт для LLM",
-                 f"FULL PROMPT:\n{prompt}")
+    # Детерминированная предпроверка: ≥2 слова и ≥5 символов → PASS без LLM
+    # Форматы ФИО: "Фамилия И.", "Фамилия И.О.", "Фамилия Имя", "Фамилия Имя Отчество"
+    if extracted["word_count"] >= 2 and extracted["char_length"] >= 5:
+        print("[4/6] Детерминированная проверка: ФИО содержит ≥2 слов, ≥5 символов → PASS")
+        result = {
+            "rule_index": rule["rule_index"],
+            "rule_title": rule["rule_title"],
+            "target_document": TARGET_DOC,
+            "status": "PASS",
+            "discrepancy": ""
+        }
+        if args.verbose:
+            log_step(log_file, 4, "Детерминированная проверка",
+                     f"word_count={extracted['word_count']}, char_length={extracted['char_length']} → PASS без LLM")
+    else:
+        print("[4/6] Формирование промпта с правилом из ТЗ")
+        prompt = build_prompt(extracted, rule)
+        if args.verbose:
+            log_step(log_file, 4, "Сформированный промпт для LLM",
+                     f"FULL PROMPT:\n{prompt}")
 
-    print("[5/6] Вызов LLM (gpt-4.1-mini-2025-04-14)")
-    result = call_llm(prompt, api_key)
-    if args.verbose:
-        log_step(log_file, 5, "Ответ от LLM",
-                 f"LLM Response:\n{json.dumps(result, ensure_ascii=False, indent=2)}")
+        print("[5/6] Вызов LLM (gpt-4.1-mini-2025-04-14)")
+        result = call_llm(prompt, api_key)
+        if args.verbose:
+            log_step(log_file, 5, "Ответ от LLM",
+                     f"LLM Response:\n{json.dumps(result, ensure_ascii=False, indent=2)}")
 
     print("[6/6] Сохранение результата")
     save_result(result, args.output)

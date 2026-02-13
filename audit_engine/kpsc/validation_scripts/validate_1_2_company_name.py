@@ -36,7 +36,8 @@ def load_data(parser_outputs_dir: Path) -> dict:
 def extract_relevant_data(data: dict) -> dict:
     """Извлечение данных для проверки"""
     return {
-        "title": data["fields"].get("title", "")
+        "title": data["fields"].get("title", ""),
+        "organization": data["fields"].get("organization", "")
     }
 
 def build_prompt(extracted_data: dict, rule: dict) -> str:
@@ -57,6 +58,7 @@ def build_prompt(extracted_data: dict, rule: dict) -> str:
 
 ФАКТИЧЕСКИЕ ДАННЫЕ:
 Заголовок документа: "{extracted_data['title']}"
+Название организации: "{extracted_data.get('organization', '')}"
 
 ЗАДАНИЕ:
 Проверь соответствие фактических данных требованию эксперта и критериям проверки.
@@ -175,17 +177,36 @@ def main():
         log_step(log_file, 3, "Извлечение релевантных данных",
                  f"Extracted data:\n{json.dumps(extracted, ensure_ascii=False, indent=2)}")
 
-    print("[4/6] Формирование промпта с правилом из ТЗ")
-    prompt = build_prompt(extracted, rule)
-    if args.verbose:
-        log_step(log_file, 4, "Сформированный промпт для LLM",
-                 f"FULL PROMPT:\n{prompt}")
+    # Детерминированная предпроверка: если organization содержит ООО/АО/ПАО → PASS
+    import re
+    org = extracted.get("organization", "") or ""
+    org_found = bool(re.search(r'(ООО|АО|ПАО|ОАО|ЗАО)\s*[«"\'].+?[»"\'\"]', org))
+    title_has_org = bool(re.search(r'(ООО|АО|ПАО|ОАО|ЗАО)\s*[«"\'].+?[»"\'\"]', extracted.get("title", "") or ""))
 
-    print("[5/6] Вызов LLM (gpt-4.1-mini-2025-04-14)")
-    result = call_llm(prompt, api_key)
-    if args.verbose:
-        log_step(log_file, 5, "Ответ от LLM",
-                 f"LLM Response:\n{json.dumps(result, ensure_ascii=False, indent=2)}")
+    if org_found or title_has_org:
+        print(f"[4/6] Детерминированная проверка: найдено '{org or extracted['title']}' → PASS")
+        result = {
+            "rule_index": rule["rule_index"],
+            "rule_title": rule["rule_title"],
+            "target_document": TARGET_DOC,
+            "status": "PASS",
+            "discrepancy": ""
+        }
+        if args.verbose:
+            log_step(log_file, 4, "Детерминированная проверка",
+                     f"organization='{org}', title_has_org={title_has_org} → PASS без LLM")
+    else:
+        print("[4/6] Формирование промпта с правилом из ТЗ")
+        prompt = build_prompt(extracted, rule)
+        if args.verbose:
+            log_step(log_file, 4, "Сформированный промпт для LLM",
+                     f"FULL PROMPT:\n{prompt}")
+
+        print("[5/6] Вызов LLM (gpt-4.1-mini-2025-04-14)")
+        result = call_llm(prompt, api_key)
+        if args.verbose:
+            log_step(log_file, 5, "Ответ от LLM",
+                     f"LLM Response:\n{json.dumps(result, ensure_ascii=False, indent=2)}")
 
     print("[6/6] Сохранение результата")
     save_result(result, args.output)

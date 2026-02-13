@@ -127,6 +127,26 @@ def _find_title(ws, max_row: int = HEADER_SCAN_MAX_ROW) -> Optional[str]:
     return None
 
 
+def _find_organization(ws, max_row: int = 3) -> Optional[str]:
+    """
+    Ищем название организации (ООО/АО/ПАО + наименование) во всех ячейках первых строк.
+
+    Некоторые компании (biznes_otel) размещают ООО в merged-ячейках далеко справа (col 45+),
+    поэтому сканируем всю ширину строки.
+    """
+    import re
+    org_pattern = re.compile(r'(ООО|АО|ПАО|ОАО|ЗАО)\s*[«"\'"].+?[»"\'\"]', re.IGNORECASE)
+    max_col = ws.max_column or 50
+    for r in range(1, max_row + 1):
+        for c in range(1, max_col + 1):
+            v = ws.cell(row=r, column=c).value
+            if isinstance(v, str):
+                m = org_pattern.search(v)
+                if m:
+                    return m.group(0)
+    return None
+
+
 def extract_fields(ws) -> Dict[str, Any]:
     """
     Динамическое извлечение полей заголовка КПСЦ.
@@ -136,6 +156,7 @@ def extract_fields(ws) -> Dict[str, Any]:
     """
     return {
         "title": _find_title(ws),
+        "organization": _find_organization(ws),
         "flow_name": _find_label_value(ws, ["поток:", "наименование потока"]),
         "responsible": _find_label_value(ws, ["ответственн"]),
         "date_developed": _find_label_value(ws, ["дата разработ"]),

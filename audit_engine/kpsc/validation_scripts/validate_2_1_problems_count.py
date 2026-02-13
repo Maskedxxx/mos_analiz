@@ -48,16 +48,17 @@ def extract_relevant_data(data: dict) -> dict:
 
     rows = data["data"].get("rows", [])
 
-    # Извлекаем номера проблем из колонки B (col=2)
+    # Извлекаем номера проблем из колонки A или B (col 1 или 2)
+    # Разные компании размещают номера проблем в разных колонках
     problem_numbers = []
     for i, row in enumerate(rows):
         if i == 0:  # Пропускаем заголовок
             continue
         cells = row.get("cells", [])
 
-        # Ищем номер проблемы в колонке B (col=2)
+        # Ищем номер проблемы в колонках A и B (col 1 и 2)
         for cell in cells:
-            if cell.get("col") == 2:  # Колонка B - номер проблемы
+            if cell.get("col") in [1, 2]:
                 problem_num_value = cell.get("value")
                 if problem_num_value and str(problem_num_value).strip():
                     try:
@@ -65,7 +66,7 @@ def extract_relevant_data(data: dict) -> dict:
                         problem_numbers.append(problem_num)
                     except:
                         pass
-                break
+                    break
 
     return {
         "file_exists": True,

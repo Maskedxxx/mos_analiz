@@ -91,6 +91,15 @@ def extract_relevant_data(data: dict) -> dict:
     kpsc_rows = data["kpsc_data"].get("rows", [])
     kpsc_itogo_values = {}
 
+    # Динамически определяем колонку ИТОГО из заголовочной строки
+    itogo_col = None
+    if kpsc_rows:
+        header_cells = {cell.get("col"): cell.get("value") for cell in kpsc_rows[0].get("cells", [])}
+        for col_idx, val in header_cells.items():
+            if isinstance(val, str) and "итого" in val.lower():
+                itogo_col = col_idx
+                break
+
     for i, row in enumerate(kpsc_rows):
         if i == 0:  # Пропускаем заголовок
             continue
@@ -102,14 +111,13 @@ def extract_relevant_data(data: dict) -> dict:
         if not pokazatel_name:
             continue
 
-        # Колонка Z (col=26) - значение ИТОГО
-        itogo_value = cells_dict.get(26)
+        # Колонка ИТОГО — определена динамически из заголовка
+        itogo_value = cells_dict.get(itogo_col) if itogo_col else None
 
         if itogo_value is not None and pokazatel_name:
             try:
                 kpsc_itogo_values[str(pokazatel_name).strip().lower()] = float(itogo_value)
             except (ValueError, TypeError):
-                # Если не удается преобразовать в число, пропускаем
                 pass
 
     # Сравниваем значения с допустимой погрешностью ±0.01
