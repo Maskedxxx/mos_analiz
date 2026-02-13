@@ -8,12 +8,13 @@
 - **Базовый прогон:** run_20260210_165639
 - **Базовая точность:** 63.7% (184 true_fail / 289 FAIL)
 - **false_fail на старте:** 105
-- **false_fail осталось:** 58 (3 переклассифицированы в true_fail + 2 новых обнаружены при верификации ruslet)
+- **false_fail осталось:** 52 (3 переклассифицированы в true_fail + 2 новых обнаружены при верификации ruslet)
 - **false_fail исправлено (kpsc):** 25/27 → PASS
 - **false_fail исправлено (prikaz_comp_ppu):** 10/10 → PASS
 - **false_fail исправлено (cluster 3):** 26/26 → PASS (prikaz_vyhod 8, prikaz_comp_ppu 2*, prikaz_ppu 3, prikaz_ic_potoka 5 + 8 уже в кеше)
 - **false_fail исправлено (polozhenie_ppu):** 11/11 → PASS
-- **Текущая точность:** ~74% (оценочно, полный прогон не запускался)
+- **false_fail исправлено (polozhenie_comp_ppu):** 6/6 → PASS
+- **Текущая точность:** ~75% (оценочно, полный прогон не запускался)
 
 ## Инфраструктура
 
@@ -31,7 +32,7 @@
 | 4 | prikaz_ppu | 3→0 | done | 72.7% → ~88% (+3 fixed) |
 | 5 | prikaz_ic_potoka | 8→0 | done | 71.4% → ~82% (+5 fixed, +1 reclassified) |
 | 6 | polozhenie_ppu | 11→0 | done | 42.1% → 100% (11 fixed, 0 regressions) |
-| 7 | polozhenie_comp_ppu | 6 | pending | 60.0% |
+| 7 | polozhenie_comp_ppu | 6→0 | done | 60.0% → 100% (6 fixed, 0 regressions) |
 | 8 | cheklist_eu | 7 | pending | 58.8% |
 | 9 | prikaz_formirovanie_po | 5 | pending | 81.5% |
 | 10 | prikaz_ic | 7 | pending | 78.1% |
@@ -477,3 +478,52 @@ pytest tests/test_kpsc_parsers.py -v
   - `normalize_text()`: шаг 5.5 — отсечение "Форма №..." и хвоста
   - `normalize_text()`: шаг 7.5 — нормализация `,` → `.` в конце строк
   - `normalize_text()`: шаг 7.6 — удаление маркеров списков (`-`, `–`, `—`)
+
+## [2026-02-13] — polozhenie_comp_ppu
+
+### Что исправлено
+
+**6 false_fail — полностью покрыты фиксами из предыдущих сессий (0 новых изменений):**
+
+#### 1. Rule 1 — preprocess_shapka (C, 3 записи: #227,#232,#237)
+
+- Shared preprocessor `polozhenie_normalize.py` уже содержит все необходимые фиксы из сессии polozhenie_ppu:
+  - Шаг 3: удаление строки `к приказу от ... № ...` (переменная, мешает сравнению)
+  - Шаг 4: обрезка тела документа (Vision включает разделы в шапку)
+  - Шаг 5: нормализация регистра (`ПОЛОЖЕНИЕ` → `положение`)
+  - Шаг 6: склейка whitespace в одну строку (Vision-артефакт переносов)
+- Декораторы `@register_preprocessor("polozhenie_comp_ppu", "шапка")` уже были — фиксы применились автоматически
+
+#### 2. Rule 2 — filename_keywords (D, 3 записи: #228,#233,#238)
+
+- config.json уже имел `filename_keywords: ["положение", "ппу"]`
+- Базовый прогон использовал `filename_pattern: "reg_comp_ppu"` (латиница)
+- Обновлён rules.json: описание изменено на ключевые слова
+
+### Результат перезапуска
+
+- Прогон: run_20260213_150349
+- Результат: 9 PASS / 9 FAIL (3 компании × 6 правил)
+  - Rule 1: **PASS** × 3 (было FAIL) — исправлено
+  - Rule 2: **PASS** × 3 (было FAIL) — исправлено
+  - Rule 3: FAIL × 3 — true_fail B (ожидаемо)
+  - Rule 4: FAIL × 3 — true_fail B (ожидаемо)
+  - Rule 5: FAIL × 3 — true_fail B (ожидаемо)
+  - Rule 6: PASS × 3 — без изменений
+- Регрессии: **0**
+- false_fail: 6 → 0 (все 6 исправлены)
+- Точность: 60.0% → 100.0% (9 true_fail / 9 FAIL)
+
+### Верификация
+
+- Оставшиеся 9 FAIL — все true_fail B (реальные дефекты документов):
+  - Rule 3: отсутствует раздел «4. Порядок организации и проведения конкурсов»
+  - Rule 4: пропущены подпункты, изменены формулировки
+  - Rule 5: номер приказа или дата отсутствуют / содержат плейсхолдеры
+- 0 новых false_fail
+- 0 leaks (ни один true_fail не потерян)
+
+### Файлы изменены
+
+- `doc_configs/polozhenie_comp_ppu/rules.json` — правило 2 (описание keywords)
+- Все остальные фиксы — из shared `polozhenie_normalize.py` (сессия polozhenie_ppu)
