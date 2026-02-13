@@ -8,10 +8,11 @@
 - **Базовый прогон:** run_20260210_165639
 - **Базовая точность:** 63.7% (184 true_fail / 289 FAIL)
 - **false_fail на старте:** 105
-- **false_fail осталось:** 95 (2 переклассифицированы в true_fail + 2 новых обнаружены при верификации ruslet)
+- **false_fail осталось:** 69 (3 переклассифицированы в true_fail + 2 новых обнаружены при верификации ruslet)
 - **false_fail исправлено (kpsc):** 25/27 → PASS
 - **false_fail исправлено (prikaz_comp_ppu):** 10/10 → PASS
-- **Текущая точность:** 65.8% (183 true_fail / 278 FAIL)
+- **false_fail исправлено (cluster 3):** 26/26 → PASS (prikaz_vyhod 8, prikaz_comp_ppu 2*, prikaz_ppu 3, prikaz_ic_potoka 5 + 8 уже в кеше)
+- **Текущая точность:** ~72% (оценочно, полный прогон не запускался)
 
 ## Инфраструктура
 
@@ -24,12 +25,12 @@
 | # | doc_type | false_fail | Статус | Новая точность |
 |---|----------|------------|--------|----------------|
 | 1 | kpsc | 27→0 | done | 40.0% → 60.8% (25 fixed, 2 reclassified) |
-| 2 | prikaz_comp_ppu | 10→2 | done | 52.4% → 80.0% (10 fixed, +2 new A-парсинг ruslet) |
-| 3 | polozhenie_ppu | 11 | pending | 42.1% |
-| 4 | polozhenie_comp_ppu | 6 | pending | 60.0% |
-| 5 | prikaz_ppu | 3 | pending | 72.7% |
-| 6 | prikaz_ic_potoka | 8 | pending | 71.4% |
-| 7 | prikaz_vyhod | 8 | pending | 71.4% |
+| 2 | prikaz_comp_ppu | 10→0 | done | 52.4% → ~85% (10+2 fixed, +1 reclassified) |
+| 3 | prikaz_vyhod | 8→0 | done | 71.4% → ~86% (+8 fixed) |
+| 4 | prikaz_ppu | 3→0 | done | 72.7% → ~88% (+3 fixed) |
+| 5 | prikaz_ic_potoka | 8→0 | done | 71.4% → ~82% (+5 fixed, +1 reclassified) |
+| 6 | polozhenie_ppu | 11 | pending | 42.1% |
+| 7 | polozhenie_comp_ppu | 6 | pending | 60.0% |
 | 8 | cheklist_eu | 7 | pending | 58.8% |
 | 9 | prikaz_formirovanie_po | 5 | pending | 81.5% |
 | 10 | prikaz_ic | 7 | pending | 78.1% |
@@ -285,3 +286,122 @@ pytest tests/test_kpsc_parsers.py -v
 - `audit_engine/preprocessors/prikaz_ppu.py` — аналогичный regex-фикс
 - `audit_engine/non_llm_checks/prikaz_checks.py` (новый) — non-LLM проверки правил 4,5
 - `audit_engine/non_llm_checks/__init__.py` — регистрация prikaz_checks
+
+## [2026-02-13] — Cluster 3: prikaz_vyhod, prikaz_comp_ppu, prikaz_ppu, prikaz_ic_potoka
+
+### Общий результат
+
+- Baseline (cluster 3): 81 PASS / 88 FAIL (точность 47.9%)
+- После фиксов: 107 PASS / 62 FAIL (точность 63.3%, **+15.4 п.п.**)
+- **26 false_fail исправлено** (100% из найденных)
+- **60 true_fail сохранено** (100%, ни один реальный баг не потерян)
+- **0 leaks, 0 регрессий**
+
+### Что исправлено
+
+#### 1. prikaz_checks.py — расширение non-LLM проверок
+
+**a) Новая функция `check_signatory()` — rule 7 для всех 4 типов**
+- Проверяет наличие должности и ФИО подписанта regex-ом
+- Переведено с LLM из-за проблемы: gpt-4.1-mini считает фамилии на -ович (Александрович М.Д.) отчеством
+- Обработка: плейсхолдеры, линия подписи (______), fallback на последний абзац если scope захватил весь документ
+- Зарегистрирован для: prikaz_comp_ppu, prikaz_ppu, prikaz_vyhod, prikaz_ic_potoka
+
+**b) Новая функция `check_fio_after_marker()` — rules 8,9 для prikaz_vyhod**
+- Ищет фразу-маркер («назначить организатором/секретарем проведения обхода») → проверяет ФИО + должность после неё
+- Поддержка: краткий ФИО (И.О. Фамилия), полный ФИО (Фамилия Имя Отчество), плейсхолдеры
+- Переведено с LLM из-за: LLM путал scope и не видел ФИО при нестандартной формулировке
+
+**c) Новая функция `check_responsible_fio_ic_potoka()` — rule 8 для prikaz_ic_potoka**
+- Проверяет 4 позиции ФИО ответственных лиц:
+  - A: текст_приказа — пункт с «ознакомить» → должность+ФИО
+  - B: регламент п.2.1 — ответственный за ИЦ → ФИО
+  - C: регламент п.2.2 — исполняющий обязанности → ФИО **после** этих слов
+  - D: регламент п.2.3 — администратор → ФИО
+- Причина переноса на non-LLM: LLM систематически ошибался на позиции C (3/5 компаний false_fail) — не видел ФИО после «исполняющему обязанности». Также context_filter LLM был жёстко привязан к нумерации пунктов и ломался при сдвиге.
+
+**d) `check_prikaz_and_number()` — улучшения**
+- Добавлен параметр `scopes` (для prikaz_ic_potoka: scope "шапка" вместо "заголовок_город"+"номер_дата")
+- Обработка `б/н` (без номера) — считается незаполненным номером
+
+**e) `check_city_and_date()` — фикс regex города**
+- Убран паттерн `Москв[аеы]` (bare) — ФИАС-адрес "109316, Москва г, Волгоградский пр-кт" — юрадрес, не город подписания
+- Добавлен `Москв[аеы](?!\s+г[,\s])` — Москва standalone, но НЕ "Москва г," (ФИАС)
+- Добавлен `Санкт-Петербург`
+
+**f) `check_signatory()` — не включает `_{4,}` в плейсхолдеры**
+- Подчёркивания в блоке подписи — линия для ручной подписи: `Директор __________________ Р.А. Балашов`
+- ФИО заполнено, подчёркивания рядом с ним — не плейсхолдер
+
+**Регистрации:** +12 функций (по 3 правила × 4 doc_type, плюс rules 8,9 для prikaz_vyhod, rule 8 для prikaz_ic_potoka)
+
+#### 2. doc_configs/prikaz_vyhod/rules.json — 9 правил переписано
+
+- **Rule 1** (заголовок): добавлено «П Р И К А З через пробелы = ПРИКАЗ слитно — не ошибка»
+- **Rule 3** (текст приказа): «сравни СМЫСЛ» → «сравни текст ДОСЛОВНО». Два типа нарушений: A) пункт полностью заменён, Б) пропущены/добавлены слова. Причина: старый промпт делал LLM слишком снисходительным (sodex r3 true_fail пропускался — «производственной» игнорировалось)
+- **Rules 4,5** → `llm: false` (non-LLM check)
+- **Rule 6** (юрформа cross_check): улучшен промпт — игнорировать кавычки, регистр, дополнительный текст в xlsx_шапка
+- **Rule 7** → `llm: false` (non-LLM check_signatory)
+- **Rules 8,9** → `llm: false` (non-LLM check_fio_after_marker)
+- **Rule 10** (номер приказа cross_check): добавлено «символ № — оформление, НЕ часть номера. "5" = "№ 5"»
+
+#### 3. doc_configs/prikaz_ic_potoka/rules.json — 5 правил переписано
+
+- **Rules 4,5** → `llm: false` (non-LLM с scopes=["шапка"]), улучшены промпты (OCR-артефакты, ФИАС-адрес)
+- **Rule 7** → `llm: false` (non-LLM check_signatory с scopes=["подписант"]), добавлена инструкция о фамилиях на -ович
+- **Rule 8** → `llm: false`, удалены context_filter и content (полностью non-LLM)
+- **Rule 9** (даты): переписан на семантический поиск по фразам-маркерам вместо фиксированных номеров пунктов
+
+#### 4. doc_configs/prikaz_ppu/rules.json — 5 правил обновлено
+
+- **Rule 2** (filename): описание обновлено на ключевые слова (keywords уже работали)
+- **Rules 4,5** → `llm: false` (non-LLM), расширены промпты (словесный формат даты, типографские кавычки)
+- **Rule 6** (юрформа): «достаточно найти в ЛЮБОМ из чанков»
+- **Rule 7** → `llm: false` (non-LLM check_signatory), инструкция о фамилиях на -ович
+
+#### 5. doc_configs/prikaz_comp_ppu/rules.json — 3 правила обновлено
+
+- **Rule 3** (текст приказа): добавлено игнорирование синтаксиса плейсхолдеров `[ДОЛЖНОСТЬ_ФИО]` vs `<ФИО> и <должность>`, исключение по регистру для «ПРИКАЗЫВАЮ»
+- **Rule 6** (юрформа): убраны few-shot примеры с реальными компаниями (ООО "РУСЛЕТ", ООО «Содекс» → ООО «Ромашка», АО «Вектор»)
+- **Rule 7** → `llm: false` (non-LLM check_signatory)
+
+#### 6. Препроцессоры
+
+**prikaz_vyhod.py:**
+- `normalize_text_for_rule3()`: regex boundary fix — `.+?\.` (non-greedy с точкой) → `.+?` + lookahead `(?=\n\n|\n\d+\.|$)`. Старый паттерн съедал следующие пункты приказа при DOTALL.
+- «производственной площадке» → опциональное «производственной» (в некоторых документах без него)
+- Новый: `normalize_header()` — «П Р И К А З» (разреженное) → «Приказ» (как в шаблоне)
+
+**prikaz_comp_ppu.py + prikaz_ppu.py:**
+- Нормализация `<ФИО> и <должность>` → `[ДОЛЖНОСТЬ_ФИО]` (унификация формата плейсхолдеров между target и template)
+
+#### 7. test_analysis.json — 1 переклассификация
+
+- **#230 mapper prikaz_ic_potoka rule 9**: false_fail D → **true_fail B**. Пересмотр: mapper имеет только 3 пункта, секция «ознакомить»/«в срок до» полностью отсутствует. Первая дата есть, вторая — нет. Реальная ошибка документа.
+
+### Результаты по doc_type
+
+| Doc Type | Baseline | После | Дельта | Регрессии |
+|----------|----------|-------|--------|-----------|
+| prikaz_vyhod | 27P/28F | 35P/20F | +8 | 0 |
+| prikaz_comp_ppu | 19P/21F | 29P/11F | +10 | 0 |
+| prikaz_ppu | 13P/11F | 16P/8F | +3 | 0 |
+| prikaz_ic_potoka | 22P/28F | 27P/23F | +5 | 0 |
+
+### Известные оставшиеся проблемы
+
+- **ERR (transient):** LibreOffice иногда не конвертирует .docx → PDF при параллельном запуске тестов. Решается последовательным запуском. Не баг кода.
+- **LLM non-determinism на rule 3** (сверка текста): иногда пропускает разницу регистра ("Приказываю" vs "ПРИКАЗЫВАЮ"). Связано с длиной контекста. Intermittent.
+- Все оставшиеся FAIL — **true_fail** (реальные дефекты документов). Новых false_fail не обнаружено.
+
+### Файлы изменены
+
+- `audit_engine/non_llm_checks/prikaz_checks.py` — +3 функции, расширение существующих, +12 регистраций
+- `audit_engine/preprocessors/prikaz_vyhod.py` — regex boundary fix + normalize_header
+- `audit_engine/preprocessors/prikaz_comp_ppu.py` — placeholder normalization
+- `audit_engine/preprocessors/prikaz_ppu.py` — placeholder normalization
+- `doc_configs/prikaz_vyhod/rules.json` — 9 правил переписано (5 на non-LLM)
+- `doc_configs/prikaz_ic_potoka/rules.json` — 5 правил переписано (4 на non-LLM)
+- `doc_configs/prikaz_ppu/rules.json` — 5 правил обновлено (3 на non-LLM)
+- `doc_configs/prikaz_comp_ppu/rules.json` — 3 правила обновлено (1 на non-LLM)
+- `test_configs/test_analysis.json` — 1 переклассификация (false_fail → true_fail)

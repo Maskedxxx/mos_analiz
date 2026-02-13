@@ -5,11 +5,13 @@
 
 Правило 4: наличие слова ПРИКАЗ и номера приказа.
 Правило 5: наличие города и даты приказа.
+Правило 7: наличие должности и ФИО подписанта.
 
 Переведены с LLM на non-LLM из-за систематических ошибок:
 - LLM путает scope (проверяет номер вместо даты)
 - LLM отвергает garbled OCR номера как «некорректные»
 - LLM не распознаёт словесный формат даты
+- LLM считает фамилии на -ович отчествами (Александрович М.Д.)
 """
 
 import re
@@ -32,15 +34,19 @@ def check_prikaz_and_number(
     target_doc: Dict[str, Any],
     config: Any,
     rule_index: int = 4,
-    rule_title: str = "Проверка наличия слова ПРИКАЗ и номера приказа."
+    rule_title: str = "Проверка наличия слова ПРИКАЗ и номера приказа.",
+    scopes: List[str] = None
 ) -> List[Dict[str, Any]]:
     """
     Проверяет наличие слова ПРИКАЗ и номера приказа.
 
     Допустимые формы: ПРИКАЗ, Приказ, П Р И К А З
     Номер: символ № + любой непустой текст (кроме подчёркиваний)
+    scopes: список scope для извлечения текста (по умолчанию заголовок_город + номер_дата)
     """
-    text = _get_scopes_text(target_doc, ["заголовок_город", "номер_дата"])
+    if scopes is None:
+        scopes = ["заголовок_город", "номер_дата"]
+    text = _get_scopes_text(target_doc, scopes)
     violations = []
 
     # Проверка слова ПРИКАЗ
@@ -59,19 +65,20 @@ def check_prikaz_and_number(
         })
 
     # Проверка номера: ищем № с непустым текстом после него
-    # Находим все вхождения №
     number_match = re.search(r'№\s*(.+)', text)
     if number_match:
         # Текст после №
         after_sign = number_match.group(1).strip()
         # Убираем подчёркивания и пробелы — если осталось что-то, номер заполнен
         cleaned = re.sub(r'[_\s]', '', after_sign)
-        if not cleaned:
+        # Проверяем «б/н», «б\н», «бн» — аббревиатура «без номера»
+        is_bn = bool(re.match(r'^б[/\\]?н$', cleaned, re.IGNORECASE))
+        if not cleaned or is_bn:
             violations.append({
                 "rule_index": rule_index,
                 "rule_title": rule_title,
-                "Целевой документ": f"№{after_sign}",
-                "Различие": "Номер приказа не заполнен (пустой или подчёркивания)"
+                "Целевой документ": f"№ {after_sign}",
+                "Различие": "Номер приказа не заполнен" + (" (б/н = без номера)" if is_bn else " (пустой или подчёркивания)")
             })
     else:
         violations.append({
@@ -88,23 +95,29 @@ def check_city_and_date(
     target_doc: Dict[str, Any],
     config: Any,
     rule_index: int = 5,
-    rule_title: str = "Проверка наличия города и даты приказа."
+    rule_title: str = "Проверка наличия города и даты приказа.",
+    scopes: List[str] = None
 ) -> List[Dict[str, Any]]:
     """
     Проверяет наличие города и полной даты приказа.
 
     Город: «г. Москва», полный адрес с городом, «Москва»
     Дата: числовой (ДД.ММ.ГГГГ) или словесный (01 сентября 2025 г.)
+    scopes: список scope для извлечения текста (по умолчанию заголовок_город + номер_дата)
     """
-    text = _get_scopes_text(target_doc, ["заголовок_город", "номер_дата"])
+    if scopes is None:
+        scopes = ["заголовок_город", "номер_дата"]
+    text = _get_scopes_text(target_doc, scopes)
     violations = []
 
     # Проверка города
-    # Паттерны: "г. Москва", "г.Москва", "Москва г,", адрес с городом
+    # Принимаем: "г. Москва", "город Москва", "Москва" (standalone)
+    # НЕ принимаем ФИАС-адрес: "109316, Москва г, ..." — юрадрес, не город подписания
     has_city = bool(re.search(
         r'г\.\s*[А-ЯЁ][а-яё]+|'           # г. Москва, г.Москва
-        r'[А-ЯЁ][а-яё]+\s+г[.,]|'          # Москва г, / Москва г.
-        r'город\s+[А-ЯЁ]',                  # город Москва
+        r'город\s+[А-ЯЁ]|'                  # город Москва
+        r'Москв[аеы](?!\s+г[,\s])|'         # Москва (но НЕ "Москва г," — ФИАС)
+        r'Санкт-Петербург',                  # Санкт-Петербург
         text
     ))
 
@@ -148,6 +161,184 @@ def check_city_and_date(
     return violations
 
 
+def check_signatory(
+    target_doc: Dict[str, Any],
+    config: Any,
+    rule_index: int = 7,
+    rule_title: str = "Проверка должности и ФИО подписанта.",
+    scopes: List[str] = None
+) -> List[Dict[str, Any]]:
+    """
+    Проверяет наличие должности и ФИО подписанта.
+
+    Должность: любое словосочетание (директор, начальник, управляющий и др.)
+    ФИО: слово + инициалы (Иванов А.В.) или инициалы + слово (А.В. Иванов)
+    Переведено на non-LLM из-за систематической ошибки LLM с фамилиями на -ович
+    """
+    if scopes is None:
+        scopes = ["должность_фио_подписанта"]
+    text = _get_scopes_text(target_doc, scopes)
+    violations = []
+
+    if not text.strip():
+        violations.append({
+            "rule_index": rule_index,
+            "rule_title": rule_title,
+            "Целевой документ": "отсутствует",
+            "Различие": "Блок подписанта пуст"
+        })
+        return violations
+
+    # Ошибка парсинга: в scope подписанта попал весь документ.
+    # Признак: содержит слово «ПРИКАЗЫВАЮ» (которого не бывает в подписи).
+    # Подписант располагается ПОСЛЕ последнего нумерованного пункта.
+    if re.search(r'ПРИКАЗЫВАЮ', text, re.IGNORECASE):
+        # Разбиваем на абзацы (по пустым строкам)
+        paragraphs = [p.strip() for p in re.split(r'\n\s*\n', text) if p.strip()]
+        if paragraphs:
+            last_block = paragraphs[-1]
+            # Если последний абзац — нумерованный пункт, подписанта НЕТ
+            if re.match(r'\d+\.\s', last_block):
+                text = ''
+            else:
+                # Последний абзац не пункт — это возможный подписант
+                text = last_block
+
+    # Проверка ФИО: слово + И.О. или И.О. + слово
+    # Паттерны: "Иванов А.В.", "А.В. Иванов", "Иванов А. В.", "А. В. Иванов"
+    fio_pattern = (
+        r'[А-ЯЁа-яё]{2,}\s+[А-ЯЁ]\s*\.\s*[А-ЯЁ]\s*\.|'  # Фамилия И.О.
+        r'[А-ЯЁ]\s*\.\s*[А-ЯЁ]\s*\.\s*[А-ЯЁа-яё]{2,}'     # И.О. Фамилия
+    )
+    has_fio = bool(re.search(fio_pattern, text))
+
+    # Плейсхолдеры ФИО — невалидно
+    # НЕ включаем _{4,} — подчёркивания могут быть линией подписи рядом с реальным ФИО
+    # (формат: «Директор __________________ И.О. Фамилия»)
+    fio_placeholders = re.search(
+        r'И\.О\.\s*Фамилия|Фамилия\s*И\.О\.|'
+        r'(?<![А-ЯЁа-яё])ФИО(?![А-ЯЁа-яё])',
+        text
+    )
+    if fio_placeholders:
+        has_fio = False
+
+    if not has_fio:
+        violations.append({
+            "rule_index": rule_index,
+            "rule_title": rule_title,
+            "Целевой документ": text.strip()[:100],
+            "Различие": "ФИО подписанта не заполнено или содержит плейсхолдер"
+        })
+
+    # Проверка должности: любое осмысленное слово перед ФИО
+    # Исключаем плейсхолдеры должности
+    dolzhnost_placeholder = re.search(
+        r'указать\s+наименование\s+должности|'
+        r'\(должность\)',
+        text, re.IGNORECASE
+    )
+    # Проверяем наличие хотя бы одного слова кроме ФИО
+    # Должность = текст без ФИО и служебных символов
+    text_no_fio = re.sub(fio_pattern, '', text)
+    text_no_fio = re.sub(r'[_\-—/\\«»"\'"().\d]', ' ', text_no_fio)
+    words = [w for w in text_no_fio.split() if len(w) >= 3 and w not in ('М.П.', 'МП')]
+    has_dolzhnost = len(words) >= 1 and not dolzhnost_placeholder
+
+    if not has_dolzhnost:
+        violations.append({
+            "rule_index": rule_index,
+            "rule_title": rule_title,
+            "Целевой документ": text.strip()[:100],
+            "Различие": "Должность подписанта не указана"
+        })
+
+    return violations
+
+
+def check_fio_after_marker(
+    target_doc: Dict[str, Any],
+    config: Any,
+    rule_index: int,
+    rule_title: str,
+    marker_phrase: str,
+    scopes: List[str] = None
+) -> List[Dict[str, Any]]:
+    """
+    Проверяет наличие должности и ФИО после фразы-маркера в тексте приказа.
+
+    Используется для проверки заполненности назначенных лиц (организатор, секретарь).
+    Ищет marker_phrase → после неё должна быть должность + ФИО.
+    """
+    if scopes is None:
+        scopes = ["текст_приказа"]
+    text = _get_scopes_text(target_doc, scopes)
+    violations = []
+
+    # Ищем фразу-маркер (без учёта регистра)
+    match = re.search(re.escape(marker_phrase), text, re.IGNORECASE)
+    if not match:
+        # Фраза-маркер не найдена — пропускаем (структура документа отличается)
+        return violations
+
+    # Берём текст после маркера до конца строки/пункта
+    after_marker = text[match.end():]
+    # Ограничиваем до следующего пункта (цифра+точка в начале строки)
+    next_punkt = re.search(r'\n\d+\.', after_marker)
+    if next_punkt:
+        after_marker = after_marker[:next_punkt.start()]
+
+    # Проверяем ФИО: Фамилия И.О. или И.О. Фамилия, или полное ФИО (Балашова Романа Анатольевича)
+    fio_pattern_short = (
+        r'[А-ЯЁа-яё]{2,}\s+[А-ЯЁ]\s*\.\s*[А-ЯЁ]\s*\.|'    # Фамилия И.О.
+        r'[А-ЯЁ]\s*\.\s*[А-ЯЁ]\s*\.\s*[А-ЯЁа-яё]{2,}'      # И.О. Фамилия
+    )
+    fio_pattern_full = (
+        r'[А-ЯЁ][а-яё]{2,}\s+[А-ЯЁ][а-яё]{2,}\s+[А-ЯЁ][а-яё]{2,}'  # Фамилия Имя Отчество (любые фамилии, включая нестандартные)
+    )
+    fio_pattern = fio_pattern_short + '|' + fio_pattern_full
+    fio_match = re.search(fio_pattern, after_marker)
+    has_fio = bool(fio_match)
+
+    # Плейсхолдеры
+    has_placeholder = bool(re.search(
+        r'И\.О\.\s*Фамилия|ФИО|_{4,}|\(указать\)',
+        after_marker, re.IGNORECASE
+    ))
+
+    # Проверка должности: между маркером и ФИО должно быть слово-должность
+    # Пример нормы: "...на производственной площадке координатора проектов Фролову А.О."
+    # Пример НЕ нормы: "...на производственной площадке Жукову Анжелику Анатольевну" (нет должности)
+    has_dolzhnost = True
+    if has_fio and fio_match:
+        # Текст между концом маркера (начало after_marker) и началом ФИО
+        text_before_fio = after_marker[:fio_match.start()].strip()
+        # Убираем предлоги, союзы, знаки препинания — ищем содержательные слова
+        # Убираем «на [производственной] площадке» — это не должность
+        text_before_fio = re.sub(r'на\s+(?:производственной\s+)?площадке', '', text_before_fio, flags=re.IGNORECASE)
+        words_before = [w for w in re.findall(r'[А-ЯЁа-яё]{3,}', text_before_fio)
+                        if w.lower() not in ('на', 'по', 'для', 'при', 'из', 'от', 'над')]
+        has_dolzhnost = len(words_before) >= 1
+
+    if has_placeholder or not has_fio:
+        violations.append({
+            "rule_index": rule_index,
+            "rule_title": rule_title,
+            "Целевой документ": after_marker.strip()[:150],
+            "Различие": "ФИО после маркера не заполнено" if not has_fio
+                         else "Содержит плейсхолдер вместо реального ФИО"
+        })
+    elif not has_dolzhnost:
+        violations.append({
+            "rule_index": rule_index,
+            "rule_title": rule_title,
+            "Целевой документ": after_marker.strip()[:150],
+            "Различие": "Должность перед ФИО не указана"
+        })
+
+    return violations
+
+
 # === Регистрация для prikaz_comp_ppu ===
 
 @register("prikaz_comp_ppu", 4)
@@ -162,3 +353,212 @@ def check_city_date_comp_ppu(target_doc, config):
     """Правило #5: город + дата для Приказа о конкурсах ППУ."""
     return check_city_and_date(target_doc, config, 5,
                                 "Проверка наличия города и даты приказа.")
+
+
+@register("prikaz_comp_ppu", 7)
+def check_signatory_comp_ppu(target_doc, config):
+    """Правило #7: должность + ФИО подписанта для Приказа о конкурсах ППУ."""
+    return check_signatory(target_doc, config, 7,
+                           "Проверка должности и ФИО подписанта.")
+
+
+# === Регистрация для prikaz_ppu ===
+
+@register("prikaz_ppu", 4)
+def check_prikaz_number_ppu(target_doc, config):
+    """Правило #4: ПРИКАЗ + номер для Приказа о ППУ."""
+    return check_prikaz_and_number(target_doc, config, 4,
+                                   "Проверка наличия слова ПРИКАЗ и номера приказа.")
+
+
+@register("prikaz_ppu", 5)
+def check_city_date_ppu(target_doc, config):
+    """Правило #5: город + дата для Приказа о ППУ."""
+    return check_city_and_date(target_doc, config, 5,
+                                "Проверка наличия города и даты приказа.")
+
+
+@register("prikaz_ppu", 7)
+def check_signatory_ppu(target_doc, config):
+    """Правило #7: должность + ФИО подписанта для Приказа о ППУ."""
+    return check_signatory(target_doc, config, 7,
+                           "Проверка должности и ФИО подписанта.")
+
+
+# === Регистрация для prikaz_vyhod ===
+
+@register("prikaz_vyhod", 4)
+def check_prikaz_number_vyhod(target_doc, config):
+    """Правило #4: ПРИКАЗ + номер для Приказа о проведении выхода."""
+    return check_prikaz_and_number(target_doc, config, 4,
+                                   "Проверка наличия слова ПРИКАЗ и номера приказа")
+
+
+@register("prikaz_vyhod", 5)
+def check_city_date_vyhod(target_doc, config):
+    """Правило #5: город + дата для Приказа о проведении выхода."""
+    return check_city_and_date(target_doc, config, 5,
+                                "Проверка наличия города и даты приказа")
+
+
+@register("prikaz_vyhod", 7)
+def check_signatory_vyhod(target_doc, config):
+    """Правило #7: должность + ФИО подписанта для Приказа о проведении выхода."""
+    return check_signatory(target_doc, config, 7,
+                           "Проверка наличия должности и ФИО подписанта")
+
+
+@register("prikaz_vyhod", 8)
+def check_organizer_vyhod(target_doc, config):
+    """Правило #8: ФИО организатора (п.1) для Приказа о проведении выхода."""
+    return check_fio_after_marker(
+        target_doc, config, 8,
+        "Проверка заполнения ФИО организатора (п.1)",
+        "назначить организатором проведения обхода")
+
+
+@register("prikaz_vyhod", 9)
+def check_secretary_vyhod(target_doc, config):
+    """Правило #9: ФИО секретаря (п.2) для Приказа о проведении выхода."""
+    return check_fio_after_marker(
+        target_doc, config, 9,
+        "Проверка заполнения ФИО секретаря (п.2)",
+        "назначить секретарем проведения обхода")
+
+
+# === Регистрация для prikaz_ic_potoka ===
+# У этого типа scope "шапка" вместо ["заголовок_город", "номер_дата"]
+
+@register("prikaz_ic_potoka", 4)
+def check_prikaz_number_ic_potoka(target_doc, config):
+    """Правило #4: ПРИКАЗ + номер для Приказа о создании ИЦ потока."""
+    return check_prikaz_and_number(target_doc, config, 4,
+                                   "Проверка слова ПРИКАЗ и номера.",
+                                   scopes=["шапка"])
+
+
+@register("prikaz_ic_potoka", 5)
+def check_city_date_ic_potoka(target_doc, config):
+    """Правило #5: город + дата для Приказа о создании ИЦ потока."""
+    return check_city_and_date(target_doc, config, 5,
+                                "Проверка города и даты приказа.",
+                                scopes=["шапка"])
+
+
+@register("prikaz_ic_potoka", 7)
+def check_signatory_ic_potoka(target_doc, config):
+    """Правило #7: должность + ФИО подписанта для Приказа о создании ИЦ потока."""
+    return check_signatory(target_doc, config, 7,
+                           "Проверка подписанта.",
+                           scopes=["подписант"])
+
+
+@register("prikaz_ic_potoka", 8)
+def check_responsible_fio_ic_potoka(target_doc, config):
+    """
+    Правило #8: ФИО ответственных лиц для Приказа о создании ИЦ потока.
+
+    Проверяет 4 позиции:
+    A) текст_приказа — пункт с «ознакомить»/«ознакомление» → должность+ФИО
+    B) приложение_2_регламент п.2.1 — ответственный за ИЦ → ФИО
+    C) приложение_2_регламент п.2.2 — исполняющий обязанности → ФИО
+    D) приложение_2_регламент п.2.3 — администратор → ФИО
+
+    Переведено с LLM на non-LLM из-за систематической ошибки:
+    LLM не распознаёт ФИО после «исполняющему обязанности» (позиция C).
+    Также: context_filter LLM жёстко привязан к нумерации пунктов,
+    non-LLM ищет семантически — устойчив к сдвигу нумерации.
+    """
+    violations = []
+    rule_index = 8
+    rule_title = "Проверка ФИО ответственных лиц."
+
+    # Паттерн ФИО: Фамилия И.О. или И.О. Фамилия
+    fio_pattern = (
+        r'[А-ЯЁа-яё]{2,}\s+[А-ЯЁ]\s*\.\s*[А-ЯЁ]\s*\.|'  # Иванова А.В.
+        r'[А-ЯЁ]\s*\.\s*[А-ЯЁ]\s*\.\s*[А-ЯЁа-яё]{2,}'    # А.В. Иванова
+    )
+
+    # === Позиция A: текст_приказа — пункт с «ознакомить»/«ознакомление» ===
+    text_prikaz = target_doc.get("текст_приказа", "")
+    pos_a_paragraph = ""
+    for line in text_prikaz.split('\n'):
+        if re.search(r'ознакомл|ознакомит', line, re.IGNORECASE):
+            pos_a_paragraph = line.strip()
+            break
+
+    if not pos_a_paragraph:
+        # Пункт с «ознакомлением» не найден — нарушение
+        violations.append({
+            "rule_index": rule_index,
+            "rule_title": rule_title,
+            "Целевой документ": text_prikaz.strip()[:200],
+            "Различие": "Позиция A: пункт с «ознакомлением» отсутствует в тексте приказа"
+        })
+    elif not re.search(fio_pattern, pos_a_paragraph):
+        # Пункт есть, но ФИО отсутствует
+        violations.append({
+            "rule_index": rule_index,
+            "rule_title": rule_title,
+            "Целевой документ": pos_a_paragraph[:200],
+            "Различие": "Позиция A: в пункте с «ознакомлением» не указано ФИО ответственного"
+        })
+
+    # === Позиции B, C, D: приложение_2_регламент ===
+    reglament = target_doc.get("приложение_2_регламент", "")
+    # Если регламент отсутствует или пуст — проверяем только позицию A
+    if not reglament or not reglament.strip() or '[НЕТ СТРАНИЦ' in reglament or '[Фильтр: не найдено]' in reglament:
+        return violations
+
+    # Вспомогательная функция: извлекает текст параграфа между двумя маркерами
+    def extract_paragraph(text, start_re, end_re):
+        start = re.search(start_re, text)
+        if not start:
+            return ""
+        rest = text[start.end():]
+        end = re.search(end_re, rest)
+        if end:
+            return rest[:end.start()].strip()
+        return rest.strip()
+
+    # Позиция B: п.2.1 — ответственный за работу ИЦ → должно быть ФИО
+    text_21 = extract_paragraph(reglament, r'2\.1\.?\s', r'\n\s*2\.2')
+    if text_21 and not re.search(fio_pattern, text_21):
+        violations.append({
+            "rule_index": rule_index,
+            "rule_title": rule_title,
+            "Целевой документ": f"п.2.1: {text_21[:200]}",
+            "Различие": "Позиция B: в п.2.1 регламента не указано ФИО ответственного за ИЦ"
+        })
+
+    # Позиция C: п.2.2 — исполняющий обязанности → ФИО ПОСЛЕ этих слов
+    text_22 = extract_paragraph(reglament, r'2\.2\.?\s', r'\n\s*2\.3')
+    if text_22:
+        io_match = re.search(r'исполняющ\w*\s+обязанност\w*', text_22, re.IGNORECASE)
+        if io_match:
+            # Проверяем ФИО ПОСЛЕ «исполняющему обязанности»
+            after_io = text_22[io_match.end():]
+            if not re.search(fio_pattern, after_io):
+                violations.append({
+                    "rule_index": rule_index,
+                    "rule_title": rule_title,
+                    "Целевой документ": f"п.2.2: {text_22[:200]}",
+                    "Различие": "Позиция C: после «исполняющему обязанности» не указано ФИО"
+                })
+
+    # Позиция D: п.2.3 — администратор → ФИО
+    text_23 = extract_paragraph(reglament, r'2\.3\.?\s', r'\n\s*2\.4')
+    if text_23:
+        # Ищем строку с «Администратор» и проверяем ФИО в ней
+        for line in text_23.split('\n'):
+            if re.search(r'[Аа]дминистратор', line):
+                if not re.search(fio_pattern, line):
+                    violations.append({
+                        "rule_index": rule_index,
+                        "rule_title": rule_title,
+                        "Целевой документ": f"п.2.3: {line.strip()[:200]}",
+                        "Различие": "Позиция D: для администратора ИЦ не указано ФИО"
+                    })
+                break
+
+    return violations
