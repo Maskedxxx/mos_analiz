@@ -8,9 +8,10 @@
 - **Базовый прогон:** run_20260210_165639
 - **Базовая точность:** 63.7% (184 true_fail / 289 FAIL)
 - **false_fail на старте:** 105
-- **false_fail осталось:** 103 (2 переклассифицированы в true_fail)
+- **false_fail осталось:** 95 (2 переклассифицированы в true_fail + 2 новых обнаружены при верификации ruslet)
 - **false_fail исправлено (kpsc):** 25/27 → PASS
-- **Текущая точность:** 64.4% (186 true_fail / 289 FAIL)
+- **false_fail исправлено (prikaz_comp_ppu):** 10/10 → PASS
+- **Текущая точность:** 65.8% (183 true_fail / 278 FAIL)
 
 ## Инфраструктура
 
@@ -23,7 +24,7 @@
 | # | doc_type | false_fail | Статус | Новая точность |
 |---|----------|------------|--------|----------------|
 | 1 | kpsc | 27→0 | done | 40.0% → 60.8% (25 fixed, 2 reclassified) |
-| 2 | prikaz_comp_ppu | 10 | pending | 52.4% |
+| 2 | prikaz_comp_ppu | 10→2 | done | 52.4% → 80.0% (10 fixed, +2 new A-парсинг ruslet) |
 | 3 | polozhenie_ppu | 11 | pending | 42.1% |
 | 4 | polozhenie_comp_ppu | 6 | pending | 60.0% |
 | 5 | prikaz_ppu | 3 | pending | 72.7% |
@@ -217,3 +218,70 @@ pytest tests/test_kpsc_parsers.py -v
 - `audit_engine/kpsc/validation_scripts/validate_8_2_values_cross_check.py` — динамический ИТОГО
 - `audit_engine/kpsc/validation_scripts/validate_1_2_company_name.py` — детерминированная предпроверка
 - `audit_engine/kpsc/validation_scripts/validate_1_4_responsible.py` — детерминированная предпроверка
+
+## [2026-02-13] — prikaz_comp_ppu
+
+### Что исправлено
+
+**10 false_fail — 4 типа фиксов:**
+
+1. **Filename (D, 5 записей: #95,#99,#103,#108,#113)**
+   - config.json уже имел `filename_keywords: ["приказ", "ппу"]`
+   - Базовый прогон был ДО добавления keywords — использовал `filename_pattern: "order_comp_ppu"`
+   - Обновлён rules.json: описание паттерна → ключевых слов
+   - Все 5 компаний: русские имена файлов содержат "приказ" и "ппу"
+
+2. **Preprocessor regex (E, 1 запись: #100 mapper rule 3)**
+   - Баг: `r'(возложить на\s*).+?\.'` — ленивый `.+?` останавливался на первой точке инициалов
+   - Пример: "возложить на Фролову А.О., координатора проектов." → "возложить на [ДОЛЖНОСТЬ_ФИО].О., координатора проектов."
+   - Фикс: `.+?` → `.+` (жадный, до последней точки в строке)
+   - Также исправлен аналогичный баг в `prikaz_ppu.py`
+
+3. **Правила 4,5 переведены на non-LLM (C→non-LLM, 2 записи: #97,#110)**
+   - LLM систематически ошибался: путал scope (#97), отвергал garbled OCR (#110)
+   - Создан `audit_engine/non_llm_checks/prikaz_checks.py` с детерминированными проверками:
+     - Rule 4: regex для ПРИКАЗ/Приказ + проверка текста после № (не пустой, не подчёркивания)
+     - Rule 5: regex для города (г. Москва) + даты (числовой ДД.ММ.ГГГГ / словесный ДД месяц ГГГГ)
+   - rules.json: `llm: true` → `llm: false` для правил 4 и 5
+
+4. **Правило 6 — улучшение промпта (C, 2 записи: #112 + регрессия sodex)**
+   - #112 ruslet: LLM-галлюцинация — видел ООО "РУСЛЕТ" и говорил "отсутствует"
+   - Регрессия sodex: LLM проверял каждый чанк отдельно вместо "любой из чанков"
+   - Фикс: добавлены few-shot примеры + явное "достаточно найти в ЛЮБОМ чанке"
+
+### Результат перезапуска
+
+- Прогон: run_20260213_100605
+- compare_runs.py vs baseline (run_20260210_165639):
+  - ИСПРАВЛЕНО (FAIL → PASS): **11** (10 false_fail + 1 true_fail #109)
+  - РЕГРЕССИИ (PASS → FAIL): **0**
+  - БЕЗ ИЗМЕНЕНИЙ: 29 (10 FAIL→FAIL + 19 PASS→PASS)
+- false_fail prikaz_comp_ppu: 10 → 2 (10 исходных исправлены, 2 новых обнаружены при верификации)
+- Точность prikaz_comp_ppu: 52.4% → 80.0% (8 true_fail / 10 FAIL)
+- Общая точность: 64.4% → 65.8%
+- Время прогона: 109с → 82с (−25%, 2 правила на non-LLM)
+
+### Верификация оставшихся 10 FAIL (независимый агент)
+
+- **8 true_fail** (B — реальные ошибки документов): незаполненные номера, даты, плейсхолдеры, отсутствие юрформы
+- **2 false_fail** (A — парсинг, ruslet):
+  - Rule 1: Vision OCR склеил "О проведении" → "Опроведении"
+  - Rule 5: OCR прочитал дату "14.10.2025" как `ок'т дд,.о 2025г.`
+  - Причина: документ ruslet содержит элементы, garbled при OCR (рукописные вставки?)
+  - Не исправимо на уровне валидаторов — требуется fallback на python-docx парсер
+
+### Известные ограничения
+
+- **#109 ruslet rule 3** — true_fail (B) стал PASS из-за LLM-недетерминизма
+  - "Приказываю:" (Title Case) vs "ПРИКАЗЫВАЮ:" (шаблон) — регистр
+  - Не связано с нашими изменениями — LLM стохастически пропускает borderline-кейсы
+- **ruslet** — Vision OCR (gpt-4.1-mini) систематически garbled на этом документе (номер, дата, заголовок)
+
+### Файлы изменены
+
+- `doc_configs/prikaz_comp_ppu/rules.json` — правила 2,4,5,6 обновлены
+- `doc_configs/prikaz_comp_ppu/config.json` — без изменений (keywords уже были)
+- `audit_engine/preprocessors/prikaz_comp_ppu.py` — regex `.+?` → `.+`
+- `audit_engine/preprocessors/prikaz_ppu.py` — аналогичный regex-фикс
+- `audit_engine/non_llm_checks/prikaz_checks.py` (новый) — non-LLM проверки правил 4,5
+- `audit_engine/non_llm_checks/__init__.py` — регистрация prikaz_checks

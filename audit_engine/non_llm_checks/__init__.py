@@ -12,3 +12,4 @@ from .registry import register, get_check, get_all_checks
 # Импортируем модули с проверками для автоматической регистрации
 from . import filename
 from . import shapka_elements
+from . import prikaz_checks
