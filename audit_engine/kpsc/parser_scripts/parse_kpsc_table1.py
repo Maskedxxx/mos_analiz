@@ -4,8 +4,7 @@
 Выделяет границы таблицы (по заголовку 1.), учитывает merged-ячейки, возвращает
 прямоугольную выборку ячеек с координатами и метаданными.
 
-Использование:
-  python parse_kpsc_table1.py -i path/to/file.xlsx [-s КПСЦ] [-o out.json]
+Использует fuzzy-поиск листа через sheet_finder.
 """
 
 import argparse
@@ -16,16 +15,49 @@ from typing import Optional, Tuple
 from openpyxl import load_workbook
 from openpyxl.utils import get_column_letter, range_boundaries
 
+from audit_engine.kpsc.sheet_finder import find_sheet
+
 
 def find_section_anchor(ws, phrase: str) -> Optional[Tuple[int, int]]:
+    """
+    Ищем начало секции таблицы КПСЦ с показателями потока.
+
+    Стратегия (по приоритету):
+    1. "1. Определение показателей потока" — стандартный формат (biznes_otel)
+    2. "Название этапа процесса" — плоская таблица (mapper, sodex)
+    3. "Показатель" рядом с "Ед. измерения" — сводная таблица (rotosnab, ruslet)
+    """
+    # Стратегия 1: ищем "1. Определение показателей потока"
     phrase_low = phrase.lower()
     for row in ws.iter_rows():
         for cell in row:
             val = cell.value
             if isinstance(val, str) and phrase_low in val.lower():
-                # доп. критерий: начинается с "1" для надёжности
                 if val.strip().startswith("1"):
                     return cell.row, cell.column
+
+    # Стратегия 2: ищем "Название этапа процесса" как заголовок таблицы
+    for row in ws.iter_rows(max_row=min(15, ws.max_row)):
+        for cell in row:
+            val = cell.value
+            if isinstance(val, str) and "название этапа" in val.lower():
+                # Возвращаем row-1 как «anchor», потому что find_header_row() возьмёт anchor+1
+                return max(1, cell.row - 1), cell.column
+
+    # Стратегия 3: ищем строку с "Показатель" + "Ед." в той же строке
+    for r in range(1, ws.max_row + 1):
+        row_texts = []
+        first_col = None
+        for c in range(1, min(10, (ws.max_column or 10) + 1)):
+            v = ws.cell(r, c).value
+            if isinstance(v, str):
+                row_texts.append(v.lower())
+                if first_col is None:
+                    first_col = c
+        joined = " ".join(row_texts)
+        if "показатель" in joined and "ед." in joined:
+            return max(1, r - 1), first_col or 1
+
     return None
 
 
@@ -120,13 +152,32 @@ def extract_table(ws, top_row: int, bottom_row: int, left_col: int, right_col: i
     return rows
 
 
-def build_payload(xlsx_path: Path, sheet: str):
+def build_payload(xlsx_path: Path, sheet_name: Optional[str] = None):
     wb = load_workbook(xlsx_path, data_only=True)
-    ws = wb[sheet]
+
+    # Поиск листа через sheet_finder
+    if sheet_name:
+        ws = wb[sheet_name]
+    else:
+        ws = find_sheet(
+            wb,
+            keywords=["кпсц"],
+            exclude_keywords=["спагетти", "укрупн", "оцифровк"],
+            prefer_keywords=["тс", "текущ"],
+        )
+        if ws is None:
+            raise ValueError(f"Лист КПСЦ не найден среди {wb.sheetnames}")
+
+    actual_sheet = ws.title
 
     anchor = find_section_anchor(ws, "определение показателей потока")
     if not anchor:
-        raise SystemExit("Не найден заголовок '1. Определение показателей потока'")
+        # Нет секции "1. Определение показателей потока" — возвращаем пустой результат
+        return {
+            "meta": {"workbook": str(xlsx_path), "sheet": actual_sheet, "section_title_cell": None},
+            "bounds": None,
+            "rows": [],
+        }
     anchor_row, anchor_col = anchor
 
     header_row = find_header_row(ws, anchor_row)
@@ -138,7 +189,7 @@ def build_payload(xlsx_path: Path, sheet: str):
     payload = {
         "meta": {
             "workbook": str(xlsx_path),
-            "sheet": sheet,
+            "sheet": actual_sheet,
             "section_title_cell": f"{get_column_letter(anchor_col)}{anchor_row}",
         },
         "bounds": {
@@ -158,7 +209,8 @@ def build_payload(xlsx_path: Path, sheet: str):
 
 def parse(xlsx_path: Path, output_dir: Path) -> dict:
     """Парсит таблицу '1. Определение показателей потока' и сохраняет в kpsc_table1_v2.json."""
-    payload = build_payload(xlsx_path, "КПСЦ")
+    output_dir.mkdir(parents=True, exist_ok=True)
+    payload = build_payload(xlsx_path)
     output_path = output_dir / "kpsc_table1_v2.json"
     output_path.write_text(json.dumps(payload, ensure_ascii=False, indent=2, default=str), encoding="utf-8")
     return payload
@@ -167,7 +219,7 @@ def parse(xlsx_path: Path, output_dir: Path) -> dict:
 def main():
     parser = argparse.ArgumentParser(description="Парсер таблицы '1. Определение показателей потока'")
     parser.add_argument("-i", "--input", required=True, help="XLSX файл")
-    parser.add_argument("-s", "--sheet", default="КПСЦ", help="Лист (default: КПСЦ)")
+    parser.add_argument("-s", "--sheet", default=None, help="Лист (default: auto)")
     parser.add_argument("-o", "--output", default=None, help="JSON файл вывода (stdout если не указан)")
     args = parser.parse_args()
 

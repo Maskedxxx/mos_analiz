@@ -69,7 +69,8 @@ class AuditConfig:
         doc_title — человекочитаемое название
         model — модель OpenAI для LLM-проверок
         system_prompt — имя файла системного промпта (из system_prompts/)
-        filename_pattern — ожидаемое имя файла для non-LLM проверки
+        filename_pattern — ожидаемое имя файла для non-LLM проверки (подстрока)
+        filename_keywords — список ключевых слов для проверки имени файла (все должны быть в имени)
         max_workers — количество параллельных LLM-запросов
         temperature — температура генерации
         secondary_file — конфиг вторичного файла (для multi-file аудитов)
@@ -84,6 +85,7 @@ class AuditConfig:
     model: str = "gpt-4.1-mini"
     system_prompt: str = "default.txt"
     filename_pattern: str = ""
+    filename_keywords: Optional[List[str]] = None
     max_workers: int = 1
     temperature: float = 0.0
     secondary_file: Optional[SecondaryFileConfig] = None
@@ -163,6 +165,7 @@ def load_audit_config(config_dir: Path) -> AuditConfig:
         model=data.get("model", "gpt-4.1-mini"),
         system_prompt=data.get("system_prompt", "default.txt"),
         filename_pattern=data.get("filename_pattern", ""),
+        filename_keywords=data.get("filename_keywords", None),
         max_workers=data.get("max_workers", 1),
         temperature=data.get("temperature", 0.0),
         config_dir=config_dir,

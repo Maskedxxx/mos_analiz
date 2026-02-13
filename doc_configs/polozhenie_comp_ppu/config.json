@@ -4,6 +4,7 @@
   "model": "gpt-4.1-mini",
   "system_prompt": "default.txt",
   "filename_pattern": "reg_comp_ppu",
+  "filename_keywords": ["положение", "ппу"],
   "max_workers": 3,
   "temperature": 0.0
 }

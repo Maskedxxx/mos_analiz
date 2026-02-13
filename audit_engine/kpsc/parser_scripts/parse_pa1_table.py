@@ -4,6 +4,8 @@
 Определяет границы по первой строке с заголовком (содержит «ИТОГО»),
 захватывает все столбцы/строки с данными до первой полностью пустой строки.
 Учитывает merged-ячейки, возвращает координаты, значения, диапазоны.
+
+Использует fuzzy-поиск листа через sheet_finder.
 """
 
 import argparse
@@ -13,6 +15,8 @@ from typing import Optional, Tuple
 
 from openpyxl import load_workbook
 from openpyxl.utils import get_column_letter, range_boundaries
+
+from audit_engine.kpsc.sheet_finder import find_sheet
 
 
 def find_header_row(ws) -> Optional[int]:
@@ -92,20 +96,37 @@ def extract_table(ws, top_row: int, bottom_row: int, left_col: int, right_col: i
     return rows
 
 
-def build_payload(xlsx_path: Path, sheet: str):
+def build_payload(xlsx_path: Path, sheet_name: Optional[str] = None):
     wb = load_workbook(xlsx_path, data_only=True)
-    ws = wb[sheet]
+
+    # Поиск листа через sheet_finder
+    if sheet_name:
+        ws = wb[sheet_name]
+        actual_sheet = sheet_name
+    else:
+        ws = find_sheet(wb, keywords=["па"], exclude_keywords=["спагетти", "кпсц", "ямадз"])
+        if ws is None:
+            return {
+                "meta": {"workbook": str(xlsx_path), "sheet": None, "header_row": None},
+                "bounds": None,
+                "rows": [],
+            }
+        actual_sheet = ws.title
 
     header_row = find_header_row(ws)
     if not header_row:
-        raise SystemExit("Не найден заголовок с 'ИТОГО' на листе ПА-1")
+        return {
+            "meta": {"workbook": str(xlsx_path), "sheet": actual_sheet, "header_row": None},
+            "bounds": None,
+            "rows": [],
+        }
 
     left_col, right_col = compute_col_bounds(ws, header_row)
     bottom_row = find_bottom_row(ws, header_row, left_col, right_col)
     rows = extract_table(ws, header_row, bottom_row, left_col, right_col)
 
     return {
-        "meta": {"workbook": str(xlsx_path), "sheet": sheet, "header_row": header_row},
+        "meta": {"workbook": str(xlsx_path), "sheet": actual_sheet, "header_row": header_row},
         "bounds": {
             "top_row": header_row,
             "bottom_row": bottom_row,
@@ -122,7 +143,8 @@ def build_payload(xlsx_path: Path, sheet: str):
 
 def parse(xlsx_path: Path, output_dir: Path) -> dict:
     """Парсит стартовую таблицу на листе 'ПА-1' и сохраняет в pa1_table_v1.json."""
-    payload = build_payload(xlsx_path, "ПА-1")
+    output_dir.mkdir(parents=True, exist_ok=True)
+    payload = build_payload(xlsx_path)
     output_path = output_dir / "pa1_table_v1.json"
     output_path.write_text(json.dumps(payload, ensure_ascii=False, indent=2, default=str), encoding="utf-8")
     return payload
@@ -131,7 +153,7 @@ def parse(xlsx_path: Path, output_dir: Path) -> dict:
 def main():
     ap = argparse.ArgumentParser(description="Парсер стартовой таблицы на листе 'ПА-1'")
     ap.add_argument("-i", "--input", required=True)
-    ap.add_argument("-s", "--sheet", default="ПА-1")
+    ap.add_argument("-s", "--sheet", default=None)
     ap.add_argument("-o", "--output")
     args = ap.parse_args()
 

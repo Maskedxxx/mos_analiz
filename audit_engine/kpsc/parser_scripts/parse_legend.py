@@ -2,6 +2,8 @@
 """
 Парсер листа "Условные обозначения": связывает пиктограммы (drawing3.xml) с расшифровками в колонке B.
 Выводит список entries: row, text, picture (rel id, target, anchor bbox).
+
+Использует fuzzy-поиск листа через sheet_finder.
 """
 import argparse
 import json
@@ -9,9 +11,11 @@ import posixpath
 import zipfile
 import xml.etree.ElementTree as ET
 from pathlib import Path
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
 
 from openpyxl import load_workbook
+
+from audit_engine.kpsc.sheet_finder import find_sheet
 
 NS = {
     "wb": "http://schemas.openxmlformats.org/spreadsheetml/2006/main",
@@ -101,15 +105,30 @@ def match_pics(texts: List[Dict[str, Any]], pics: List[Dict[str, Any]]):
     return matched
 
 
-def build_payload(xlsx: Path, sheet: str):
-    drawing_root, rel_pic = read_sheet_drawing(xlsx, sheet)
-    pics = parse_pictures(drawing_root, rel_pic)
+def build_payload(xlsx: Path, sheet_name: Optional[str] = None):
     wb = load_workbook(xlsx, data_only=True)
-    ws = wb[sheet]
+
+    # Поиск листа через sheet_finder
+    if sheet_name:
+        ws = wb[sheet_name]
+        actual_sheet = sheet_name
+    else:
+        ws = find_sheet(wb, keywords=["условн", "обозн"])
+        if ws is None:
+            # Лист не найден — возвращаем пустой результат (не у всех компаний он есть)
+            return {
+                "meta": {"workbook": str(xlsx), "sheet": None},
+                "pictures": [],
+                "entries": [],
+            }
+        actual_sheet = ws.title
+
+    drawing_root, rel_pic = read_sheet_drawing(xlsx, actual_sheet)
+    pics = parse_pictures(drawing_root, rel_pic)
     texts = collect_text(ws)
     entries = match_pics(texts, pics)
     return {
-        "meta": {"workbook": str(xlsx), "sheet": sheet},
+        "meta": {"workbook": str(xlsx), "sheet": actual_sheet},
         "pictures": pics,
         "entries": entries,
     }
@@ -117,7 +136,8 @@ def build_payload(xlsx: Path, sheet: str):
 
 def parse(xlsx_path: Path, output_dir: Path) -> dict:
     """Парсит лист 'Условные обозначения' и сохраняет в legend_v2.json."""
-    payload = build_payload(xlsx_path, "Условные обозначения")
+    output_dir.mkdir(parents=True, exist_ok=True)
+    payload = build_payload(xlsx_path)
     output_path = output_dir / "legend_v2.json"
     output_path.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
     return payload
@@ -126,7 +146,7 @@ def parse(xlsx_path: Path, output_dir: Path) -> dict:
 def main():
     ap = argparse.ArgumentParser(description="Парсер листа 'Условные обозначения'")
     ap.add_argument("-i", "--input", required=True)
-    ap.add_argument("-s", "--sheet", default="Условные обозначения")
+    ap.add_argument("-s", "--sheet", default=None)
     ap.add_argument("-o", "--output")
     args = ap.parse_args()
 

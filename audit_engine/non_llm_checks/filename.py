@@ -22,19 +22,36 @@ def check_filename_universal(
     """
     Универсальная проверка имени файла.
 
-    Берёт expected_pattern из config.filename_pattern.
-    Убирает расширение из имени файла и проверяет вхождение паттерна.
+    Два режима:
+    1. filename_keywords (приоритет) — все ключевые слова должны быть в имени файла
+    2. filename_pattern (обратная совместимость) — подстрока должна быть в имени
     """
-    expected_pattern = config.filename_pattern
-    if not expected_pattern:
-        return []
-
     actual = target_doc.get("имя_файла", "")
     # Убираем расширение
     actual_clean = re.sub(r'\.(docx?|pptx?|pdf)$', '', actual, flags=re.IGNORECASE)
+    name_lower = actual_clean.lower()
 
-    # Проверяем вхождение паттерна (регистронезависимо)
-    if expected_pattern.lower() in actual_clean.lower():
+    # Режим 1: список ключевых слов (приоритет)
+    keywords = getattr(config, 'filename_keywords', None)
+    if keywords:
+        if all(kw.lower() in name_lower for kw in keywords):
+            return []
+        # Определяем какие слова отсутствуют
+        missing = [kw for kw in keywords if kw.lower() not in name_lower]
+        return [{
+            "rule_index": rule_index,
+            "rule_title": rule_title,
+            "Целевой документ": actual_clean,
+            "Различие": f"Ожидалось имя файла, содержащее все ключевые слова: {keywords}. "
+                        f"Отсутствуют: {missing}"
+        }]
+
+    # Режим 2: подстрока (обратная совместимость)
+    expected_pattern = getattr(config, 'filename_pattern', "")
+    if not expected_pattern:
+        return []
+
+    if expected_pattern.lower() in name_lower:
         return []
 
     return [{

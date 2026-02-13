@@ -7,9 +7,7 @@
   - список категорий (подписи оси X) с диапазоном;
   - для каждой серии: имя, диапазон значений и сами значения (data_only).
 
-Ориентирован на текущую структуру: один столбчатый график, построенный
-на данных таблицы выше (B1:V1 и B3:V12), но работает с произвольным числом
-диаграмм на листе.
+Использует fuzzy-поиск листа через sheet_finder.
 """
 
 import argparse
@@ -22,12 +20,20 @@ from openpyxl import load_workbook
 from openpyxl.chart._chart import ChartBase
 from openpyxl.utils import range_boundaries
 
+from audit_engine.kpsc.sheet_finder import find_sheet
+
 
 def _sheet_name_from_range(rng: str) -> Tuple[str, str]:
-    """Возвращает (sheet_name, range_part) из строки вида 'Лист'!$A$1:$B$2."""
+    """Возвращает (sheet_name, range_part) из строки вида 'Лист'!$A$1:$B$2.
+
+    Обрабатывает ссылки на внешние книги: '[2]ПА1 '!$A$1 → 'ПА1 '.
+    """
+    import re
     if "!" in rng:
         sheet, r = rng.split("!", 1)
         sheet = sheet.strip("'")
+        # Убираем ссылку на внешний workbook: [N]Лист → Лист
+        sheet = re.sub(r'^\[\d+\]', '', sheet)
         return sheet, r
     return "", rng
 
@@ -115,11 +121,28 @@ def extract_chart_payload(chart: ChartBase, wb_data, wb_formulas) -> Dict[str, A
     return payload
 
 
-def build_payload(xlsx_path: Path, sheet: str):
-    # два открытия: значения и формулы (если потом потребуется)
-    wb_data = load_workbook(xlsx_path, data_only=True)
+def _find_pa1_sheet(wb) -> Optional[str]:
+    """Находит лист ПА-1 через sheet_finder."""
+    ws = find_sheet(wb, keywords=["па"], exclude_keywords=["спагетти", "кпсц", "ямадз"])
+    return ws.title if ws else None
+
+
+def build_payload(xlsx_path: Path, sheet_name: Optional[str] = None):
+    # Поиск листа через sheet_finder на wb_formulas (основной workbook для диаграмм)
     wb_formulas = load_workbook(xlsx_path, data_only=False)
-    ws = wb_formulas[sheet]
+    wb_data = load_workbook(xlsx_path, data_only=True)
+
+    if not sheet_name:
+        ws_found = find_sheet(wb_formulas, keywords=["па"], exclude_keywords=["спагетти", "кпсц", "ямадз"])
+        if ws_found is None:
+            return {
+                "meta": {"workbook": str(xlsx_path), "sheet": None},
+                "charts": [],
+                "text_boxes": [],
+            }
+        sheet_name = ws_found.title
+
+    ws = wb_formulas[sheet_name]
     charts = getattr(ws, "_charts", [])
 
     charts_payload = [extract_chart_payload(ch, wb_data, wb_formulas) for ch in charts]
@@ -137,7 +160,7 @@ def build_payload(xlsx_path: Path, sheet: str):
             wb_root = ET.fromstring(zf.read("xl/workbook.xml"))
             rid = None
             for sh in wb_root.findall("n:sheets/n:sheet", ns_wb):
-                if sh.attrib.get("name") == sheet:
+                if sh.attrib.get("name") == sheet_name:
                     rid = sh.attrib[f"{{{ns_wb['r']}}}id"]
                     break
             if rid:
@@ -189,7 +212,7 @@ def build_payload(xlsx_path: Path, sheet: str):
         pass
 
     return {
-        "meta": {"workbook": str(xlsx_path), "sheet": sheet},
+        "meta": {"workbook": str(xlsx_path), "sheet": sheet_name},
         "charts": charts_payload,
         "text_boxes": text_boxes,
     }
@@ -197,7 +220,8 @@ def build_payload(xlsx_path: Path, sheet: str):
 
 def parse(xlsx_path: Path, output_dir: Path) -> dict:
     """Парсит диаграммы на листе 'ПА-1' и сохраняет в pa1_chart_v3.json."""
-    payload = build_payload(xlsx_path, "ПА-1")
+    output_dir.mkdir(parents=True, exist_ok=True)
+    payload = build_payload(xlsx_path)
     output_path = output_dir / "pa1_chart_v3.json"
     output_path.write_text(json.dumps(payload, ensure_ascii=False, indent=2, default=str), encoding="utf-8")
     return payload
@@ -206,7 +230,7 @@ def parse(xlsx_path: Path, output_dir: Path) -> dict:
 def main():
     ap = argparse.ArgumentParser(description="Парсер диаграмм на листе 'ПА-1' (после таблицы)")
     ap.add_argument("-i", "--input", required=True, help="Путь к XLSX")
-    ap.add_argument("-s", "--sheet", default="ПА-1")
+    ap.add_argument("-s", "--sheet", default=None)
     ap.add_argument("-o", "--output", help="JSON вывод (stdout если не указан)")
     args = ap.parse_args()
 

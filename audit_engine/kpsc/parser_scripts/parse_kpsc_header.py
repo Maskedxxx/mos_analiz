@@ -1,24 +1,32 @@
 #!/usr/bin/env python3
 """
-Парсер верхнего блока листа "КПСЦ" (A1:AE13).
-Извлекает ключевые поля + сырые ячейки, merged-диапазоны и комментарии.
+Парсер верхнего блока листа КПСЦ.
+
+Извлекает ключевые поля (title, flow_name, responsible, date_developed и т.д.)
+через динамический поиск лейблов в ячейках, а не через захардкоженные координаты.
+Использует fuzzy-поиск листа через sheet_finder.
 """
 import argparse
 import json
 from pathlib import Path
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Optional
 from openpyxl import load_workbook
 from openpyxl.utils import get_column_letter
 
-REGION_MAX_ROW = 13
-REGION_MAX_COL = 31  # AE
+from audit_engine.kpsc.sheet_finder import find_sheet
+
+# Максимум строк для сканирования заголовочного блока
+HEADER_SCAN_MAX_ROW = 15
 
 
-def collect_cells(ws):
+def collect_cells(ws, max_row: int = HEADER_SCAN_MAX_ROW, max_col: Optional[int] = None):
+    """Собираем все непустые ячейки в заголовочном регионе."""
+    if max_col is None:
+        max_col = ws.max_column or 50
     cells = []
     comments = []
-    for r in range(1, REGION_MAX_ROW + 1):
-        for c in range(1, REGION_MAX_COL + 1):
+    for r in range(1, max_row + 1):
+        for c in range(1, max_col + 1):
             cell = ws.cell(row=r, column=c)
             val = cell.value
             if val not in (None, ""):
@@ -39,10 +47,13 @@ def collect_cells(ws):
     return cells, comments
 
 
-def collect_merged(ws):
+def collect_merged(ws, max_row: int = HEADER_SCAN_MAX_ROW, max_col: Optional[int] = None):
+    """Собираем merged-диапазоны в заголовочном регионе."""
+    if max_col is None:
+        max_col = ws.max_column or 50
     merged = []
     for m in ws.merged_cells.ranges:
-        if m.min_row <= REGION_MAX_ROW and m.min_col <= REGION_MAX_COL:
+        if m.min_row <= max_row and m.min_col <= max_col:
             merged.append({
                 "coord": m.coord,
                 "min_row": m.min_row,
@@ -53,37 +64,117 @@ def collect_merged(ws):
     return merged
 
 
-def extract_fields(cells: List[Dict[str, Any]]):
-    def val(coord):
-        for c in cells:
-            if c["coord"] == coord:
-                return c["value"]
-        return None
+def _find_label_value(ws, label_keywords: List[str], max_row: int = HEADER_SCAN_MAX_ROW) -> Optional[Any]:
+    """
+    Динамический поиск значения по лейблу.
 
+    Ищем ячейку, содержащую одно из label_keywords, затем берём значение
+    из ближайшей непустой ячейки справа в той же строке.
+
+    Если лейбл содержит значение inline (например "Наименование потока: Производство..."),
+    извлекаем часть после двоеточия.
+    """
+    for r in range(1, max_row + 1):
+        for c in range(1, min(5, (ws.max_column or 5) + 1)):
+            v = ws.cell(row=r, column=c).value
+            if not isinstance(v, str):
+                continue
+            v_lower = v.strip().lower()
+
+            for kw in label_keywords:
+                if kw not in v_lower:
+                    continue
+
+                # Случай 1: inline-значение после двоеточия
+                if ":" in v:
+                    parts = v.split(":", 1)
+                    inline_val = parts[1].strip()
+                    if inline_val:
+                        return inline_val
+
+                # Случай 2: значение в соседней ячейке справа
+                for vc in range(c + 1, min(c + 4, (ws.max_column or c) + 1)):
+                    val = ws.cell(row=r, column=vc).value
+                    if val not in (None, ""):
+                        return val
+
+                # Не нашли значение, но лейбл есть — вернём None (не продолжаем поиск)
+                return None
+    return None
+
+
+def _find_title(ws, max_row: int = HEADER_SCAN_MAX_ROW) -> Optional[str]:
+    """
+    Извлекает заголовок карты потока.
+
+    Ищем в первых строках длинную строку, содержащую ключевые слова
+    типа "карта потока", "КПСЦ", "текущее состояние".
+    """
+    title_keywords = ["карта потока", "кпсц", "текущее состояние", "наименование потока"]
+    for r in range(1, min(4, max_row + 1)):
+        for c in range(1, 4):
+            v = ws.cell(row=r, column=c).value
+            if isinstance(v, str) and len(v.strip()) > 15:
+                v_lower = v.strip().lower()
+                if any(tk in v_lower for tk in title_keywords):
+                    return v.strip()
+    # Fallback: просто берём первую длинную строку
+    for r in range(1, 3):
+        for c in range(1, 4):
+            v = ws.cell(row=r, column=c).value
+            if isinstance(v, str) and len(v.strip()) > 15:
+                return v.strip()
+    return None
+
+
+def extract_fields(ws) -> Dict[str, Any]:
+    """
+    Динамическое извлечение полей заголовка КПСЦ.
+
+    Вместо захардкоженных координат ищем лейблы по ключевым словам
+    и берём значения из соседних ячеек.
+    """
     return {
-        "title": val("B1"),
-        "flow_name": val("C4"),
-        "responsible": val("C5"),
-        "date_developed": val("C6"),
-        "date_implementation": val("C7"),
-        "compiled_by": val("C8"),
-        "unit_note": val("B12"),
-        "first_operation": val("D12"),
-        "takt_time": val("B13"),
+        "title": _find_title(ws),
+        "flow_name": _find_label_value(ws, ["поток:", "наименование потока"]),
+        "responsible": _find_label_value(ws, ["ответственн"]),
+        "date_developed": _find_label_value(ws, ["дата разработ"]),
+        "date_implementation": _find_label_value(ws, ["дата реализ", "дата достиж"]),
+        "compiled_by": _find_label_value(ws, ["составил", "разработал"]),
     }
 
 
-def build_payload(xlsx: Path, sheet: str):
+def build_payload(xlsx: Path, sheet_name: Optional[str] = None):
+    """Строит payload из данных header-блока КПСЦ."""
     wb = load_workbook(xlsx, data_only=True)
-    ws = wb[sheet]
-    cells, _comments = collect_cells(ws)
-    fields = extract_fields(cells)
+
+    # Поиск листа
+    if sheet_name:
+        ws = wb[sheet_name]
+    else:
+        ws = find_sheet(
+            wb,
+            keywords=["кпсц"],
+            exclude_keywords=["спагетти", "укрупн", "оцифровк"],
+            prefer_keywords=["тс", "текущ"],
+        )
+        if ws is None:
+            raise ValueError(f"Лист КПСЦ не найден среди {wb.sheetnames}")
+
+    actual_sheet = ws.title
+    max_col = ws.max_column or 50
+
+    # Собираем сырые данные
+    cells, _comments = collect_cells(ws, max_col=max_col)
+
+    # Извлекаем поля через динамический поиск
+    fields = extract_fields(ws)
 
     return {
         "meta": {
             "workbook": str(xlsx),
-            "sheet": sheet,
-            "region": "A1:AE13",
+            "sheet": actual_sheet,
+            "region": f"A1:{get_column_letter(max_col)}{HEADER_SCAN_MAX_ROW}",
         },
         "fields": fields,
     }
@@ -91,16 +182,17 @@ def build_payload(xlsx: Path, sheet: str):
 
 def parse(xlsx_path: Path, output_dir: Path) -> dict:
     """Парсит верхний блок КПСЦ и сохраняет результат в output_dir/kpsc_header_v2.json."""
-    payload = build_payload(xlsx_path, "КПСЦ")
+    output_dir.mkdir(parents=True, exist_ok=True)
+    payload = build_payload(xlsx_path)
     output_path = output_dir / "kpsc_header_v2.json"
     output_path.write_text(json.dumps(payload, ensure_ascii=False, indent=2, default=str), encoding="utf-8")
     return payload
 
 
 def main():
-    ap = argparse.ArgumentParser(description="Парсер верхнего блока КПСЦ (A1:AE13)")
+    ap = argparse.ArgumentParser(description="Парсер верхнего блока КПСЦ")
     ap.add_argument("-i", "--input", required=True)
-    ap.add_argument("-s", "--sheet", default="КПСЦ")
+    ap.add_argument("-s", "--sheet", default=None)
     ap.add_argument("-o", "--output")
     args = ap.parse_args()
 

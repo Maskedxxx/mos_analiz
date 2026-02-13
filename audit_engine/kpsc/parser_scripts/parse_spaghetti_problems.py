@@ -4,6 +4,8 @@
 Снимает одну таблицу с проблемами: определяет границы по строке заголовков,
 фиксирует ширину по непустым заголовочным столбцам, низ — первая пустая строка.
 Учитывает merged-ячейки (их нет, но логика универсальная).
+
+Использует fuzzy-поиск листа через sheet_finder.
 """
 
 import argparse
@@ -13,6 +15,8 @@ from typing import Optional, Tuple
 
 from openpyxl import load_workbook
 from openpyxl.utils import get_column_letter, range_boundaries
+
+from audit_engine.kpsc.sheet_finder import find_sheet
 
 
 HEADER_KEY = "описание проблемы"
@@ -88,20 +92,38 @@ def extract_table(ws, top_row: int, bottom_row: int, left_col: int, right_col: i
     return rows
 
 
-def build_payload(xlsx_path: Path, sheet: str):
+def build_payload(xlsx_path: Path, sheet_name: Optional[str] = None):
     wb = load_workbook(xlsx_path, data_only=True)
-    ws = wb[sheet]
+
+    # Поиск листа через sheet_finder
+    if sheet_name:
+        ws = wb[sheet_name]
+        actual_sheet = sheet_name
+    else:
+        # Ищем лист со "спагетти" + "пробл" или "улучш" или "перечень"
+        ws = find_sheet(wb, keywords=["спагетти"], exclude_keywords=["диаграмм"])
+        if ws is None:
+            return {
+                "meta": {"workbook": str(xlsx_path), "sheet": None, "header_row": None},
+                "bounds": None,
+                "rows": [],
+            }
+        actual_sheet = ws.title
 
     header_row = find_header_row(ws)
     if not header_row:
-        raise SystemExit("Не найден заголовок таблицы на листе 'Перечень проблем по спагетти'")
+        return {
+            "meta": {"workbook": str(xlsx_path), "sheet": actual_sheet, "header_row": None},
+            "bounds": None,
+            "rows": [],
+        }
 
     left_col, right_col = compute_col_bounds(ws, header_row)
     bottom_row = find_bottom_row(ws, header_row, left_col, right_col)
     rows = extract_table(ws, header_row, bottom_row, left_col, right_col)
 
     return {
-        "meta": {"workbook": str(xlsx_path), "sheet": sheet, "header_row": header_row},
+        "meta": {"workbook": str(xlsx_path), "sheet": actual_sheet, "header_row": header_row},
         "bounds": {
             "top_row": header_row,
             "bottom_row": bottom_row,
@@ -118,7 +140,8 @@ def build_payload(xlsx_path: Path, sheet: str):
 
 def parse(xlsx_path: Path, output_dir: Path) -> dict:
     """Парсит лист 'Перечень проблем по спагетти' и сохраняет в spaghetti_problems_v1.json."""
-    payload = build_payload(xlsx_path, "Перечень проблем по спагетти")
+    output_dir.mkdir(parents=True, exist_ok=True)
+    payload = build_payload(xlsx_path)
     output_path = output_dir / "spaghetti_problems_v1.json"
     output_path.write_text(json.dumps(payload, ensure_ascii=False, indent=2, default=str), encoding="utf-8")
     return payload
@@ -127,7 +150,7 @@ def parse(xlsx_path: Path, output_dir: Path) -> dict:
 def main():
     ap = argparse.ArgumentParser(description="Парсер листа 'Перечень проблем по спагетти'")
     ap.add_argument("-i", "--input", required=True)
-    ap.add_argument("-s", "--sheet", default="Перечень проблем по спагетти")
+    ap.add_argument("-s", "--sheet", default=None)
     ap.add_argument("-o", "--output")
     args = ap.parse_args()
 
