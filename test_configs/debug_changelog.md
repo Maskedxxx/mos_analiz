@@ -8,13 +8,14 @@
 - **Базовый прогон:** run_20260210_165639
 - **Базовая точность:** 63.7% (184 true_fail / 289 FAIL)
 - **false_fail на старте:** 105
-- **false_fail осталось:** 52 (3 переклассифицированы в true_fail + 2 новых обнаружены при верификации ruslet)
+- **false_fail осталось:** 45 (6 переклассифицированы в true_fail + 2 новых обнаружены при верификации ruslet)
 - **false_fail исправлено (kpsc):** 25/27 → PASS
 - **false_fail исправлено (prikaz_comp_ppu):** 10/10 → PASS
 - **false_fail исправлено (cluster 3):** 26/26 → PASS (prikaz_vyhod 8, prikaz_comp_ppu 2*, prikaz_ppu 3, prikaz_ic_potoka 5 + 8 уже в кеше)
 - **false_fail исправлено (polozhenie_ppu):** 11/11 → PASS
 - **false_fail исправлено (polozhenie_comp_ppu):** 6/6 → PASS
-- **Текущая точность:** ~75% (оценочно, полный прогон не запускался)
+- **false_fail исправлено (cheklist_eu):** 4/7 → PASS + 3 переклассифицированы в true_fail B
+- **Текущая точность:** ~76% (оценочно, полный прогон не запускался)
 
 ## Инфраструктура
 
@@ -33,7 +34,7 @@
 | 5 | prikaz_ic_potoka | 8→0 | done | 71.4% → ~82% (+5 fixed, +1 reclassified) |
 | 6 | polozhenie_ppu | 11→0 | done | 42.1% → 100% (11 fixed, 0 regressions) |
 | 7 | polozhenie_comp_ppu | 6→0 | done | 60.0% → 100% (6 fixed, 0 regressions) |
-| 8 | cheklist_eu | 7 | pending | 58.8% |
+| 8 | cheklist_eu | 7→0 | done | 58.8% → 100% (4 fixed, 3 reclassified B, 0 regressions) |
 | 9 | prikaz_formirovanie_po | 5 | pending | 81.5% |
 | 10 | prikaz_ic | 7 | pending | 78.1% |
 | 11 | polozhenie_po | 6 | pending | 76.9% |
@@ -527,3 +528,56 @@ pytest tests/test_kpsc_parsers.py -v
 
 - `doc_configs/polozhenie_comp_ppu/rules.json` — правило 2 (описание keywords)
 - Все остальные фиксы — из shared `polozhenie_normalize.py` (сессия polozhenie_ppu)
+
+## [2026-02-13] — cheklist_eu
+
+### Что исправлено
+
+**7 false_fail — 4 исправлены (→ PASS), 3 переклассифицированы (→ true_fail B):**
+
+#### 1. chunks_vision.json — подписи pages=[2] → pages=[-1] (A, 4 записи: #79,#80,#82,#83)
+
+- Баг: чанк `подписи` имел `pages: [2]`, но biznes_otel_nf и biznes_otel_spir — одностраничные документы (альбомная ориентация)
+- VisionExtractor фильтровал page_indices=[1] vs total_pages=1 → пустой список → `[НЕТ СТРАНИЦ ДЛЯ ИЗВЛЕЧЕНИЯ]`
+- Фикс: `pages: [-1]` (последняя страница) — работает для 1- и 2-страничных документов
+- Результат:
+  - **#80, #83** (rule 7, подписи+дата): **PASS** — подписи извлечены, дата в шапке есть
+  - **#79, #82** (rule 3, юрлицо в подписях): FAIL — но уже true_fail B: юрлицо реально отсутствует в подписях документа
+
+#### 2. Переклассификация rule 3 (A→B, 3 записи: #79,#82,#85)
+
+- После фикса парсинга подписи извлекаются корректно
+- Но юрлицо (ООО «Бизнес-отель» / ООО «Ротоснаб») реально отсутствует в блоках подписей
+- Подписи содержат только: «От предприятия: должность, ФИО» — без наименования
+- Переклассифицированы: false_fail A → true_fail B
+
+#### 3. Preprocessor — удаление столбцов описаний ответов (C, 2 записи: #86,#93)
+
+- Баг: Vision извлекал полную markdown-таблицу с 6 столбцами (№, критерий, оценка, описание_0, описание_1, описание_2)
+- LLM сравнивал ВСЕ столбцы, включая описания ответов: «Нет» (шаблон) vs «нет» (целевой) — регистр
+- Правило инструктировало сравнивать ТОЛЬКО критерии (столбец 2), но LLM игнорировал инструкцию
+- Фикс: `normalize_table_for_comparison()` — обрезка строк до 3 столбцов (№, критерий, оценка)
+- Промпт rule 4 также усилен: явное «НЕ сравнивай варианты ответов»
+- Результат: rule 4 PASS для ВСЕХ 5 компаний (включая biznes_otel_nf, где была регрессия на 1й итерации)
+
+### Результат перезапуска
+
+- Прогон: run_20260213_152425
+- compare_runs.py vs baseline (run_20260210_165639):
+  - ИСПРАВЛЕНО (FAIL → PASS): **4** (#80 rule 7, #83 rule 7, #86 rule 4, #93 rule 4)
+  - РЕГРЕССИИ (PASS → FAIL): **0**
+  - БЕЗ ИЗМЕНЕНИЙ: 13 FAIL→FAIL + 23 PASS→PASS
+- false_fail cheklist_eu: 7 → 0 (4 fixed + 3 reclassified B)
+- Точность cheklist_eu: 58.8% → 100% (13 true_fail / 13 FAIL)
+
+### Верификация
+
+- Оставшиеся 13 FAIL — все true_fail B (реальные дефекты документов)
+- 0 новых false_fail
+- 0 leaks
+
+### Файлы изменены
+
+- `doc_configs/cheklist_eu/chunks_vision.json` — подписи pages=[2] → pages=[-1]
+- `doc_configs/cheklist_eu/rules.json` — правило 4 (усиление инструкции о столбцах ответов)
+- `audit_engine/preprocessors/cheklist.py` — обрезка столбцов описаний ответов в таблице

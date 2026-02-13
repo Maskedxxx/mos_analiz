@@ -80,12 +80,20 @@ def normalize_table_for_comparison(table_text: str) -> str:
 
     for line in lines:
         # Пропускаем служебные строки
-        if line.strip().startswith('[') or line.strip().startswith('|---') or 'Итоговая оценка' in line:
+        if line.strip().startswith('[') or 'Итоговая оценка' in line:
             normalized_lines.append(line)
             continue
 
-        # Для строк таблицы с критериями
+        # Для строк таблицы с "|"
         if '|' in line:
+            parts = line.split('|')
+
+            # Строки с 5+ ячейками (№, критерий, оценка, описание_0, описание_1, ...)
+            # Оставляем только первые 3 значимых столбца: №, критерий, оценка
+            # parts[0] = '' (до первого |), parts[1] = №, parts[2] = критерий, parts[3] = оценка
+            if len(parts) > 5:
+                line = '|'.join(parts[:4]) + '|'
+
             # Добавляем номер критерия если отсутствует
             for keyword, num in criteria_keywords.items():
                 if keyword in line:
@@ -96,6 +104,12 @@ def normalize_table_for_comparison(table_text: str) -> str:
 
             # Заменяем числовые оценки на [ОЦЕНКА]
             line = re.sub(r'\|\s*([012])\s*\|', r'| [ОЦЕНКА] |', line)
+
+            # Разделительные строки (|---|---|...) — тоже обрезаем
+            if re.match(r'^\|[\s\-|]+$', line):
+                dashes = line.split('|')
+                if len(dashes) > 5:
+                    line = '|'.join(dashes[:4]) + '|'
 
         normalized_lines.append(line)
 
