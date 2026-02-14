@@ -115,7 +115,42 @@ class ChunkAggregator:
         # Убираем пробелы в начале и конце
         text = text.strip()
 
+        # Фильтруем loop-артефакты Vision LLM (3+ подряд одинаковых строк → оставляем 2)
+        text = self._dedup_loop_lines(text)
+
         return text
+
+    def _dedup_loop_lines(self, text: str, max_repeats: int = 2) -> str:
+        """
+        Удаляет loop-артефакты Vision LLM — строки, повторяющиеся 3+ раз подряд.
+
+        Vision API (gpt-4.1-mini) может зациклиться при обработке таблиц/списков,
+        генерируя сотни одинаковых строк. Оставляем max_repeats экземпляров.
+
+        Args:
+            text: Текст после нормализации
+            max_repeats: Максимум повторов одной строки подряд (по умолчанию 2)
+
+        Returns:
+            Текст без loop-артефактов
+        """
+        lines = text.split('\n')
+        result = []
+        prev_line = None
+        repeat_count = 0
+
+        for line in lines:
+            stripped = line.strip()
+            if stripped == prev_line and stripped:
+                repeat_count += 1
+                if repeat_count <= max_repeats:
+                    result.append(line)
+            else:
+                prev_line = stripped
+                repeat_count = 1
+                result.append(line)
+
+        return '\n'.join(result)
 
     def merge_chunks(
         self,
