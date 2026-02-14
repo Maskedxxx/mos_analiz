@@ -8,7 +8,8 @@
 - **Базовый прогон:** run_20260210_165639
 - **Базовая точность:** 63.7% (184 true_fail / 289 FAIL)
 - **false_fail на старте:** 105
-- **false_fail осталось:** 36 (9 переклассифицированы в true_fail + 2 новых обнаружены при верификации ruslet)
+- **false_fail осталось:** 23 (9 переклассифицированы в true_fail + 2 новых обнаружены при верификации ruslet)
+- **false_fail исправлено (polozhenie_po):** 13/13 → PASS
 - **false_fail исправлено (kpsc):** 25/27 → PASS
 - **false_fail исправлено (prikaz_comp_ppu):** 10/10 → PASS
 - **false_fail исправлено (cluster 3):** 26/26 → PASS (prikaz_vyhod 8, prikaz_comp_ppu 2*, prikaz_ppu 3, prikaz_ic_potoka 5 + 8 уже в кеше)
@@ -17,7 +18,7 @@
 - **false_fail исправлено (cheklist_eu):** 4/7 → PASS + 3 переклассифицированы в true_fail B
 - **false_fail исправлено (prikaz_formirovanie_po):** 3/5 → PASS + 2 переклассифицированы в true_fail B
 - **false_fail исправлено (prikaz_ic):** 3/5 → PASS + 1 переклассифицирован в true_fail B + 1 open (needs non-LLM)
-- **Текущая точность:** ~79% (оценочно, полный прогон не запускался)
+- **Текущая точность:** ~84% (оценочно, полный прогон не запускался)
 
 ## Инфраструктура
 
@@ -39,7 +40,7 @@
 | 8 | cheklist_eu | 7→0 | done | 58.8% → 100% (4 fixed, 3 reclassified B, 0 regressions) |
 | 9 | prikaz_formirovanie_po | 5→0 | done | 32.5% → 40.0% (3 fixed, 2 reclassified B, 0 regressions) |
 | 10 | prikaz_ic | 5→1 | done* | 11.1% → 19.4% (3 fixed, 1 reclassified B, 1 open #268) |
-| 11 | polozhenie_po | 6 | pending | 76.9% |
+| 11 | polozhenie_po | 13→0 | done | 50.0% → 100% (13 fixed, 0 regressions, 1 flaky biznes_otel) |
 | 12 | presentation_eu | 2 | pending | 75.0% |
 
 ## Сессии отладки
@@ -530,6 +531,64 @@ pytest tests/test_kpsc_parsers.py -v
 
 - `doc_configs/polozhenie_comp_ppu/rules.json` — правило 2 (описание keywords)
 - Все остальные фиксы — из shared `polozhenie_normalize.py` (сессия polozhenie_ppu)
+
+## [2026-02-14] — polozhenie_po
+
+### Что исправлено
+
+**13 false_fail — все 13 исправлены (→ PASS):**
+
+1. **Rule 4 — пронумерованный IGNORE-список** (entries #191, #195, #202 — root cause C)
+   - LLM выходил за рамки структурной проверки → ловил регистр, дефисы, синонимы, блок "Составлено"
+   - 10 пунктов исключений: регистр, дефисы, синонимы, пунктуация, OCR, нумерация, scope
+
+2. **Rule 5 — OCR + фамилии + подпись** (entries #192, #196, #203 — root cause A+C)
+   - "ТВЕРЖДАЮ" = допустимый OCR-артефакт
+   - "Александрович М.Д." = фамилия: формулировка "БЕЗ ИСКЛЮЧЕНИЙ" сработала!
+   - Подчёркивания `___` и слэши `/` = место для подписи
+
+3. **Rule 6 — normalize_structure + known_sections** (entries #197, #204 — root cause A)
+   - Vision терял номера разделов. Препроцессор восстанавливает: "Общие положения" → "1. Общие положения"
+   - Маппинг 6 известных заголовков → номер
+   - Промпт: "сравнивай по НАЗВАНИЮ, не по номеру"
+
+4. **Rule 7 — форматы подписи** (entry #205 — root cause C)
+   - `___/`, `/ФИО/`, факсимильная подпись — всё считается подписью
+   - ВАЖНО: НЕ перечислять конкретные форматы (вызывает whack-a-mole)
+
+5. **Rule 8 — extract_longest_bullet_list** (entries #193, #199, #206, #213 — root cause A+C)
+   - Новый препроцессор: находит все группы bullet-строк (•), берёт самую длинную
+   - Удаляет короткие/фантомные списки на уровне данных
+   - Зарегистрирован для polozhenie_po/пункт_1_5
+
+6. **Rules 4, 6 — shared preprocessors** для polozhenie_po
+   - `normalize_text` (основной_текст): ФИО→[ФИО], нормализация пунктуации, склейка строк
+   - `normalize_structure` (структура_разделов): восстановление номеров, dots, merge continuation
+
+7. **Rule 9 — OCR-толерантность** (flaky regression prevention)
+   - "озт1акомления" = допустимый OCR-артефакт для "ознакомления"
+
+### Результат перезапуска
+- Прогон: run_20260214_125703
+- compare_runs.py (vs baseline run_20260210_165639):
+  - ИСПРАВЛЕНО (FAIL → PASS): 13
+  - РЕГРЕССИИ (PASS → FAIL): 1 (biznes_otel rule 10 — flaky Vision OCR)
+  - Утечки true_fail → PASS: 0
+- false_fail: было 13 → стало 0
+- Точность: 50.0% → 100% (для false_fail)
+
+### Ключевые инсайты
+- **"БЕЗ ИСКЛЮЧЕНИЙ"** работает для gpt-4.1-mini: "Александрович" наконец распознан как фамилия
+- **Препроцессор > промпт** для множественных списков: LLM упорно игнорирует "бери длинный"
+- **known_sections маппинг**: универсальный фикс для потерянных номеров разделов Vision
+- **Whack-a-mole на rule 7**: конкретные форматы подписи ВРЕДЯТ — LLM начинает требовать именно их
+- **biznes_otel flaky**: Vision OCR на рукописных данных = мусор, rules 9/10 скачут из прогона в прогон
+
+### Файлы изменены
+- audit_engine/preprocessors/__init__.py — import polozhenie_po
+- audit_engine/preprocessors/polozhenie_normalize.py — +polozhenie_po, +known_sections
+- audit_engine/preprocessors/polozhenie_po.py — extract_longest_bullet_list (новый)
+- doc_configs/polozhenie_po/rules.json — rules 4, 5, 6, 7, 9
 
 ## [2026-02-14] — prikaz_ic
 
