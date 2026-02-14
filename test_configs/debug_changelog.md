@@ -8,7 +8,7 @@
 - **Базовый прогон:** run_20260210_165639
 - **Базовая точность:** 63.7% (184 true_fail / 289 FAIL)
 - **false_fail на старте:** 105
-- **false_fail осталось:** 40 (8 переклассифицированы в true_fail + 2 новых обнаружены при верификации ruslet)
+- **false_fail осталось:** 36 (9 переклассифицированы в true_fail + 2 новых обнаружены при верификации ruslet)
 - **false_fail исправлено (kpsc):** 25/27 → PASS
 - **false_fail исправлено (prikaz_comp_ppu):** 10/10 → PASS
 - **false_fail исправлено (cluster 3):** 26/26 → PASS (prikaz_vyhod 8, prikaz_comp_ppu 2*, prikaz_ppu 3, prikaz_ic_potoka 5 + 8 уже в кеше)
@@ -16,7 +16,8 @@
 - **false_fail исправлено (polozhenie_comp_ppu):** 6/6 → PASS
 - **false_fail исправлено (cheklist_eu):** 4/7 → PASS + 3 переклассифицированы в true_fail B
 - **false_fail исправлено (prikaz_formirovanie_po):** 3/5 → PASS + 2 переклассифицированы в true_fail B
-- **Текущая точность:** ~78% (оценочно, полный прогон не запускался)
+- **false_fail исправлено (prikaz_ic):** 3/5 → PASS + 1 переклассифицирован в true_fail B + 1 open (needs non-LLM)
+- **Текущая точность:** ~79% (оценочно, полный прогон не запускался)
 
 ## Инфраструктура
 
@@ -37,7 +38,7 @@
 | 7 | polozhenie_comp_ppu | 6→0 | done | 60.0% → 100% (6 fixed, 0 regressions) |
 | 8 | cheklist_eu | 7→0 | done | 58.8% → 100% (4 fixed, 3 reclassified B, 0 regressions) |
 | 9 | prikaz_formirovanie_po | 5→0 | done | 32.5% → 40.0% (3 fixed, 2 reclassified B, 0 regressions) |
-| 10 | prikaz_ic | 7 | pending | 78.1% |
+| 10 | prikaz_ic | 5→1 | done* | 11.1% → 19.4% (3 fixed, 1 reclassified B, 1 open #268) |
 | 11 | polozhenie_po | 6 | pending | 76.9% |
 | 12 | presentation_eu | 2 | pending | 75.0% |
 
@@ -529,6 +530,53 @@ pytest tests/test_kpsc_parsers.py -v
 
 - `doc_configs/polozhenie_comp_ppu/rules.json` — правило 2 (описание keywords)
 - Все остальные фиксы — из shared `polozhenie_normalize.py` (сессия polozhenie_ppu)
+
+## [2026-02-14] — prikaz_ic
+
+### Что исправлено
+
+**5 false_fail — 3 исправлены (→ PASS), 1 переклассифицирован (→ true_fail B), 1 open:**
+
+1. **Rule 3 — whitespace в промпте + препроцессор** (entries #252, #269 — root cause C)
+   - LLM считал пробел перед номером пункта текстовой ошибкой ("пробелы игнорируются, но всё равно FAIL")
+   - Добавлен пункт 0) в исключения: "ПРОБЕЛЫ, отступы — ИГНОРИРУЙ"
+   - Препроцессор: `line.lstrip()` для нормализации отступов в текст_приказа
+   - Добавлена инструкция формата: "Если нет нарушений — верни ТОЛЬКО {status: ok}"
+
+2. **Rule 4 — формат ФИО** (entry #253 — root cause C)
+   - LLM не считал "Н.В. Филатов" полным ФИО
+   - Уточнён промпт: "инициалы+фамилия типа 'Н.В. Филатов' — это НОРМА"
+
+3. **Rule 2 — форматы даты и города** (entry #268 — root cause C)
+   - Исправлены 3 ложные жалобы: пробел после №, "Москва г", "01.10.2025г."
+   - НО каждый промпт-фикс убирает одну жалобу → LLM находит новую (whack-a-mole)
+   - Попытка preprocessor для шапки: context_builder не применяет preprocessors для target_only
+   - Попытка исправить context_builder: сломала rule 4 (preprocessor удалял данные)
+   - **OPEN**: требует non-LLM check (prikaz_checks.py на другой ветке)
+
+4. **Rule 6 — контекст Приложения** (entry #271 — root cause C → reclassified B)
+   - Препроцессор `trim_appendix2_to_relevant_sections()` обрезает основное тело Регламента
+   - НЕ активен (target_only не вызывает preprocessors), но помог при анализе
+   - После ручной верификации: п.4.1/4.2 реально отсутствуют → true_fail B
+
+### Результат перезапуска
+- Прогон: run_20260214_120755
+- compare_runs.py (vs baseline run_20260210_165639):
+  - ИСПРАВЛЕНО (FAIL → PASS): 3 (#252, #253, #269)
+  - РЕГРЕССИИ (PASS → FAIL): 0
+  - Утечки true_fail → PASS: 0
+- false_fail: было 5 → стало 1 (3 fixed + 1 reclassified + 1 open)
+- Точность: 11.1% → 19.4%
+
+### Архитектурные находки
+- **context_builder.py**: preprocessors НЕ применяются для target_only и cross_check (только template)
+- Это by design — агрессивные preprocessors (удаление плейсхолдеров) безопасны только для template
+- Для target_only нужны "безопасные" preprocessors (whitespace, OCR) — требуется отдельный registry
+
+### Файлы изменены
+- audit_engine/preprocessors/prikaz_ic.py — lstrip(), normalize_header(), trim_appendix2()
+- doc_configs/prikaz_ic/rules.json — rules 2 (форматы), 3 (whitespace + формат), 4 (ФИО)
+- test_configs/test_analysis.json — #271 reclassified
 
 ## [2026-02-13] — prikaz_formirovanie_po
 
