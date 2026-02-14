@@ -19,3 +19,4 @@ from . import prikaz_vyhod
 from . import prikaz_comp_ppu
 from . import prikaz_ppu
 from . import polozhenie_normalize
+from . import polozhenie_po

@@ -93,6 +93,7 @@ def preprocess_shapka(text: str) -> str:
 
 @register_preprocessor("polozhenie_comp_ppu", "структура_разделов")
 @register_preprocessor("polozhenie_ppu", "структура_разделов")
+@register_preprocessor("polozhenie_po", "структура_разделов")
 def normalize_structure(text: str) -> str:
     """
     Нормализует структуру разделов:
@@ -103,6 +104,29 @@ def normalize_structure(text: str) -> str:
     """
     # Голый номер без точки перед текстом → добавить точку
     text = re.sub(r'^(\d+)[ \t]+', r'\1. ', text, flags=re.MULTILINE)
+
+    # --- Восстановление потерянных номеров разделов ---
+    # Vision иногда теряет номер: «Общие положения» вместо «1. Общие положения»
+    # Маппинг известных заголовков верхнего уровня → номер
+    known_sections = {
+        'общие положения': '1',
+        'основные задачи': '2',
+        'организационная структура': '3',
+        'права': '4',
+        'ответственность': '5',
+        'порядок': '6',
+    }
+    restored_lines = []
+    for line in text.split('\n'):
+        stripped = line.strip()
+        stripped_lower = stripped.lower()
+        if stripped_lower in known_sections and not re.match(r'^\d', stripped):
+            num = known_sections[stripped_lower]
+            restored_lines.append(f'{num}. {stripped}')
+        else:
+            restored_lines.append(line)
+    text = '\n'.join(restored_lines)
+
     # Убрать пустые строки
     text = re.sub(r'\n{2,}', '\n', text)
 
@@ -139,6 +163,7 @@ def normalize_structure(text: str) -> str:
 
 @register_preprocessor("polozhenie_comp_ppu", "основной_текст")
 @register_preprocessor("polozhenie_ppu", "основной_текст")
+@register_preprocessor("polozhenie_po", "основной_текст")
 def normalize_text(text: str) -> str:
     """
     Нормализует основной текст для сравнения с шаблоном.
