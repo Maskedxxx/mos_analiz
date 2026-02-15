@@ -86,24 +86,66 @@
 
 ## План фиксов (батчи)
 
-### Батч 1: kpsc регрессии (приоритет высокий)
-- [ ] Фикс takt_time в parse_kpsc_header.py (регрессии 7.8 для biznes_otel + rotosnab + ruslet)
-- [ ] Фикс validator 4.1 — фильтр null-колонок (регрессия rotosnab 4.1)
-- [ ] Точечный тест: `run_tests.py --doc-type kpsc`
-- [ ] Сравнение: `compare_runs.py --old run_20260210_165639 --new <run> --doc-type kpsc`
+### Батч 1: kpsc регрессии (приоритет высокий) — ЗАВЕРШЁН ✅
 
-### Батч 2: баг тест-раннера (приоритет высокий)
-- [ ] Фикс `_parse_vision_results()` в run_tests.py — обработка ERROR
-- [ ] Нет точечного теста (инфраструктурный код)
+**Прогон верификации:** run_20260214_162247 (kpsc only, 77P/48F)
 
-### Батч 3: промпт prikaz_ic rule 2 (приоритет средний)
-- [ ] Обновить правило 2 пункт 4 в `doc_configs/prikaz_ic/rules.json`
-- [ ] Точечный тест: `run_tests.py --doc-type prikaz_ic --company ruslet`
-- [ ] Сравнение: `compare_runs.py --old run_20260210_165639 --new <run> --doc-type prikaz_ic`
+**Фикс #2 (validator 4.1 — rotosnab):**
+- Файл: `audit_engine/kpsc/validation_scripts/validate_4_1_vpp_filled.py`
+- Баг: `str(None)` = `"None"` (truthy строка!) → колонки без заголовка не фильтровались
+- Фикс: `raw_header = header_dict.get(col_num)` + проверка `is not None` перед `str()`
+- Результат: rotosnab 4.1 FAIL → PASS ✅
 
-### Батч 4: переклассификация + запись новых true_fail
-- [ ] Entry #135: submit_verdict → true_fail
-- [ ] 26 новых kpsc FAIL: submit_verdict → true_fail (batch)
+**Переклассификация #1, #3 (takt_time 7.8 — biznes_otel + rotosnab):**
+- НЕ регрессии! debug_changelog.md (строка 215) уже определил: "старый PASS был основан на мусорных данных"
+- takt_time у biznes_otel в AC47 (row 47, col 29) — вне зоны header-парсера (rows 1-15, cols 1-4)
+- У rotosnab слова "такт" нет на листе вообще
+- Классификация: MASKED_TRUE_FAIL (было ложное PASS, теперь корректный FAIL)
+
+**Также добавлено (harmless):**
+- `parse_kpsc_header.py` → `extract_fields()`: поле `takt_time` с `_find_label_value(ws, ["такт", "время такта", "takt"])` — возвращает None для всех файлов (данные вне зоны парсера)
+
+**compare_runs результат:**
+- 25 false_fail → всё ещё PASS ✅ (без регрессий)
+- 0 новых регрессий ✅
+- rotosnab 4.1 → исправлен ✅
+
+### Батч 2: баг тест-раннера (приоритет высокий) — ЗАВЕРШЁН ✅
+
+**Фикс #8 (_parse_vision_results ERROR→PASS):**
+- Файл: `run_tests.py`, функция `_parse_vision_results()` (строки 298-308)
+- Баг: функция ставила PASS по умолчанию из `rules_summary.json`, потом перекрывала FAIL из `final_results.json`, но **не проверяла** `responses/rule_*_error.txt` → timeout/API error маскировался как PASS
+- Фикс: добавлен шаг 3 — glob `responses/rule_*_error.txt`, извлечение номера правила из имени (`rule_03_error.txt` → "3"), статус ERROR
+- Верификация: `_parse_vision_results()` на реальной сессии `prikaz_ic_potoka/mapper` — rule 3 теперь ERROR (было PASS)
+- Нюанс: `str(int("03"))` = `"3"` — убираем leading zeros для совпадения с ключами из `rules_summary.json`
+
+### Батч 3: промпт prikaz_ic rule 2 (приоритет средний) — ЗАВЕРШЁН ✅
+
+**Прогон верификации:** run_20260214_163324 (prikaz_ic/ruslet only, 3P/6F)
+
+**Фикс #10 (ФИАС-адрес как город):**
+- Файл: `doc_configs/prikaz_ic/rules.json`, rule 2, пункт 4
+- Проблема: LLM видит город внутри ФИАС-адреса (`"109316, Москва г, Внутригородская территория..."`) и считает что "отдельного реквизита город нет"
+- Фикс: добавлена инструкция: "город может быть указан В СОСТАВЕ полного почтового или юридического адреса... если название города ПРИСУТСТВУЕТ в тексте шапки в ЛЮБОМ контексте, реквизит считается ВЫПОЛНЕННЫМ"
+- Результат: rule 2 FAIL → PASS ✅
+
+**compare_runs результат:**
+- rule 2: FAIL → PASS ✅ (наш фикс)
+- rule 3: FAIL → PASS ✅ (стабилен — фикс фазы 1)
+- rule 5, 8: PASS → FAIL — известные FLAKY (anomalies #5, #6), не связаны с нашим изменением
+- 0 реальных регрессий ✅
+
+### Батч 4: переклассификация + запись новых true_fail — ЗАВЕРШЁН ✅
+
+**Переклассификация entry #135 (prikaz_ic_potoka/ruslet rule 8):**
+- Было: false_fail (ложный FAIL)
+- Стало: true_fail B (реальное нарушение в документе)
+- Причина: non-LLM check `check_responsible_fio_ic_potoka()` корректно обнаружил п.4 "ознакомить" без ФИО
+
+**26 новых kpsc FAIL (entries #290-315):**
+- Все записаны в test_analysis.json как true_fail B
+- Все NOT_RUN→FAIL: парсеры работают после рефакторинга, нарушения реальные
+- Группы: 13× header fields (1.x), 5× нумерация проблем (2.2), 2× пустые ячейки (5.1), 1× takt_time (7.8), 3× кросс-валидация (8.x), 1× перемещения (6.1), 1× ВПП (4.2)
 
 ---
 

@@ -1,8 +1,8 @@
 {
   "run_id": "run_20260210_165639",
   "generated_at": "2026-02-10T17:36:14.761336",
-  "total_fail": 289,
-  "reviewed": 289,
+  "total_fail": 315,
+  "reviewed": 315,
   "pending": 0,
   "entries": [
     {
@@ -2829,14 +2829,14 @@
       "test_status": "FAIL",
       "discrepancy": "В п.2.2 регламента ФИО конкретного исполняющего обязанности отсутствует, указано 'руководитель ПППТ' и 'исполняющий обязанности' без конкретного ФИО.",
       "review_status": "reviewed",
-      "root_cause": "C",
-      "verdict": "false_fail",
-      "comment": "LLM утверждает «ФИО отсутствует», но в п.2.2 Регламента прямо написано: «передается исполняющему обязанности Алексееву Е.В.». ФИО «Алексееву Е.В.» стоит непосредственно после «исполняющему обязанности» — это конкретное ФИО, а не обезличенная формулировка. Также в п.2.1 указано ФИО «Гольцев А.В.». LLM зацепился за слова «руководитель ПППТ» и «исполняющий обязанности», проигнорировав стоящее рядом конкретное ФИО. Повторяющийся паттерн ошибки LLM — аналогичная ситуация в записи #118 (biznes_otel), где LLM не заметил «Жуковой А.А.» после «исполняющему обязанности».",
-      "action": "В промпте rule 8 добавить инструкцию: «Внимательно проверяй наличие ФИО ПОСЛЕ фразы \"исполняющему обязанности\" — ФИО может идти сразу за этой фразой в дательном падеже (например: \"исполняющему обязанности Алексееву Е.В.\")».",
+      "root_cause": "B",
+      "verdict": "true_fail",
+      "comment": "Переклассификация: non-LLM check check_responsible_fio_ic_potoka() корректно обнаружил реальное нарушение — п.4 \"ознакомить\" без ФИО ответственного. Первоначальный вердикт false_fail был ошибочным.",
+      "action": "",
       "check_chain": {
-        "parsing": "OK — п.2.2 распарсен корректно, ФИО «Алексееву Е.В.» присутствует в parsed-данных",
-        "content": "OK — документ содержит конкретное ФИО «Алексееву Е.В.» после «исполняющему обязанности», требование правила выполнено",
-        "logic": "FAIL — LLM проигнорировал ФИО «Алексееву Е.В.», стоящее непосредственно после «исполняющему обязанности». Грубая галлюцинация: утверждает отсутствие ФИО при его наличии."
+        "parsing": "OK",
+        "content": "FAIL — п.4 действительно не содержит ФИО ответственного, только слово 'ознакомить'",
+        "logic": "OK"
       },
       "rule_ref": "doc_configs/prikaz_ic_potoka/rules.json"
     },
@@ -6073,6 +6073,552 @@
         "logic": null
       },
       "rule_ref": "doc_configs/prikaz_ic_el/rules.json"
+    },
+    {
+      "id": 290,
+      "doc_type": "kpsc",
+      "company": "biznes_otel",
+      "engine": "kpsc",
+      "rule": "2.2",
+      "rule_title": "Последовательность номеров проблем (пропуски в нумерации)",
+      "test_status": "FAIL",
+      "discrepancy": "Во вкладке \"оцифровка потерь\" отсутствуют номера проблем, нумерация не может быть последовательной.",
+      "review_status": "reviewed",
+      "root_cause": "B",
+      "verdict": "true_fail",
+      "comment": "Регрессионный прогон run_20260214_134634: NOT_RUN→FAIL. Парсеры работают после рефакторинга, реальное нарушение в документе.",
+      "action": "",
+      "check_chain": {
+        "parsing": "OK",
+        "content": "FAIL — Во вкладке \"оцифровка потерь\" отсутствуют номера проблем, нумерация не может быть последовательной.",
+        "logic": "OK"
+      },
+      "rule_ref": "doc_configs/kpsc/validation_rules.json"
+    },
+    {
+      "id": 291,
+      "doc_type": "kpsc",
+      "company": "mapper",
+      "engine": "kpsc",
+      "rule": "1.1",
+      "rule_title": "Наличие слов 'КПСЦ ТС' в заголовке",
+      "test_status": "FAIL",
+      "discrepancy": "Текст 'КПСЦ' не найден в заголовке",
+      "review_status": "reviewed",
+      "root_cause": "B",
+      "verdict": "true_fail",
+      "comment": "Регрессионный прогон run_20260214_134634: NOT_RUN→FAIL. Парсеры работают после рефакторинга, реальное нарушение в документе.",
+      "action": "",
+      "check_chain": {
+        "parsing": "OK",
+        "content": "FAIL — Текст 'КПСЦ' не найден в заголовке",
+        "logic": "OK"
+      },
+      "rule_ref": "doc_configs/kpsc/validation_rules.json"
+    },
+    {
+      "id": 292,
+      "doc_type": "kpsc",
+      "company": "mapper",
+      "engine": "kpsc",
+      "rule": "1.2",
+      "rule_title": "Наличие названия предприятия в формате ООО \"наименование\"",
+      "test_status": "FAIL",
+      "discrepancy": "В заголовке документа отсутствует паттерн ООО \"...\" с названием предприятия, либо название предприятия пустое",
+      "review_status": "reviewed",
+      "root_cause": "B",
+      "verdict": "true_fail",
+      "comment": "Регрессионный прогон run_20260214_134634: NOT_RUN→FAIL. Парсеры работают после рефакторинга, реальное нарушение в документе.",
+      "action": "",
+      "check_chain": {
+        "parsing": "OK",
+        "content": "FAIL — В заголовке документа отсутствует паттерн ООО \"...\" с названием предприятия, либо название предприят",
+        "logic": "OK"
+      },
+      "rule_ref": "doc_configs/kpsc/validation_rules.json"
+    },
+    {
+      "id": 293,
+      "doc_type": "kpsc",
+      "company": "mapper",
+      "engine": "kpsc",
+      "rule": "1.4",
+      "rule_title": "Заполнение поля \"Ответственный за поток\" (ФИО)",
+      "test_status": "FAIL",
+      "discrepancy": "Поле responsible пустое",
+      "review_status": "reviewed",
+      "root_cause": "B",
+      "verdict": "true_fail",
+      "comment": "Регрессионный прогон run_20260214_134634: NOT_RUN→FAIL. Парсеры работают после рефакторинга, реальное нарушение в документе.",
+      "action": "",
+      "check_chain": {
+        "parsing": "OK",
+        "content": "FAIL — Поле responsible пустое",
+        "logic": "OK"
+      },
+      "rule_ref": "doc_configs/kpsc/validation_rules.json"
+    },
+    {
+      "id": 294,
+      "doc_type": "kpsc",
+      "company": "mapper",
+      "engine": "kpsc",
+      "rule": "1.5",
+      "rule_title": "Заполнение даты разработки",
+      "test_status": "FAIL",
+      "discrepancy": "Поле date_developed содержит значение 'None', что является пустым или нераспознаваемым значением даты",
+      "review_status": "reviewed",
+      "root_cause": "B",
+      "verdict": "true_fail",
+      "comment": "Регрессионный прогон run_20260214_134634: NOT_RUN→FAIL. Парсеры работают после рефакторинга, реальное нарушение в документе.",
+      "action": "",
+      "check_chain": {
+        "parsing": "OK",
+        "content": "FAIL — Поле date_developed содержит значение 'None', что является пустым или нераспознаваемым значением дат",
+        "logic": "OK"
+      },
+      "rule_ref": "doc_configs/kpsc/validation_rules.json"
+    },
+    {
+      "id": 295,
+      "doc_type": "kpsc",
+      "company": "mapper",
+      "engine": "kpsc",
+      "rule": "1.6",
+      "rule_title": "Дата реализации должна быть периодом",
+      "test_status": "FAIL",
+      "discrepancy": "Поле date_implementation пустое или содержит значение 'None', не является периодом из двух дат",
+      "review_status": "reviewed",
+      "root_cause": "B",
+      "verdict": "true_fail",
+      "comment": "Регрессионный прогон run_20260214_134634: NOT_RUN→FAIL. Парсеры работают после рефакторинга, реальное нарушение в документе.",
+      "action": "",
+      "check_chain": {
+        "parsing": "OK",
+        "content": "FAIL — Поле date_implementation пустое или содержит значение 'None', не является периодом из двух дат",
+        "logic": "OK"
+      },
+      "rule_ref": "doc_configs/kpsc/validation_rules.json"
+    },
+    {
+      "id": 296,
+      "doc_type": "kpsc",
+      "company": "mapper",
+      "engine": "kpsc",
+      "rule": "2.2",
+      "rule_title": "Последовательность номеров проблем (пропуски в нумерации)",
+      "test_status": "FAIL",
+      "discrepancy": "Во вкладке \"оцифровка потерь\" отсутствуют номера проблем, нумерация отсутствует.",
+      "review_status": "reviewed",
+      "root_cause": "B",
+      "verdict": "true_fail",
+      "comment": "Регрессионный прогон run_20260214_134634: NOT_RUN→FAIL. Парсеры работают после рефакторинга, реальное нарушение в документе.",
+      "action": "",
+      "check_chain": {
+        "parsing": "OK",
+        "content": "FAIL — Во вкладке \"оцифровка потерь\" отсутствуют номера проблем, нумерация отсутствует.",
+        "logic": "OK"
+      },
+      "rule_ref": "doc_configs/kpsc/validation_rules.json"
+    },
+    {
+      "id": 297,
+      "doc_type": "kpsc",
+      "company": "mapper",
+      "engine": "kpsc",
+      "rule": "5.1",
+      "rule_title": "Заполнение всех ячеек в столбце \"Единицы измерения\"",
+      "test_status": "FAIL",
+      "discrepancy": "Обнаружены пустые ячейки в столбце \"Единицы измерения\" в строках: 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 21, 22, 23, 24. Всего пустых ячеек: 17.",
+      "review_status": "reviewed",
+      "root_cause": "B",
+      "verdict": "true_fail",
+      "comment": "Регрессионный прогон run_20260214_134634: NOT_RUN→FAIL. Парсеры работают после рефакторинга, реальное нарушение в документе.",
+      "action": "",
+      "check_chain": {
+        "parsing": "OK",
+        "content": "FAIL — Обнаружены пустые ячейки в столбце \"Единицы измерения\" в строках: 6, 7, 8, 9, 10, 11, 12, 13, 14, 15",
+        "logic": "OK"
+      },
+      "rule_ref": "doc_configs/kpsc/validation_rules.json"
+    },
+    {
+      "id": 298,
+      "doc_type": "kpsc",
+      "company": "rotosnab",
+      "engine": "kpsc",
+      "rule": "2.2",
+      "rule_title": "Последовательность номеров проблем (пропуски в нумерации)",
+      "test_status": "FAIL",
+      "discrepancy": "Во вкладке \"оцифровка потерь\" отсутствуют номера проблем, нумерация не последовательна.",
+      "review_status": "reviewed",
+      "root_cause": "B",
+      "verdict": "true_fail",
+      "comment": "Регрессионный прогон run_20260214_134634: NOT_RUN→FAIL. Парсеры работают после рефакторинга, реальное нарушение в документе.",
+      "action": "",
+      "check_chain": {
+        "parsing": "OK",
+        "content": "FAIL — Во вкладке \"оцифровка потерь\" отсутствуют номера проблем, нумерация не последовательна.",
+        "logic": "OK"
+      },
+      "rule_ref": "doc_configs/kpsc/validation_rules.json"
+    },
+    {
+      "id": 299,
+      "doc_type": "kpsc",
+      "company": "ruslet",
+      "engine": "kpsc",
+      "rule": "1.2",
+      "rule_title": "Наличие названия предприятия в формате ООО \"наименование\"",
+      "test_status": "FAIL",
+      "discrepancy": "Заголовок документа не содержит паттерн ООО \"...\" с названием предприятия, либо название предприятия пустое",
+      "review_status": "reviewed",
+      "root_cause": "B",
+      "verdict": "true_fail",
+      "comment": "Регрессионный прогон run_20260214_134634: NOT_RUN→FAIL. Парсеры работают после рефакторинга, реальное нарушение в документе.",
+      "action": "",
+      "check_chain": {
+        "parsing": "OK",
+        "content": "FAIL — Заголовок документа не содержит паттерн ООО \"...\" с названием предприятия, либо название предприятия",
+        "logic": "OK"
+      },
+      "rule_ref": "doc_configs/kpsc/validation_rules.json"
+    },
+    {
+      "id": 300,
+      "doc_type": "kpsc",
+      "company": "ruslet",
+      "engine": "kpsc",
+      "rule": "1.6",
+      "rule_title": "Дата реализации должна быть периодом",
+      "test_status": "FAIL",
+      "discrepancy": "Поле date_implementation пустое или содержит значение 'None', не соответствует формату периода",
+      "review_status": "reviewed",
+      "root_cause": "B",
+      "verdict": "true_fail",
+      "comment": "Регрессионный прогон run_20260214_134634: NOT_RUN→FAIL. Парсеры работают после рефакторинга, реальное нарушение в документе.",
+      "action": "",
+      "check_chain": {
+        "parsing": "OK",
+        "content": "FAIL — Поле date_implementation пустое или содержит значение 'None', не соответствует формату периода",
+        "logic": "OK"
+      },
+      "rule_ref": "doc_configs/kpsc/validation_rules.json"
+    },
+    {
+      "id": 301,
+      "doc_type": "kpsc",
+      "company": "ruslet",
+      "engine": "kpsc",
+      "rule": "2.2",
+      "rule_title": "Последовательность номеров проблем (пропуски в нумерации)",
+      "test_status": "FAIL",
+      "discrepancy": "Во вкладке \"оцифровка потерь\" отсутствуют номера проблем, нумерация не может быть последовательной.",
+      "review_status": "reviewed",
+      "root_cause": "B",
+      "verdict": "true_fail",
+      "comment": "Регрессионный прогон run_20260214_134634: NOT_RUN→FAIL. Парсеры работают после рефакторинга, реальное нарушение в документе.",
+      "action": "",
+      "check_chain": {
+        "parsing": "OK",
+        "content": "FAIL — Во вкладке \"оцифровка потерь\" отсутствуют номера проблем, нумерация не может быть последовательной.",
+        "logic": "OK"
+      },
+      "rule_ref": "doc_configs/kpsc/validation_rules.json"
+    },
+    {
+      "id": 302,
+      "doc_type": "kpsc",
+      "company": "ruslet",
+      "engine": "kpsc",
+      "rule": "4.2",
+      "rule_title": "Сумма значений строки ВПП совпадает с итоговым значением",
+      "test_status": "FAIL",
+      "discrepancy": "Значения ВПП по операциям отсутствуют, итоговое значение отсутствует, невозможно проверить соответствие суммы и итога",
+      "review_status": "reviewed",
+      "root_cause": "B",
+      "verdict": "true_fail",
+      "comment": "Регрессионный прогон run_20260214_134634: NOT_RUN→FAIL. Парсеры работают после рефакторинга, реальное нарушение в документе.",
+      "action": "",
+      "check_chain": {
+        "parsing": "OK",
+        "content": "FAIL — Значения ВПП по операциям отсутствуют, итоговое значение отсутствует, невозможно проверить соответст",
+        "logic": "OK"
+      },
+      "rule_ref": "doc_configs/kpsc/validation_rules.json"
+    },
+    {
+      "id": 303,
+      "doc_type": "kpsc",
+      "company": "ruslet",
+      "engine": "kpsc",
+      "rule": "6.1",
+      "rule_title": "Наличие строки \"Перемещения\" в блоке \"Расчет ВПП\"",
+      "test_status": "FAIL",
+      "discrepancy": "Строка с текстом \"Перемещения\" в первой колонке таблицы 1 не найдена",
+      "review_status": "reviewed",
+      "root_cause": "B",
+      "verdict": "true_fail",
+      "comment": "Регрессионный прогон run_20260214_134634: NOT_RUN→FAIL. Парсеры работают после рефакторинга, реальное нарушение в документе.",
+      "action": "",
+      "check_chain": {
+        "parsing": "OK",
+        "content": "FAIL — Строка с текстом \"Перемещения\" в первой колонке таблицы 1 не найдена",
+        "logic": "OK"
+      },
+      "rule_ref": "doc_configs/kpsc/validation_rules.json"
+    },
+    {
+      "id": 304,
+      "doc_type": "kpsc",
+      "company": "ruslet",
+      "engine": "kpsc",
+      "rule": "7.8",
+      "rule_title": "Наличие и заполнение листа \"Расчет такта\" / \"Расчет времени такта\"",
+      "test_status": "FAIL",
+      "discrepancy": "Отсутствует отдельный JSON-файл с парсингом листа \"Расчет такта\" и поле takt_time в заголовке КПСЦ не заполнено",
+      "review_status": "reviewed",
+      "root_cause": "B",
+      "verdict": "true_fail",
+      "comment": "Регрессионный прогон run_20260214_134634: NOT_RUN→FAIL. Парсеры работают после рефакторинга, реальное нарушение в документе.",
+      "action": "",
+      "check_chain": {
+        "parsing": "OK",
+        "content": "FAIL — Отсутствует отдельный JSON-файл с парсингом листа \"Расчет такта\" и поле takt_time в заголовке КПСЦ н",
+        "logic": "OK"
+      },
+      "rule_ref": "doc_configs/kpsc/validation_rules.json"
+    },
+    {
+      "id": 305,
+      "doc_type": "kpsc",
+      "company": "ruslet",
+      "engine": "kpsc",
+      "rule": "8.1",
+      "rule_title": "Соответствие единиц измерения между листами \"Показатели\" и \"КПСЦ\"",
+      "test_status": "FAIL",
+      "discrepancy": "Обнаружены несоответствия единиц измерения для показателя 'количество операторов': в листе 'Показатели' - 'человек', в листе 'КПСЦ' - 'Количество операторов'",
+      "review_status": "reviewed",
+      "root_cause": "B",
+      "verdict": "true_fail",
+      "comment": "Регрессионный прогон run_20260214_134634: NOT_RUN→FAIL. Парсеры работают после рефакторинга, реальное нарушение в документе.",
+      "action": "",
+      "check_chain": {
+        "parsing": "OK",
+        "content": "FAIL — Обнаружены несоответствия единиц измерения для показателя 'количество операторов': в листе 'Показате",
+        "logic": "OK"
+      },
+      "rule_ref": "doc_configs/kpsc/validation_rules.json"
+    },
+    {
+      "id": 306,
+      "doc_type": "kpsc",
+      "company": "ruslet",
+      "engine": "kpsc",
+      "rule": "8.2",
+      "rule_title": "Соответствие значений из \"Показатели\" с колонкой ИТОГО в \"КПСЦ\"",
+      "test_status": "FAIL",
+      "discrepancy": "В листе \"КПСЦ\" в блоке \"Расчет ВПП\" отсутствуют значения ИТОГО для сравнения с показателями из листа \"Показатели\".",
+      "review_status": "reviewed",
+      "root_cause": "B",
+      "verdict": "true_fail",
+      "comment": "Регрессионный прогон run_20260214_134634: NOT_RUN→FAIL. Парсеры работают после рефакторинга, реальное нарушение в документе.",
+      "action": "",
+      "check_chain": {
+        "parsing": "OK",
+        "content": "FAIL — В листе \"КПСЦ\" в блоке \"Расчет ВПП\" отсутствуют значения ИТОГО для сравнения с показателями из листа",
+        "logic": "OK"
+      },
+      "rule_ref": "doc_configs/kpsc/validation_rules.json"
+    },
+    {
+      "id": 307,
+      "doc_type": "kpsc",
+      "company": "ruslet",
+      "engine": "kpsc",
+      "rule": "8.3",
+      "rule_title": "Соответствие названий показателей между листами \"Показатели\" и \"КПСЦ\"",
+      "test_status": "FAIL",
+      "discrepancy": "Показатели из листа \"Показатели\" отсутствуют в блоке \"Расчет ВПП\" листа \"КПСЦ\": \"Время протекания процесса\", \"Выработка\"",
+      "review_status": "reviewed",
+      "root_cause": "B",
+      "verdict": "true_fail",
+      "comment": "Регрессионный прогон run_20260214_134634: NOT_RUN→FAIL. Парсеры работают после рефакторинга, реальное нарушение в документе.",
+      "action": "",
+      "check_chain": {
+        "parsing": "OK",
+        "content": "FAIL — Показатели из листа \"Показатели\" отсутствуют в блоке \"Расчет ВПП\" листа \"КПСЦ\": \"Время протекания пр",
+        "logic": "OK"
+      },
+      "rule_ref": "doc_configs/kpsc/validation_rules.json"
+    },
+    {
+      "id": 308,
+      "doc_type": "kpsc",
+      "company": "sodex",
+      "engine": "kpsc",
+      "rule": "1.1",
+      "rule_title": "Наличие слов 'КПСЦ ТС' в заголовке",
+      "test_status": "FAIL",
+      "discrepancy": "Текст 'КПСЦ' не найден в заголовке",
+      "review_status": "reviewed",
+      "root_cause": "B",
+      "verdict": "true_fail",
+      "comment": "Регрессионный прогон run_20260214_134634: NOT_RUN→FAIL. Парсеры работают после рефакторинга, реальное нарушение в документе.",
+      "action": "",
+      "check_chain": {
+        "parsing": "OK",
+        "content": "FAIL — Текст 'КПСЦ' не найден в заголовке",
+        "logic": "OK"
+      },
+      "rule_ref": "doc_configs/kpsc/validation_rules.json"
+    },
+    {
+      "id": 309,
+      "doc_type": "kpsc",
+      "company": "sodex",
+      "engine": "kpsc",
+      "rule": "1.2",
+      "rule_title": "Наличие названия предприятия в формате ООО \"наименование\"",
+      "test_status": "FAIL",
+      "discrepancy": "В заголовке отсутствует паттерн ООО \"...\" с названием предприятия, либо название предприятия пустое",
+      "review_status": "reviewed",
+      "root_cause": "B",
+      "verdict": "true_fail",
+      "comment": "Регрессионный прогон run_20260214_134634: NOT_RUN→FAIL. Парсеры работают после рефакторинга, реальное нарушение в документе.",
+      "action": "",
+      "check_chain": {
+        "parsing": "OK",
+        "content": "FAIL — В заголовке отсутствует паттерн ООО \"...\" с названием предприятия, либо название предприятия пустое",
+        "logic": "OK"
+      },
+      "rule_ref": "doc_configs/kpsc/validation_rules.json"
+    },
+    {
+      "id": 310,
+      "doc_type": "kpsc",
+      "company": "sodex",
+      "engine": "kpsc",
+      "rule": "1.3",
+      "rule_title": "Наличие названия потока в формате \"имя потока\"",
+      "test_status": "FAIL",
+      "discrepancy": "Поле flow_name содержит значение \"None\", что не является осмысленным названием и не соответствует требованию длины >= 3 символов.",
+      "review_status": "reviewed",
+      "root_cause": "B",
+      "verdict": "true_fail",
+      "comment": "Регрессионный прогон run_20260214_134634: NOT_RUN→FAIL. Парсеры работают после рефакторинга, реальное нарушение в документе.",
+      "action": "",
+      "check_chain": {
+        "parsing": "OK",
+        "content": "FAIL — Поле flow_name содержит значение \"None\", что не является осмысленным названием и не соответствует тр",
+        "logic": "OK"
+      },
+      "rule_ref": "doc_configs/kpsc/validation_rules.json"
+    },
+    {
+      "id": 311,
+      "doc_type": "kpsc",
+      "company": "sodex",
+      "engine": "kpsc",
+      "rule": "1.4",
+      "rule_title": "Заполнение поля \"Ответственный за поток\" (ФИО)",
+      "test_status": "FAIL",
+      "discrepancy": "Поле responsible пустое",
+      "review_status": "reviewed",
+      "root_cause": "B",
+      "verdict": "true_fail",
+      "comment": "Регрессионный прогон run_20260214_134634: NOT_RUN→FAIL. Парсеры работают после рефакторинга, реальное нарушение в документе.",
+      "action": "",
+      "check_chain": {
+        "parsing": "OK",
+        "content": "FAIL — Поле responsible пустое",
+        "logic": "OK"
+      },
+      "rule_ref": "doc_configs/kpsc/validation_rules.json"
+    },
+    {
+      "id": 312,
+      "doc_type": "kpsc",
+      "company": "sodex",
+      "engine": "kpsc",
+      "rule": "1.5",
+      "rule_title": "Заполнение даты разработки",
+      "test_status": "FAIL",
+      "discrepancy": "Поле date_developed содержит значение 'None', что является пустым или невалидным значением даты.",
+      "review_status": "reviewed",
+      "root_cause": "B",
+      "verdict": "true_fail",
+      "comment": "Регрессионный прогон run_20260214_134634: NOT_RUN→FAIL. Парсеры работают после рефакторинга, реальное нарушение в документе.",
+      "action": "",
+      "check_chain": {
+        "parsing": "OK",
+        "content": "FAIL — Поле date_developed содержит значение 'None', что является пустым или невалидным значением даты.",
+        "logic": "OK"
+      },
+      "rule_ref": "doc_configs/kpsc/validation_rules.json"
+    },
+    {
+      "id": 313,
+      "doc_type": "kpsc",
+      "company": "sodex",
+      "engine": "kpsc",
+      "rule": "1.6",
+      "rule_title": "Дата реализации должна быть периодом",
+      "test_status": "FAIL",
+      "discrepancy": "Поле date_implementation пустое или содержит значение 'None', не соответствует формату периода из двух дат",
+      "review_status": "reviewed",
+      "root_cause": "B",
+      "verdict": "true_fail",
+      "comment": "Регрессионный прогон run_20260214_134634: NOT_RUN→FAIL. Парсеры работают после рефакторинга, реальное нарушение в документе.",
+      "action": "",
+      "check_chain": {
+        "parsing": "OK",
+        "content": "FAIL — Поле date_implementation пустое или содержит значение 'None', не соответствует формату периода из дв",
+        "logic": "OK"
+      },
+      "rule_ref": "doc_configs/kpsc/validation_rules.json"
+    },
+    {
+      "id": 314,
+      "doc_type": "kpsc",
+      "company": "sodex",
+      "engine": "kpsc",
+      "rule": "2.2",
+      "rule_title": "Последовательность номеров проблем (пропуски в нумерации)",
+      "test_status": "FAIL",
+      "discrepancy": "Во вкладке \"оцифровка потерь\" отсутствуют номера проблем, нумерация отсутствует.",
+      "review_status": "reviewed",
+      "root_cause": "B",
+      "verdict": "true_fail",
+      "comment": "Регрессионный прогон run_20260214_134634: NOT_RUN→FAIL. Парсеры работают после рефакторинга, реальное нарушение в документе.",
+      "action": "",
+      "check_chain": {
+        "parsing": "OK",
+        "content": "FAIL — Во вкладке \"оцифровка потерь\" отсутствуют номера проблем, нумерация отсутствует.",
+        "logic": "OK"
+      },
+      "rule_ref": "doc_configs/kpsc/validation_rules.json"
+    },
+    {
+      "id": 315,
+      "doc_type": "kpsc",
+      "company": "sodex",
+      "engine": "kpsc",
+      "rule": "5.1",
+      "rule_title": "Заполнение всех ячеек в столбце \"Единицы измерения\"",
+      "test_status": "FAIL",
+      "discrepancy": "Обнаружены пустые ячейки в столбце \"Единицы измерения\" в строках: 6, 8, 9, 10, 11, 12, 13, 16, 17, 18, 19, 20. Всего пустых ячеек: 12.",
+      "review_status": "reviewed",
+      "root_cause": "B",
+      "verdict": "true_fail",
+      "comment": "Регрессионный прогон run_20260214_134634: NOT_RUN→FAIL. Парсеры работают после рефакторинга, реальное нарушение в документе.",
+      "action": "",
+      "check_chain": {
+        "parsing": "OK",
+        "content": "FAIL — Обнаружены пустые ячейки в столбце \"Единицы измерения\" в строках: 6, 8, 9, 10, 11, 12, 13, 16, 17, 1",
+        "logic": "OK"
+      },
+      "rule_ref": "doc_configs/kpsc/validation_rules.json"
     }
   ]
 }

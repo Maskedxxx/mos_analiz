@@ -98,7 +98,12 @@ def extract_relevant_data(data: dict) -> dict:
             continue
 
         # Получаем название операции из заголовка
-        header_val = str(header_dict.get(col_num, "")).strip()
+        raw_header = header_dict.get(col_num)
+        header_val = str(raw_header).strip() if raw_header is not None else ""
+
+        # Пропускаем колонки без заголовка (пустые/служебные колонки за пределами данных)
+        if not header_val:
+            continue
 
         # Пропускаем колонку "ИТОГО"
         if "итого" in header_val.lower():

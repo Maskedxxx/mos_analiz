@@ -162,6 +162,7 @@ def extract_fields(ws) -> Dict[str, Any]:
         "date_developed": _find_label_value(ws, ["дата разработ"]),
         "date_implementation": _find_label_value(ws, ["дата реализ", "дата достиж"]),
         "compiled_by": _find_label_value(ws, ["составил", "разработал"]),
+        "takt_time": _find_label_value(ws, ["такт", "время такта", "takt"]),
     }
 
 

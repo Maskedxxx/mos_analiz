@@ -295,6 +295,19 @@ def _parse_vision_results(session_dir: Path) -> Dict[str, str]:
         except (json.JSONDecodeError, KeyError):
             pass
 
+    # Проверяем файлы ошибок — перекрывают PASS → ERROR
+    # rule_03_error.txt → правило 3 упало (timeout, API error и т.п.)
+    responses_dir = session_dir / "responses"
+    if responses_dir.exists():
+        for error_file in responses_dir.glob("rule_*_error.txt"):
+            parts = error_file.stem.split("_")  # ["rule", "03", "error"]
+            if len(parts) >= 2:
+                try:
+                    idx = str(int(parts[1]))  # "03" → 3 → "3"
+                except ValueError:
+                    idx = parts[1]
+                rules_status[idx] = "ERROR"
+
     return rules_status
 
 
