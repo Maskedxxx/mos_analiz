@@ -145,8 +145,11 @@ def normalize_structure(text: str) -> str:
             # Новый раздел/подраздел
             merged.append(stripped)
         elif merged:
+            # Пропускаем служебные фразы Vision ("Заголовки не найдены")
+            if 'не найдены' in stripped.lower():
+                continue
             # Продолжение заголовка: склеиваем ТОЛЬКО если далее есть ещё раздел.
-            # Иначе — мусор после последнего заголовка («Заголовки не найдены»)
+            # Иначе — мусор после последнего заголовка
             remaining = [l.strip() for l in lines[i + 1:] if l.strip()]
             has_next_section = any(re.match(r'^\d', l) for l in remaining)
             if has_next_section:
