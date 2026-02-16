@@ -63,11 +63,14 @@ def validate(kartochka: dict, dropdown: dict) -> dict:
     categories = dropdown.get("categories", {})
     errors = []
 
-    # Собираем все допустимые единицы (все категории) для fallback
+    # Собираем ВСЕ допустимые единицы из всех категорий листа "выпадающий список"
     all_units = set()
+    all_units_display = []  # для вывода в ошибке
     for units_list in categories.values():
         for u in units_list:
-            all_units.add(u.lower().strip())
+            normalized = u.lower().strip().rstrip(".")
+            all_units.add(normalized)
+            all_units_display.append(u)
 
     for ind in indicators:
         name = ind.get("name", "")
@@ -78,28 +81,15 @@ def validate(kartochka: dict, dropdown: dict) -> dict:
             errors.append(f"Показатель #{num} '{name}': единица измерения не заполнена")
             continue
 
-        # Определяем категорию
-        category = _detect_category(name) if name else DEFAULT_CATEGORY
+        # Нормализация: lowercase, trim, убираем trailing точку ("шт." → "шт")
+        unit_normalized = unit.lower().strip().rstrip(".")
 
-        # Получаем допустимые единицы для категории
-        allowed_units = categories.get(category, [])
-        allowed_lower = [u.lower().strip() for u in allowed_units]
-
-        unit_lower = unit.lower().strip()
-
-        # Проверяем принадлежность
-        if unit_lower not in allowed_lower:
-            # Проверяем по всем категориям (мягкая проверка)
-            if unit_lower not in all_units:
-                errors.append(
-                    f"Показатель #{num} '{name}': единица '{unit}' не найдена в справочнике "
-                    f"(категория: {category}, допустимо: {', '.join(allowed_units[:5])}...)"
-                )
-            else:
-                errors.append(
-                    f"Показатель #{num} '{name}': единица '{unit}' не соответствует категории "
-                    f"'{category}' (допустимо: {', '.join(allowed_units[:5])}...)"
-                )
+        # Проверяем по ВСЕМ категориям справочника (без привязки к категории)
+        if unit_normalized not in all_units:
+            errors.append(
+                f"Показатель #{num} '{name}': единица '{unit}' не найдена в справочнике "
+                f"(допустимые: {', '.join(all_units_display[:10])}...)"
+            )
 
     if errors:
         return {
