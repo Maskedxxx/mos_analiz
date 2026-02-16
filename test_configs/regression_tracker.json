@@ -14,7 +14,8 @@
     "1": "kpsc регрессии (takt_time + validator 4.1)",
     "2": "баг тест-раннера (_parse_vision_results ERROR→PASS)",
     "3": "промпт prikaz_ic rule 2 (ФИАС-адрес)",
-    "4": "переклассификация + запись новых true_fail"
+    "4": "переклассификация + запись новых true_fail",
+    "investigation": "глубокое расследование: rule 6 Vision fix, entry #192 reclassify, ruslet rule 5 ФИАС-фикс"
   },
   "anomalies": [
     {
@@ -143,12 +144,12 @@
       "doc_type": "polozhenie_po",
       "company": "biznes_otel",
       "rule": "5",
-      "description": "Vision API деградация (garbled output при повторном OCR). Текст поломан — LLM не может корректно проверить.",
-      "classification": "FLAKY",
-      "batch": null,
-      "status": "skipped",
+      "description": "Блок УТВЕРЖДАЮ перекрыт крупной круглой печатью — текст нечитаем. Vision корректно парсит искажённый текст, LLM корректно находит нарушения. Реальная проблема документа.",
+      "classification": "TRUE_FAIL",
+      "batch": "investigation",
+      "status": "reclassified",
       "fix_file": null,
-      "fix_description": null,
+      "fix_description": "Переклассификация entry #192: false_fail → true_fail B. Подтверждено визуально — печать поверх текста.",
       "fix_run": null,
       "analysis_entry_id": 192
     },

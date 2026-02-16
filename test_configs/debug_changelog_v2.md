@@ -23,9 +23,9 @@
 
 | # | Doc/Rule | Причина | Классификация | Статус |
 |---|----------|---------|---------------|--------|
-| 1 | kpsc/biznes_otel 7.8 | Рефакторинг парсера удалил поле `takt_time` из `extract_fields()` | OUR_FIX | **TODO** |
-| 2 | kpsc/rotosnab 4.1 | `sheet_finder` берёт "КПСЦ ТС" (20 колонок) вместо "КПСЦ" (17), validator не фильтрует null-колонки | OUR_FIX | **TODO** |
-| 3 | kpsc/rotosnab 7.8 | Та же причина что #1 — `takt_time` удалено из парсера | OUR_FIX | **TODO** |
+| 1 | kpsc/biznes_otel 7.8 | Рефакторинг парсера удалил поле `takt_time` из `extract_fields()` | MASKED_TRUE_FAIL | ✅ Батч 1 |
+| 2 | kpsc/rotosnab 4.1 | `sheet_finder` берёт "КПСЦ ТС" (20 колонок) вместо "КПСЦ" (17), validator не фильтрует null-колонки | OUR_FIX | ✅ Батч 1 |
+| 3 | kpsc/rotosnab 7.8 | Та же причина что #1 — `takt_time` удалено из парсера | MASKED_TRUE_FAIL | ✅ Батч 1 |
 | 4 | polozhenie_po/biznes_otel 10 | LLM стохастика на рукописном OCR-мусоре | FLAKY | Пропуск |
 | 5 | prikaz_ic/ruslet 5 | LLM цепляется за формат примера "№15БП" | FLAKY | Пропуск |
 | 6 | prikaz_ic/ruslet 8 | Vision выдал "Периодичность актуализации документа" | FLAKY | Пропуск |
@@ -46,7 +46,7 @@
 | Entry | Doc/Rule | Причина | Статус |
 |-------|----------|---------|--------|
 | #166 | prikaz_formirovanie_po/ruslet 5 | Vision галлюцинировал "г. Москва" (города нет в DOCX). Промпт НЕ менялся. | FLAKY / future: non-LLM |
-| #122 | prikaz_ic_potoka/mapper 3 | **БАГ тест-раннера**: LLM timeout → `_parse_vision_results()` ставит PASS вместо ERROR | **TODO** — фикс тест-раннера |
+| #122 | prikaz_ic_potoka/mapper 3 | **БАГ тест-раннера**: LLM timeout → `_parse_vision_results()` ставит PASS вместо ERROR | ✅ Батч 2 |
 
 **Фикс #122 (баг тест-раннера):**
 - Файл: `run_tests.py`, строки 268-298 (`_parse_vision_results()`)
@@ -58,9 +58,9 @@
 
 | Entry | Doc/Rule | Причина | Статус |
 |-------|----------|---------|--------|
-| #192 | polozhenie_po/biznes_otel 5 | Vision API деградация (garbled output) | FLAKY |
-| #268 | prikaz_ic/ruslet 2 | Фикс частично сработал (1/2), LLM нашёл новую проблему с ФИАС-адресом | **TODO** |
-| #135 | prikaz_ic_potoka/ruslet 8 | Non-LLM нашёл true_fail на позиции A (нет ФИО в п.4 "ознакомить") | **TODO** → переклассификация |
+| #192 | polozhenie_po/biznes_otel 5 | Печать поверх блока УТВЕРЖДАЮ → текст нечитаем | ✅ true_fail B (Investigation) |
+| #268 | prikaz_ic/ruslet 2 | Фикс частично сработал (1/2), LLM нашёл новую проблему с ФИАС-адресом | ✅ Батч 3 |
+| #135 | prikaz_ic_potoka/ruslet 8 | Non-LLM нашёл true_fail на позиции A (нет ФИО в п.4 "ознакомить") | ✅ Батч 4 (true_fail B) |
 
 **Фикс #268 (prikaz_ic rule 2 промпт):**
 - Файл: `doc_configs/prikaz_ic/rules.json`, rule 2, пункт 4 (город)
@@ -157,4 +157,70 @@
 | prikaz_ic/ruslet rule 5 | LLM цепляется за формат примера | LLM |
 | prikaz_ic/ruslet rule 8 | Vision OCR вариация в названии столбца | Vision |
 | prikaz_formirovanie_po/ruslet rule 5 | Vision галлюцинирует город | Vision |
-| polozhenie_po/biznes_otel rule 5 | Vision garbled output при повторном OCR | Vision |
+| polozhenie_po/biznes_otel rule 5 | ~~Vision garbled output~~ → TRUE_FAIL (печать поверх текста) | Reclassified |
+
+---
+
+## Investigation Phase (ветка `fix/regression-investigation`)
+
+### Фикс: polozhenie_po/biznes_otel rule 6 (commit `89fbc5f`)
+
+**Проблема:** Vision-промпт требовал "ЗАГЛАВНЫМИ БУКВАМИ" → пропускал заголовки в обычном регистре ("2. Основные задачи"). Также `normalize_structure()` склеивал "Заголовки не найдены" с предыдущим заголовком.
+
+**Фиксы:**
+- `doc_configs/polozhenie_po/chunks_vision.json`: убрано "ЗАГЛАВНЫМИ БУКВАМИ", добавлено "жирным шрифтом или выделенные. Регистр НЕ важен"
+- `audit_engine/preprocessors/polozhenie_normalize.py:147`: фильтр `'не найдены' in stripped.lower()` перед конкатенацией
+- Результат: rule 6 FAIL → PASS, 0 регрессий ✅
+
+### Переклассификация: entry #192 (polozhenie_po/biznes_otel rule 5)
+
+- Подтверждено визуально: блок УТВЕРЖДАЮ перекрыт крупной круглой печатью, текст нечитаем
+- Вердикт: `false_fail` → `true_fail B` (проблема документа, не системы)
+
+### Фикс: prikaz_ic_potoka/ruslet rule 5 (ФИАС-адрес)
+
+**Проблема:** Vision нестабильно возвращает город — то "Москва" (PASS), то "109316, Москва г, ..." (FAIL). Non-LLM regex `Москв[аеы](?!\s+г[,\s])` отклонял ФИАС-формат. На документе нет отдельной строки "г. Москва" — город только в реквизитах бланка.
+
+**Бизнес-решение:** город в любом контексте шапки (включая ФИАС) = ДОПУСТИМО.
+
+**Фиксы:**
+- `audit_engine/non_llm_checks/prikaz_checks.py:119`: убран negative lookahead `(?!\s+г[,\s])` → `Москв[аеы]` принимает любой контекст
+- `doc_configs/prikaz_ic_potoka/rules.json` rule 5: обновлён текст — "город может быть указан в ЛЮБОМ контексте"
+- Entry #134: `false_fail C` → `false_fail E` (баг non-LLM кода)
+- Результат: rule 5 стабильный PASS (даже с ФИАС-выводом Vision) ✅
+
+**Регрессионный тест rule 5 (4 doc_type × все компании):**
+
+| doc_type | baseline | new | регрессии |
+|----------|----------|-----|-----------|
+| prikaz_comp_ppu (5 компаний) | 2P/3F | 2P/3F | 0 |
+| prikaz_ppu (3 компании) | 0P/3F | 0P/3F | 0 |
+| prikaz_vyhod (5 компаний) | 5P/0F | 5P/0F | 0 |
+| prikaz_ic_potoka/ruslet | FAIL | **PASS** | улучшение ✅ |
+
+---
+
+## Итоговая сводка
+
+### Аномалии: 37/37 закрыты
+
+| Категория | Кол-во | Результат |
+|-----------|--------|-----------|
+| Регрессии (код) | 3 | 1 fixed (Батч 1), 2 reclassified (MASKED_TRUE_FAIL) |
+| Регрессии (FLAKY) | 3 | Пропущены (Vision/LLM стохастика) |
+| Маскировки true_fail | 2 | 1 fixed (Батч 2), 1 FLAKY |
+| Неисправленные false_fail | 3 | Батч 3 + Батч 4 + Investigation |
+| Новые FAIL (kpsc) | 26 | Все true_fail B (записаны) |
+
+### Код-фиксы (всего 6)
+
+| Файл | Что исправлено |
+|------|---------------|
+| `validate_4_1_vpp_filled.py` | `str(None)` баг — null-колонки |
+| `parse_kpsc_header.py` | Возвращён `takt_time` field |
+| `run_tests.py` | ERROR-файлы не читались → PASS вместо ERROR |
+| `prikaz_ic/rules.json` | ФИАС-адрес = валидный город (LLM) |
+| `polozhenie_po/chunks_vision.json` + `polozhenie_normalize.py` | Vision пропускал заголовки не в КАПСЕ |
+| `prikaz_checks.py` + `prikaz_ic_potoka/rules.json` | ФИАС-адрес = валидный город (non-LLM) |
+
+### test_analysis.json: 315/315 reviewed
