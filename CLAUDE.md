@@ -51,7 +51,7 @@
 
 ```bash
 # Python (аудит)
-source /Users/mask/Documents/ПРОЕКТЫ_2024/СОЮЗ_СНАБ_workRepo/knowledge_map_release_v2/ai-neuro/semantic_venv/bin/activate
+source /home/masked/projects/mos_analiz/.venv/bin/activate
 export OPENAI_API_KEY="$OPENAI_API_KEY"
 python run_audit.py --doc-type <type> --target <file>
 python run_audit.py --list-types
