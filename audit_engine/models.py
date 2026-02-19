@@ -89,6 +89,20 @@ class AuditConfig:
     max_workers: int = 1
     temperature: float = 0.0
     secondary_file: Optional[SecondaryFileConfig] = None
+    # Выбор парсера: "vision" (облако GPT) | "ocr" (локальный HunyuanOCR)
+    parser: str = "vision"
+    # OCR-параметры (используются при parser="ocr")
+    ocr_model: Optional[str] = None
+    ocr_base_url: str = "http://localhost:8000/v1/"
+    ocr_prompt: str = "提取文档图片中正文的所有信息用markdown格式表示，忽略页眉页脚。表格用html格式表达，公式用LaTeX格式表示，按照阅读顺序组织进行解析。特别注意：保留表格上方和下方的所有独立标题行和文本，不要将标题合并到表格中。"
+    ocr_dpi: int = 200
+    # LLM-параметры (для сверки правил через локальный vLLM)
+    llm_base_url: Optional[str] = None
+    llm_max_tokens: int = 4096
+    reasoning_effort: Optional[str] = None
+    llm_seed: Optional[int] = None
+    # OCR post-processing: имена чанков, где убирать аннотации Word-форм ("текст -> значение")
+    strip_annotations_chunks: List[str] = field(default_factory=list)
     # Пути (заполняются автоматически при загрузке)
     config_dir: Path = field(default_factory=Path)
     rules_path: Path = field(default_factory=Path)
@@ -168,6 +182,18 @@ def load_audit_config(config_dir: Path) -> AuditConfig:
         filename_keywords=data.get("filename_keywords", None),
         max_workers=data.get("max_workers", 1),
         temperature=data.get("temperature", 0.0),
+        # Парсер и OCR
+        parser=data.get("parser", "vision"),
+        ocr_model=data.get("ocr_model", None),
+        ocr_base_url=data.get("ocr_base_url", "http://localhost:8000/v1/"),
+        ocr_prompt=data.get("ocr_prompt", AuditConfig.ocr_prompt),
+        ocr_dpi=data.get("ocr_dpi", 200),
+        # LLM-параметры для локального vLLM
+        llm_base_url=data.get("llm_base_url", None),
+        llm_max_tokens=data.get("llm_max_tokens", 4096),
+        reasoning_effort=data.get("reasoning_effort", None),
+        llm_seed=data.get("llm_seed", None),
+        strip_annotations_chunks=data.get("strip_annotations_chunks", []),
         config_dir=config_dir,
         rules_path=config_dir / "rules.json",
         chunks_vision_path=config_dir / "chunks_vision.json",

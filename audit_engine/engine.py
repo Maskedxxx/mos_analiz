@@ -152,6 +152,11 @@ class AuditEngine:
         if secondary_path:
             self.logger.log(f"   Вторичный файл: {secondary_path}")
         self.logger.log(f"   Модель: {model}")
+        self.logger.log(f"   Парсер: {self.config.parser}")
+        if self.config.parser == "ocr":
+            self.logger.log(f"   OCR URL: {self.config.ocr_base_url}")
+        if self.config.llm_base_url:
+            self.logger.log(f"   LLM URL: {self.config.llm_base_url}")
 
         # Проверяем наличие целевого файла
         if not Path(target_path).exists():
@@ -284,33 +289,46 @@ class AuditEngine:
         vision_log_dir: Path
     ) -> Dict[str, Any]:
         """
-        Парсит документ через Vision Pipeline.
+        Парсит документ через выбранный парсер (Vision или OCR).
 
-        Импортирует VisionParser лениво — только при необходимости.
+        Выбор парсера определяется config.parser:
+        - "vision" → VisionParser (облачный GPT Vision)
+        - "ocr" → OcrParser (локальный HunyuanOCR + сборка по страницам)
         """
-        self.logger.log(f"📄 Vision-парсинг: {file_path}...")
-
-        try:
-            from .vision_parser import VisionParser
-        except ImportError as e:
-            self.logger.log(f"❌ Не удалось импортировать VisionParser: {e}")
-            self.logger.log(f"   Убедитесь, что установлены зависимости: pip install pdf2image tenacity Pillow")
-            sys.exit(1)
-
-        vision_parser = VisionParser(
-            str(self.config.chunks_vision_path),
-            log_dir=str(vision_log_dir)
-        )
-
         chunk_filter_arg = (
             chunks_to_parse[0]
             if chunks_to_parse and len(chunks_to_parse) == 1
             else None
         )
 
-        doc = vision_parser.parse(file_path, chunk_filter=chunk_filter_arg)
-        self.logger.log_parsed_doc(doc, Path(file_path).stem)
+        if self.config.parser == "ocr":
+            # Локальный OCR-парсер
+            self.logger.log(f"📄 OCR-парсинг: {file_path}...")
+            try:
+                from .ocr_parser import OcrParser
+            except ImportError as e:
+                self.logger.log(f"❌ Не удалось импортировать OcrParser: {e}")
+                sys.exit(1)
 
+            parser = OcrParser(config=self.config, log_dir=str(vision_log_dir))
+            doc = parser.parse(file_path, chunk_filter=chunk_filter_arg)
+        else:
+            # Облачный Vision-парсер (по умолчанию)
+            self.logger.log(f"📄 Vision-парсинг: {file_path}...")
+            try:
+                from .vision_parser import VisionParser
+            except ImportError as e:
+                self.logger.log(f"❌ Не удалось импортировать VisionParser: {e}")
+                self.logger.log(f"   Убедитесь, что установлены зависимости: pip install pdf2image tenacity Pillow")
+                sys.exit(1)
+
+            vision_parser = VisionParser(
+                str(self.config.chunks_vision_path),
+                log_dir=str(vision_log_dir)
+            )
+            doc = vision_parser.parse(file_path, chunk_filter=chunk_filter_arg)
+
+        self.logger.log_parsed_doc(doc, Path(file_path).stem)
         return doc
 
     def _get_template(
@@ -353,14 +371,19 @@ class AuditEngine:
                 with open(cache_path, 'r', encoding='utf-8') as f:
                     cached = json.load(f)
 
-                if cached.get("_hash") == file_hash:
+                # Проверяем совпадение хэша файла И типа парсера
+                cache_parser = cached.get("_parser", "vision")
+                if cached.get("_hash") == file_hash and cache_parser == self.config.parser:
                     self.logger.log(f"✅ Используем кэш шаблона: {cache_path}")
                     # Убираем служебные поля
                     cached.pop("_hash", None)
                     cached.pop("_cached_at", None)
+                    cached.pop("_parser", None)
                     return cached
-                else:
+                elif cached.get("_hash") != file_hash:
                     self.logger.log(f"⚠️ Кэш устарел (хэш изменился), перепарсинг...")
+                else:
+                    self.logger.log(f"⚠️ Кэш от другого парсера ({cache_parser}→{self.config.parser}), перепарсинг...")
             except (json.JSONDecodeError, KeyError):
                 self.logger.log(f"⚠️ Кэш повреждён, перепарсинг...")
 
@@ -372,9 +395,10 @@ class AuditEngine:
             session_dir / "vision_template"
         )
 
-        # Сохраняем кэш
+        # Сохраняем кэш (с типом парсера для инвалидации при смене vision↔ocr)
         cache_data = dict(template_doc)
         cache_data["_hash"] = file_hash
+        cache_data["_parser"] = self.config.parser
         cache_data["_cached_at"] = datetime.now().isoformat()
 
         with open(cache_path, 'w', encoding='utf-8') as f:
@@ -516,7 +540,13 @@ class AuditEngine:
 
         self.logger.log_rule_prompt(spec.index, self.system_prompt, user_prompt)
 
-        raw_response = call_llm(messages, model, temperature)
+        raw_response = call_llm(
+            messages, model, temperature,
+            base_url=self.config.llm_base_url,
+            max_tokens=self.config.llm_max_tokens,
+            reasoning_effort=self.config.reasoning_effort,
+            seed=self.config.llm_seed
+        )
 
         violations = parse_json_response(raw_response, spec.index, spec.title)
 

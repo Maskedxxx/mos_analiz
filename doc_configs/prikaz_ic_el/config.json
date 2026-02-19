@@ -1,9 +1,17 @@
 {
   "doc_type": "prikaz_ic_el",
   "doc_title": "1.5 Приказ о создании ИЦ предприятия эл. вид с прилож.",
-  "model": "gpt-4.1-mini",
+  "parser": "ocr",
+  "model": "openai/gpt-oss-120b",
   "system_prompt": "default.txt",
   "filename_pattern": "1.5 Приказ о создании ИЦ с прилож",
   "max_workers": 1,
-  "temperature": 0.0
+  "temperature": 0.0,
+  "ocr_base_url": "http://localhost:8000/v1/",
+  "ocr_dpi": 200,
+  "llm_base_url": "http://localhost:8001/v1/",
+  "llm_max_tokens": 4096,
+  "reasoning_effort": "medium",
+  "llm_seed": 42,
+  "strip_annotations_chunks": ["текст_приказа"]
 }

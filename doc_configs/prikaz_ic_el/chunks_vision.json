@@ -36,6 +36,7 @@
   "vision": {
     "model": "gpt-4.1-mini",
     "dpi": 200,
+    "prompt": "提取文档图片中的所有信息用markdown格式表示，表格用markdown表格格式表达，按照阅读顺序组织进行解析。",
     "max_workers": 1,
     "timeout": 90,
     "max_retries": 3,

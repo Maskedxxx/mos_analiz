@@ -11,7 +11,7 @@
 
 import json
 import sys
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 
 from openai import OpenAI
 
@@ -123,25 +123,46 @@ def parse_json_response(
 def call_llm(
     messages: List[Dict[str, str]],
     model: str,
-    temperature: float = 0.0
+    temperature: float = 0.0,
+    base_url: Optional[str] = None,
+    max_tokens: Optional[int] = None,
+    reasoning_effort: Optional[str] = None,
+    seed: Optional[int] = None
 ) -> str:
     """
     Вызывает LLM через OpenAI Chat API.
 
     Args:
         messages: список сообщений [{role, content}]
-        model: идентификатор модели (gpt-4.1-mini и т.д.)
+        model: идентификатор модели (gpt-4.1-mini, openai/gpt-oss-120b и т.д.)
         temperature: температура генерации (0.0 = детерминированный ответ)
+        base_url: URL API (None = облачный OpenAI из env)
+        max_tokens: лимит токенов генерации (None = по умолчанию провайдера)
+        reasoning_effort: уровень reasoning для моделей gpt-oss ("low"/"medium"/"high")
+        seed: фиксированный seed для воспроизводимости (особенно важен для MoE-моделей)
 
     Returns:
         Текст ответа LLM.
     """
-    client = OpenAI()
+    # base_url=None → стандартный клиент (OPENAI_API_KEY + OPENAI_BASE_URL из env)
+    if base_url:
+        client = OpenAI(base_url=base_url, api_key="none")
+    else:
+        client = OpenAI()
 
-    response = client.chat.completions.create(
-        model=model,
-        messages=messages,  # type: ignore[arg-type]
-        temperature=temperature
-    )
+    kwargs: Dict[str, Any] = {
+        "model": model,
+        "messages": messages,
+        "temperature": temperature,
+    }
+    if max_tokens is not None:
+        kwargs["max_tokens"] = max_tokens
+    if seed is not None:
+        kwargs["seed"] = seed
+    # reasoning_effort передаётся через extra_body для vLLM / gpt-oss
+    if reasoning_effort:
+        kwargs["extra_body"] = {"reasoning_effort": reasoning_effort}
+
+    response = client.chat.completions.create(**kwargs)  # type: ignore[arg-type]
 
     return response.choices[0].message.content or ""
