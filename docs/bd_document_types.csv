@@ -2,7 +2,7 @@ number,service,done,has_tests,test_docs_path,doc_type
 1,0.1,да,нет,,akt_nachala
 2,0.2,нет,нет,,
 3,0.2,нет,нет,,
-4,0.5,нет,нет,,
+4,0.5,да,нет,test_docs/doc_3,prikaz_tirazh
 5,1.1,да,нет,,drivers
 6,1.3,да,да,test_docs/prikaz_ic_potoka; test_docs/prikaz_ic_potoka_el,prikaz_ic_potoka; prikaz_ic_potoka_el
 7,1.4,нет,нет,,

@@ -13,3 +13,4 @@ from .registry import register, get_check, get_all_checks
 from . import filename
 from . import shapka_elements
 from . import prikaz_checks
+from . import prikaz_tirazh_checks

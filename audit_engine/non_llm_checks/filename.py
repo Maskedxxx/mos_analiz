@@ -152,3 +152,9 @@ def check_filename_akt_nachala(target_doc, config):
 def check_filename_prikaz_pa(target_doc, config):
     """Правило #1: проверка имени файла для Приказа о внедрении ПА."""
     return check_filename_universal(target_doc, config, 1, "Проверка имени файла документа.")
+
+
+@register("prikaz_tirazh", 1)
+def check_filename_prikaz_tirazh(target_doc, config):
+    """Правило #1: проверка имени файла для Приказа о тиражировании."""
+    return check_filename_universal(target_doc, config, 1, "Проверка имени файла документа.")
