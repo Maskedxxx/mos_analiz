@@ -1,0 +1,17 @@
+{
+  "doc_type": "prikaz_pa",
+  "doc_title": "2.2 Приказ о внедрении ПА с приложениями",
+  "parser": "ocr",
+  "model": "openai/gpt-oss-120b",
+  "system_prompt": "default.txt",
+  "filename_keywords": ["2.2", "Приказ", "внедрении", "ПА"],
+  "max_workers": 1,
+  "temperature": 0.0,
+  "ocr_base_url": "http://localhost:8000/v1/",
+  "ocr_dpi": 200,
+  "llm_base_url": "http://localhost:8001/v1/",
+  "llm_max_tokens": 4096,
+  "reasoning_effort": "medium",
+  "llm_seed": 42,
+  "strip_annotations_chunks": ["текст_приказа"]
+}

@@ -8,7 +8,7 @@ number,service,done,has_tests,test_docs_path,doc_type
 7,1.4,нет,нет,,
 8,1.5,да,да,test_docs/prikaz_ic; test_docs/prikaz_ic_el,prikaz_ic; prikaz_ic_el
 9,2.1,да,да,test_docs/kpsc,kpsc
-10,2.2,нет,нет,,
+10,2.2,да,нет,test_docs/doc_1,prikaz_pa
 11,2.3,нет,нет,,
 12,2.4,да,да,test_docs/kartochka_proekta,kartochka_proekta
 13,2.5,да,да,test_docs/cheklist_eu; test_docs/presentation_eu,cheklist_eu; presentation_eu

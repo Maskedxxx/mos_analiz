@@ -146,3 +146,9 @@ def check_filename_polozhenie_ppu(target_doc, config):
 def check_filename_akt_nachala(target_doc, config):
     """Non-LLM: проверка имени файла для Акта начала мероприятий"""
     return check_filename_universal(target_doc, config, 1, "Проверка названия файла")
+
+
+@register("prikaz_pa", 1)
+def check_filename_prikaz_pa(target_doc, config):
+    """Правило #1: проверка имени файла для Приказа о внедрении ПА."""
+    return check_filename_universal(target_doc, config, 1, "Проверка имени файла документа.")
