@@ -30,7 +30,8 @@ from . import config
 from .layout_detector import LayoutDetector
 from .vlm_client import VLMClient
 from .reading_order import sort_by_reading_order
-from .normalizer import build_page_markdown
+from .normalizer import merge_text_and_tables
+from .table_parser import parse_paddle_table_html, is_table_format
 
 logger = logging.getLogger(__name__)
 
@@ -205,14 +206,19 @@ class PaddleExtractor:
         page_num: int
     ) -> str:
         """
-        Обрабатывает одну страницу: layout → crop → VLM → markdown.
+        Обрабатывает одну страницу: full-page OCR + отдельные кропы таблиц.
+
+        Вместо кропа каждого layout-элемента отправляем полную страницу
+        в VLM с промптом "OCR:". Таблицы маскируются белым и кропаются
+        отдельно с промптом "Table Recognition:". Результаты склеиваются
+        по y-координатам.
 
         Args:
             page_image: изображение страницы.
             page_num: номер страницы (1-based).
 
         Returns:
-            str: markdown-текст страницы.
+            str: текст страницы с вставленными HTML-таблицами.
         """
         logger.info(f"=== Страница {page_num} ===")
 
@@ -248,65 +254,125 @@ class PaddleExtractor:
             vis_path = self.log_dir / f"page_{page_num}_layout.png"
             self._detector.visualize(page_image, regions, str(vis_path))
 
-        # Этап 2: Reading order
-        regions = sort_by_reading_order(regions)
+        # Этап 2: Разделение на таблицы и всё остальное
+        table_regions = [r for r in regions if r["class_name"] == "Table"]
+        table_regions.sort(key=lambda r: r["bbox"][1])  # сортировка по y сверху вниз
 
-        # Этап 3: Crop + VLM для каждого региона
+        n_tables = len(table_regions)
+        logger.info(f"Таблиц: {n_tables}, full-page OCR + {n_tables} table crop(s)")
+
+        # Этап 3: Подготовка VLM-запросов
         vlm_items = []
-        for i, region in enumerate(regions):
-            cls = region["class_name"]
-            prompt = config.CLASS_PROMPTS.get(cls)
-            if prompt is None:
-                logger.debug(f"  Пропуск: [{i}] {cls} (нет промпта)")
-                continue
 
-            crop = self._crop_region(page_image, region["bbox"])
+        # 3a. Full-page OCR (с маскировкой таблиц если есть)
+        if table_regions:
+            ocr_page = self._mask_table_regions(page_image, table_regions)
+        else:
+            ocr_page = page_image
 
-            # Сохраняем crop для отладки
-            if self.log_dir:
-                crop_path = self.log_dir / f"page_{page_num}_crop_{i}_{cls}.png"
-                crop.save(str(crop_path))
+        vlm_items.append({
+            "image": ocr_page,
+            "prompt": "OCR:",
+            "index": -1,  # спец-индекс для full-page
+        })
 
+        # 3b. Кропы таблиц
+        for i, table_reg in enumerate(table_regions):
+            crop = self._crop_region(page_image, table_reg["bbox"])
             vlm_items.append({
                 "image": crop,
-                "prompt": prompt,
+                "prompt": "Table Recognition:",
                 "index": i,
             })
 
-        # Распознаём все регионы параллельно через VLM
-        t0 = time.time()
-        if vlm_items:
-            vlm_results = await self._vlm.recognize_batch(vlm_items)
-        else:
-            vlm_results = []
-        vlm_time = time.time() - t0
-        logger.info(f"VLM: {len(vlm_results)} регионов за {vlm_time:.2f}s")
-
-        # Собираем результаты обратно в regions
-        vlm_map = {r["index"]: r["text"] for r in vlm_results}
-        recognized = []
-        for i, region in enumerate(regions):
-            if i in vlm_map:
-                region["text"] = vlm_map[i]
-                recognized.append(region)
-
-        # Сохраняем сырой VLM-ответ для сверки
+        # Сохраняем для отладки
         if self.log_dir:
-            raw_data = []
-            for region in recognized:
-                raw_data.append({
-                    "class_name": region["class_name"],
-                    "score": round(region["score"], 3),
-                    "bbox": [int(c) for c in region["bbox"]],
-                    "raw_text": region["text"],
-                })
+            if table_regions:
+                masked_path = self.log_dir / f"page_{page_num}_masked.png"
+                ocr_page.save(str(masked_path))
+            for i in range(n_tables):
+                crop_path = self.log_dir / f"page_{page_num}_table_{i}.png"
+                vlm_items[1 + i]["image"].save(str(crop_path))
+
+        # Этап 4: VLM batch (параллельно)
+        t0 = time.time()
+        vlm_results = await self._vlm.recognize_batch(vlm_items)
+        vlm_time = time.time() - t0
+        logger.info(f"VLM: {len(vlm_results)} запросов за {vlm_time:.2f}s")
+
+        # Этап 5: Разбор результатов
+        vlm_map = {r["index"]: r["text"] for r in vlm_results}
+        full_page_text = vlm_map.get(-1, "")
+
+        table_entries = []
+        for i, table_reg in enumerate(table_regions):
+            raw_table = vlm_map.get(i, "")
+            if is_table_format(raw_table):
+                html = parse_paddle_table_html(raw_table)
+            else:
+                html = raw_table
+            table_entries.append({
+                "bbox": table_reg["bbox"],
+                "html": html,
+            })
+
+        # Сохраняем сырые данные для сверки
+        if self.log_dir:
+            raw_data = {
+                "full_page_text": full_page_text,
+                "tables": [
+                    {
+                        "bbox": [int(c) for c in table_regions[i]["bbox"]],
+                        "score": round(table_regions[i]["score"], 3),
+                        "raw_text": vlm_map.get(i, ""),
+                        "parsed_html": entry["html"],
+                    }
+                    for i, entry in enumerate(table_entries)
+                ],
+            }
             raw_path = self.log_dir / f"page_{page_num}_raw.json"
             with open(raw_path, "w", encoding="utf-8") as f:
                 json.dump(raw_data, f, ensure_ascii=False, indent=2)
 
-        # Этап 4: Markdown
-        md = build_page_markdown(recognized, page_num)
+        # Этап 6: Склейка текста и таблиц
+        md = merge_text_and_tables(full_page_text, table_entries, page_image.size)
         return md
+
+    @staticmethod
+    def _mask_table_regions(
+        page_image: Image.Image,
+        table_regions: list,
+        padding: int = None,
+    ) -> Image.Image:
+        """
+        Закрашивает области таблиц белым на копии страницы.
+
+        Позволяет full-page OCR не читать содержимое таблиц
+        (они распознаются отдельными кропами с "Table Recognition:").
+
+        Args:
+            page_image: оригинал страницы.
+            table_regions: регионы с class_name="Table".
+            padding: отступ маски в пикселях.
+
+        Returns:
+            Копия страницы с замаскированными таблицами.
+        """
+        from PIL import ImageDraw
+
+        padding = padding if padding is not None else config.TABLE_MASK_PADDING_PX
+        masked = page_image.copy()
+        draw = ImageDraw.Draw(masked)
+
+        for region in table_regions:
+            x1, y1, x2, y2 = [int(c) for c in region["bbox"]]
+            x1 = max(0, x1 - padding)
+            y1 = max(0, y1 - padding)
+            x2 = min(masked.width, x2 + padding)
+            y2 = min(masked.height, y2 + padding)
+            draw.rectangle([x1, y1, x2, y2], fill="white")
+
+        return masked
 
     @staticmethod
     def _crop_region(

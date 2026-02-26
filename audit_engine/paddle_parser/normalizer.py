@@ -71,6 +71,58 @@ def build_page_markdown(
     return result
 
 
+def merge_text_and_tables(
+    full_page_text: str,
+    table_entries: list,
+    page_size: tuple,
+) -> str:
+    """
+    Вставляет HTML-таблицы в текст страницы по y-позиции на странице.
+
+    Таблицы были замаскированы белым при full-page OCR, поэтому их нет
+    в full_page_text. Здесь мы вставляем их обратно в правильное место.
+
+    Args:
+        full_page_text: текст страницы от VLM (без таблиц).
+        table_entries: [{"bbox": [x1,y1,x2,y2], "html": str}],
+                       отсортированные по y (сверху вниз).
+        page_size: (width, height) страницы в пикселях.
+
+    Returns:
+        str: текст с вставленными HTML-таблицами, нормализованный.
+    """
+    if not table_entries:
+        return normalize_paddle_text(full_page_text)
+
+    _, page_h = page_size
+    lines = full_page_text.split('\n')
+    total_lines = len(lines)
+
+    if total_lines == 0:
+        # Страница без текста — только таблицы
+        parts = [t["html"] for t in table_entries]
+        return "\n\n".join(parts)
+
+    # Для каждой таблицы: позиция вставки = (y_center / page_height) * total_lines
+    insertions = []
+    for entry in table_entries:
+        y1 = entry["bbox"][1]
+        y2 = entry["bbox"][3]
+        y_center = (y1 + y2) / 2
+        relative_pos = y_center / page_h
+        insert_at = int(relative_pos * total_lines)
+        insert_at = max(0, min(insert_at, total_lines))
+        insertions.append((insert_at, entry["html"]))
+
+    # Вставляем с конца, чтобы не сбивать индексы
+    insertions.sort(key=lambda x: x[0], reverse=True)
+    for line_idx, html in insertions:
+        lines.insert(line_idx, f"\n{html}\n")
+
+    result = "\n".join(lines)
+    return normalize_paddle_text(result)
+
+
 def normalize_paddle_text(text: str) -> str:
     """
     Нормализация OCR-текста от Paddle pipeline для ChunkAssembler.

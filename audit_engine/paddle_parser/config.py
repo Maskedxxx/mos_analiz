@@ -68,7 +68,7 @@ CLASS_MD_WRAPPER = {
     "Section-header":       "### {text}",
     "Caption":              "*{text}*",
     "Footnote":             "*{text}*",
-    "List-item":            "- {text}",
+    "List-item":            "{text}",
     "Page-header":          "{text}",
     "Page-footer":          "{text}",
     "Document Index":       "{text}",
@@ -84,3 +84,6 @@ CLASS_MD_WRAPPER = {
 
 # Формат таблиц: "html" сохраняет colspan/rowspan (лучше для LLM-аудита)
 TABLE_OUTPUT_FORMAT = "html"
+
+# Отступ при маскировке таблиц белым (пикс.) перед full-page OCR
+TABLE_MASK_PADDING_PX = 5
