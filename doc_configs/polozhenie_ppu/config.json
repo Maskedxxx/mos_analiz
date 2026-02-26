@@ -1,10 +1,13 @@
 {
   "doc_type": "polozhenie_ppu",
   "doc_title": "Положение о ППУ",
-  "model": "gpt-4.1-mini",
+  "model": "openai/gpt-oss-120b",
   "system_prompt": "default.txt",
   "filename_pattern": "reg_ppu",
-  "filename_keywords": ["ппу"],
+  "filename_keywords": [
+    "ппу"
+  ],
   "max_workers": 3,
-  "temperature": 0.0
+  "temperature": 0.0,
+  "parser": "paddle"
 }

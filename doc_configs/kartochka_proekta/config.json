@@ -1,8 +1,9 @@
 {
-    "doc_type": "kartochka_proekta",
-    "doc_title": "2.4 Утверждённая Карточка проекта",
-    "engine": "kartochka_proekta",
-    "model": "gpt-4.1-mini",
-    "temperature": 0.0,
-    "max_workers": 5
+  "doc_type": "kartochka_proekta",
+  "doc_title": "2.4 Утверждённая Карточка проекта",
+  "engine": "kartochka_proekta",
+  "model": "openai/gpt-oss-120b",
+  "temperature": 0.0,
+  "max_workers": 5,
+  "parser": "paddle"
 }

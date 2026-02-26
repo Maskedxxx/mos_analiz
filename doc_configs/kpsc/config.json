@@ -1,8 +1,8 @@
 {
-    "doc_type": "kpsc",
-    "doc_title": "КПСЦ — Карта потока создания ценности",
-    "engine": "kpsc",
-    "model": "gpt-4.1-mini",
-    "temperature": 0.0,
-    "max_workers": 5
+  "doc_type": "kpsc",
+  "doc_title": "КПСЦ — Карта потока создания ценности",
+  "engine": "kpsc",
+  "model": "openai/gpt-oss-120b",
+  "temperature": 0.0,
+  "max_workers": 5
 }

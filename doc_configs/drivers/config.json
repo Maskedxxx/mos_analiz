@@ -1,9 +1,9 @@
 {
-    "doc_type": "drivers",
-    "doc_title": "Расчёт драйверов производительности",
-    "engine": "drivers",
-    "model": "gpt-4.1-mini",
-    "temperature": 0.0,
-    "primary_threshold": 9.0,
-    "fallback_threshold": 7.0
+  "doc_type": "drivers",
+  "doc_title": "Расчёт драйверов производительности",
+  "engine": "drivers",
+  "model": "openai/gpt-oss-120b",
+  "temperature": 0.0,
+  "primary_threshold": 9.0,
+  "fallback_threshold": 7.0
 }

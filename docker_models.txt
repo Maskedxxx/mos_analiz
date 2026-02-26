@@ -1,0 +1,38 @@
+# Запуск моделей для аудита документов (DGX Spark, UMA 128 GiB)
+# Порядок запуска не важен — PaddleOCR занимает мало памяти
+# Каждую модель запускать в ОТДЕЛЬНОМ терминале (без -d, логи в консоль)
+# Когда увидишь "Uvicorn running on http://0.0.0.0:XXXX" — модель готова
+
+# ── Терминал 1: PaddleOCR-VL-1.5 (OCR, порт 8000) ──────────────
+# Веса: ~2 GiB. max-model-len=4096 (для OCR не нужен 128K контекст)
+docker run --rm --gpus all --network host --ipc=host \
+  --name paddleocr-vl-15 \
+  -v ~/.cache/huggingface:/root/.cache/huggingface \
+  scitrera/dgx-spark-vllm:0.15.1-t4 \
+  vllm serve PaddlePaddle/PaddleOCR-VL-1.5 \
+  --trust-remote-code \
+  --gpu-memory-utilization 0.05 \
+  --max-model-len 4096 \
+  --max-num-batched-tokens 4096 \
+  --no-enable-prefix-caching \
+  --served-model-name PaddleOCR-VL-1.5 \
+  --host 0.0.0.0 --port 8000
+
+# ── Терминал 2: gpt-oss-120b (LLM, порт 8001) ──────────────────
+docker run --rm --gpus all --network host --ipc=host \
+  --name gpt-oss-120b \
+  -v ~/.cache/huggingface:/root/.cache/huggingface \
+  scitrera/dgx-spark-vllm:0.15.1-t4 \
+  vllm serve openai/gpt-oss-120b \
+  --trust-remote-code \
+  --gpu-memory-utilization 0.70 \
+  --max-model-len 96000 \
+  --served-model-name openai/gpt-oss-120b \
+  --host 0.0.0.0 --port 8001
+
+# ── Проверка готовности (из третьего терминала) ──────────────────
+# curl http://localhost:8000/v1/models   # PaddleOCR-VL-1.5
+# curl http://localhost:8001/v1/models   # gpt-oss-120b
+
+# ── Стоп: Ctrl+C в терминале модели (--rm автоудаляет контейнер)
+# Или из другого терминала: docker rm -f paddleocr-vl-15 gpt-oss-120b

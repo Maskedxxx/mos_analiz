@@ -97,10 +97,14 @@ class AuditConfig:
     ocr_prompt: str = "提取文档图片中正文的所有信息用markdown格式表示，忽略页眉页脚。表格用html格式表达，公式用LaTeX格式表示，按照阅读顺序组织进行解析。特别注意：保留表格上方和下方的所有独立标题行和文本，不要将标题合并到表格中。"
     ocr_dpi: int = 200
     # LLM-параметры (для сверки правил через локальный vLLM)
-    llm_base_url: Optional[str] = None
+    llm_base_url: Optional[str] = "http://localhost:8001/v1/"
     llm_max_tokens: int = 4096
     reasoning_effort: Optional[str] = None
     llm_seed: Optional[int] = None
+    # Paddle-параметры (используются при parser="paddle")
+    paddle_layout_model: Optional[str] = None      # HF repo Heron-101 (None = дефолт)
+    paddle_layout_device: str = "cuda:0"            # GPU для layout detection
+    paddle_vlm_model: Optional[str] = None          # Имя VLM (None = автоопределение)
     # OCR post-processing: имена чанков, где убирать аннотации Word-форм ("текст -> значение")
     strip_annotations_chunks: List[str] = field(default_factory=list)
     # Пути (заполняются автоматически при загрузке)
@@ -188,8 +192,12 @@ def load_audit_config(config_dir: Path) -> AuditConfig:
         ocr_base_url=data.get("ocr_base_url", "http://localhost:8000/v1/"),
         ocr_prompt=data.get("ocr_prompt", AuditConfig.ocr_prompt),
         ocr_dpi=data.get("ocr_dpi", 200),
+        # Paddle-параметры
+        paddle_layout_model=data.get("paddle_layout_model", None),
+        paddle_layout_device=data.get("paddle_layout_device", "cuda:0"),
+        paddle_vlm_model=data.get("paddle_vlm_model", None),
         # LLM-параметры для локального vLLM
-        llm_base_url=data.get("llm_base_url", None),
+        llm_base_url=data.get("llm_base_url", "http://localhost:8001/v1/"),
         llm_max_tokens=data.get("llm_max_tokens", 4096),
         reasoning_effort=data.get("reasoning_effort", None),
         llm_seed=data.get("llm_seed", None),

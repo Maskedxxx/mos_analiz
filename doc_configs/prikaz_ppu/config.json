@@ -1,10 +1,14 @@
 {
   "doc_type": "prikaz_ppu",
   "doc_title": "Приказ о ППУ",
-  "model": "gpt-4.1-mini",
+  "model": "openai/gpt-oss-120b",
   "system_prompt": "default.txt",
   "filename_pattern": "order_ppu",
-  "filename_keywords": ["приказ", "ппу"],
+  "filename_keywords": [
+    "приказ",
+    "ппу"
+  ],
   "max_workers": 4,
-  "temperature": 0.0
+  "temperature": 0.0,
+  "parser": "paddle"
 }

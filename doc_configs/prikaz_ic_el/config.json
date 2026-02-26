@@ -1,7 +1,7 @@
 {
   "doc_type": "prikaz_ic_el",
   "doc_title": "1.5 Приказ о создании ИЦ предприятия эл. вид с прилож.",
-  "parser": "ocr",
+  "parser": "paddle",
   "model": "openai/gpt-oss-120b",
   "system_prompt": "default.txt",
   "filename_pattern": "1.5 Приказ о создании ИЦ с прилож",
@@ -13,5 +13,7 @@
   "llm_max_tokens": 4096,
   "reasoning_effort": "medium",
   "llm_seed": 42,
-  "strip_annotations_chunks": ["текст_приказа"]
+  "strip_annotations_chunks": [
+    "текст_приказа"
+  ]
 }

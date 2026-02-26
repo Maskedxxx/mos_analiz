@@ -1,9 +1,10 @@
 {
   "doc_type": "presentation_eu",
   "doc_title": "2.5 Презентация ЭУ",
-  "model": "gpt-4.1-mini",
+  "model": "openai/gpt-oss-120b",
   "system_prompt": "presentation.txt",
   "filename_pattern": "2.5 Презентация ЭУ",
   "max_workers": 1,
-  "temperature": 0.0
+  "temperature": 0.0,
+  "parser": "paddle"
 }

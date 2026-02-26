@@ -1,7 +1,7 @@
 {
   "doc_type": "prikaz_vyhod",
   "doc_title": "3.6 Приказ о проведении выхода + График обхода ОМ",
-  "model": "gpt-4.1-mini",
+  "model": "openai/gpt-oss-120b",
   "system_prompt": "default.txt",
   "filename_pattern": "3.6 Приказ о проведении выхода",
   "max_workers": 4,
@@ -10,5 +10,6 @@
     "type": "xlsx",
     "parser": "grafik_obhod",
     "chunk_prefix": "xlsx_"
-  }
+  },
+  "parser": "paddle"
 }

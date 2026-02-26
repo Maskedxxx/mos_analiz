@@ -29,7 +29,8 @@ class ChunkAssembler:
         page_texts: Dict[int, str],
         chunks: List[ChunkConfig],
         total_pages: int,
-        strip_annotations_chunks: Optional[List[str]] = None
+        strip_annotations_chunks: Optional[List[str]] = None,
+        normalizer_fn=None
     ) -> Dict[str, str]:
         """
         Собирает чанки из постраничных OCR-текстов.
@@ -40,10 +41,14 @@ class ChunkAssembler:
             total_pages: общее количество страниц в PDF
             strip_annotations_chunks: имена чанков, где убирать
                 аннотации Word-форм (паттерн 'текст -> значение')
+            normalizer_fn: функция нормализации текста (по умолчанию normalize_ocr_text).
+                Для Paddle pipeline передаётся normalize_paddle_text,
+                которая сохраняет HTML-таблицы с colspan/rowspan.
 
         Returns:
             Dict[str, str]: {chunk_name: собранный_и_нормализованный_текст}
         """
+        _normalize = normalizer_fn or normalize_ocr_text
         _strip_chunks = set(strip_annotations_chunks or [])
         result = {}
 
@@ -79,7 +84,7 @@ class ChunkAssembler:
 
             # Склеиваем и нормализуем
             raw_text = "\n\n".join(parts)
-            normalized = normalize_ocr_text(raw_text)
+            normalized = _normalize(raw_text)
             result[chunk.name] = normalized
 
             log.info(f"Чанк '{chunk.name}': страницы {page_nums}, {len(normalized)} символов")

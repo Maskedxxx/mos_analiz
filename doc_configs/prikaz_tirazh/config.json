@@ -1,10 +1,14 @@
 {
   "doc_type": "prikaz_tirazh",
   "doc_title": "0.5 Приказ о переходе на этап Тиражирования с приложениями",
-  "parser": "ocr",
+  "parser": "paddle",
   "model": "openai/gpt-oss-120b",
   "system_prompt": "default.txt",
-  "filename_keywords": ["0.5", "Приказ", "Тиражирован"],
+  "filename_keywords": [
+    "0.5",
+    "Приказ",
+    "Тиражирован"
+  ],
   "max_workers": 1,
   "temperature": 0.0,
   "ocr_base_url": "http://localhost:8000/v1/",
