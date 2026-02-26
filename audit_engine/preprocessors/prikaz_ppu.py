@@ -41,8 +41,20 @@ def normalize_title(text: str) -> str:
         # Пропускаем строку с номером приказа (голый «№ ...»)
         if re.match(r'^№\s*', stripped):
             continue
-        # Пропускаем строку с датой (ДД.ММ.ГГГГ или плейсхолдер)
+        # Пропускаем конкретную дату ДД.ММ.ГГГГ (до общей проверки на цифры)
+        if re.match(r'^\d{2}\.\d{2}\.\d{4}', stripped):
+            continue
+        # Пропускаем строку с датой-плейсхолдером ("" "месяц" 20_ г.)
         if re.match(r'^[\d"_<]', stripped) and not re.match(r'^\d+\.', stripped):
+            continue
+        # Название организации — вариативная часть
+        if re.match(r'^(ООО|ОАО|ЗАО|ПАО|АО|ИП)\s*[""«]', stripped):
+            continue
+        # Плейсхолдеры шаблона <...>
+        if stripped.startswith('<') and stripped.endswith('>'):
+            continue
+        # ФИО подписанта (И.О. Фамилия)
+        if re.match(r'^[А-ЯЁ]\.[А-ЯЁ]\.\s+[А-ЯЁ][а-яё]+$', stripped):
             continue
         result.append(stripped)
     return '\n'.join(result)
@@ -114,6 +126,10 @@ def normalize_text_for_rule3(text: str) -> str:
 
         # Плейсхолдеры шаблона
         if line_stripped.startswith('<') and line_stripped.endswith('>'):
+            continue
+
+        # Название организации (ООО/ОАО/ЗАО/ПАО/АО/ИП "...") — вариативная часть
+        if re.match(r'^(ООО|ОАО|ЗАО|ПАО|АО|ИП)\s*[""«]', line_stripped):
             continue
 
         new_lines.append(line)

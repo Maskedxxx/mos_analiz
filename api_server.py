@@ -15,9 +15,15 @@ FastAPI-сервер для веб-аудита документов.
 """
 
 import asyncio
+import faulthandler
 import json
 import os
 import shutil
+import sys
+import traceback
+
+# Печатает traceback даже при segfault (SIGSEGV, SIGFPE, SIGABRT)
+faulthandler.enable(file=sys.stderr)
 import threading
 import uuid
 from pathlib import Path
@@ -241,5 +247,9 @@ def _run_audit_thread(session_id: str, doc_type: str, target_path: str):
         progress_callback("complete", session["result"])
 
     except Exception as e:
+        err_msg = f"{type(e).__name__}: {e}"
+        traceback.print_exc(file=sys.stderr)
+        sys.stderr.flush()
+        print(f"[AUDIT ERROR] {err_msg}", file=sys.stderr, flush=True)
         session["status"] = "error"
-        progress_callback("error", {"message": str(e)})
+        progress_callback("error", {"message": err_msg})
