@@ -9,6 +9,17 @@ Pillow>=10.0.0
 pdf2image>=1.16.0
 tenacity>=8.0.0
 
+# Paddle Parser (Layout-aware OCR: Heron-101 + PaddleOCR-VL-1.5)
+# torch устанавливается отдельно: pip install torch --index-url https://download.pytorch.org/whl/cu130
+transformers>=4.40.0
+numpy>=1.24.0
+
+# Web API
+fastapi>=0.115.0
+uvicorn[standard]>=0.32.0
+sse-starlette>=2.0.0
+python-multipart>=0.0.18
+
 # Системная зависимость (установить отдельно):
 # brew install --cask libreoffice   # macOS
 # apt-get install libreoffice       # Linux

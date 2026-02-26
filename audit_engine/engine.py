@@ -110,7 +110,8 @@ class AuditEngine:
         session_dir: Optional[str] = None,
         chunk_filter: Optional[str] = None,
         out_xlsx: Optional[str] = None,
-        secondary_path: Optional[str] = None
+        secondary_path: Optional[str] = None,
+        progress_callback: Optional[callable] = None
     ) -> AuditResult:
         """
         Запуск полного цикла аудита.
@@ -128,11 +129,17 @@ class AuditEngine:
             chunk_filter: парсить только указанный чанк
             out_xlsx: путь для сохранения Excel
             secondary_path: путь к вторичному файлу (XLSX для multi-file аудитов)
+            progress_callback: колбэк прогресса для веб-UI (type: str, data: dict)
 
         Returns:
             AuditResult с нарушениями и статистикой
         """
         start_time = time.time()
+
+        # Хелпер для отправки прогресса (если есть колбэк)
+        def _emit(event_type: str, data: dict = None):
+            if progress_callback:
+                progress_callback(event_type, data or {})
 
         # Параметры из конфига с возможностью переопределения
         model = model or self.config.model
@@ -153,6 +160,10 @@ class AuditEngine:
             self.logger.log(f"   Вторичный файл: {secondary_path}")
         self.logger.log(f"   Модель: {model}")
         self.logger.log(f"   Парсер: {self.config.parser}")
+        if self.config.parser == "paddle":
+            self.logger.log(f"   Layout: {self.config.paddle_layout_model or 'Heron-101 (дефолт)'}")
+            self.logger.log(f"   VLM: {self.config.paddle_vlm_model or 'PaddleOCR-VL-1.5 (авто)'}")
+            self.logger.log(f"   VLM URL: {self.config.ocr_base_url}")
         if self.config.parser == "ocr":
             self.logger.log(f"   OCR URL: {self.config.ocr_base_url}")
         if self.config.llm_base_url:
@@ -176,6 +187,7 @@ class AuditEngine:
         self.logger.log(f"📋 Загрузка правил...")
         all_rules = load_rules(str(self.config.rules_path))
         self.logger.log(f"   Загружено {len(all_rules)} правил")
+        _emit("audit_start", {"doc_type": self.doc_type, "filename": Path(target_path).name, "total_rules": len(all_rules)})
 
         # Фильтр по правилу
         rules = all_rules
@@ -194,7 +206,9 @@ class AuditEngine:
             chunks_to_parse = [chunk_filter]
 
         # Vision-парсинг документов
+        _emit("parsing_target", {})
         target_doc = self._parse_document(target_path, chunks_to_parse, session_path / "vision_target")
+        _emit("parsing_target_done", {})
 
         # Парсинг вторичного файла и merge в target_doc
         if secondary_path and self.config.secondary_file:
@@ -203,12 +217,14 @@ class AuditEngine:
             self.logger.log(f"   📊 Merged {len(secondary_chunks)} чанков из вторичного файла")
 
         # Получаем шаблон
+        _emit("parsing_template", {})
         template_doc = self._get_template(
             template_path=template_path,
             no_cache=no_cache,
             chunks_to_parse=chunks_to_parse,
             session_dir=session_path
         )
+        _emit("parsing_template_done", {})
 
         # Режим --parse-only
         if parse_only:
@@ -242,7 +258,8 @@ class AuditEngine:
             template_doc=template_doc,
             model=model,
             temperature=temperature,
-            print_prompts=print_prompts
+            print_prompts=print_prompts,
+            progress_callback=progress_callback
         )
 
         # Сохраняем результаты
@@ -301,7 +318,18 @@ class AuditEngine:
             else None
         )
 
-        if self.config.parser == "ocr":
+        if self.config.parser == "paddle":
+            # Layout-aware OCR: Heron-101 + PaddleOCR-VL-1.5
+            self.logger.log(f"📄 Paddle-парсинг: {file_path}...")
+            try:
+                from .paddle_parser import PaddleParser
+            except ImportError as e:
+                self.logger.log(f"❌ Не удалось импортировать PaddleParser: {e}")
+                sys.exit(1)
+
+            parser = PaddleParser(config=self.config, log_dir=str(vision_log_dir))
+            doc = parser.parse(file_path, chunk_filter=chunk_filter_arg)
+        elif self.config.parser == "ocr":
             # Локальный OCR-парсер
             self.logger.log(f"📄 OCR-парсинг: {file_path}...")
             try:
@@ -445,7 +473,8 @@ class AuditEngine:
         template_doc: Dict[str, Any],
         model: str,
         temperature: float,
-        print_prompts: bool = False
+        print_prompts: bool = False,
+        progress_callback: Optional[callable] = None
     ) -> List[Dict[str, Any]]:
         """
         Выполняет все проверки (non-LLM + LLM).
@@ -454,6 +483,8 @@ class AuditEngine:
         LLM правила выполняются параллельно через ThreadPoolExecutor.
         """
         all_violations: List[Dict[str, Any]] = []
+        rules_done = 0
+        total_rules = len(rules)
 
         # === Non-LLM правила ===
         for spec in rules:
@@ -468,6 +499,13 @@ class AuditEngine:
 
                 all_violations.extend(violations)
                 self.logger.log_non_llm_result(spec.index, violations)
+                rules_done += 1
+                if progress_callback:
+                    progress_callback("rule_done", {
+                        "rule_index": spec.index, "rule_title": spec.title,
+                        "current": rules_done, "total": total_rules,
+                        "violations_count": len(violations)
+                    })
 
                 if print_prompts:
                     print(f"\n{'='*60}")
@@ -515,6 +553,13 @@ class AuditEngine:
                     violations = future.result()
                     all_violations.extend(violations)
                     self.logger.log(f"✅ Правило #{spec.index} проверено, нарушений: {len(violations)}")
+                    rules_done += 1
+                    if progress_callback:
+                        progress_callback("rule_done", {
+                            "rule_index": spec.index, "rule_title": spec.title,
+                            "current": rules_done, "total": total_rules,
+                            "violations_count": len(violations)
+                        })
                 except Exception as e:
                     error_msg = str(e)
                     self.logger.log_error(spec.index, error_msg)
