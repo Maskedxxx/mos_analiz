@@ -15,7 +15,7 @@ import re
 from .registry import register_preprocessor
 
 
-@register_preprocessor("prikaz_ic", "текст_приказа")
+# prikaz_ic: регистрация УБРАНА — все правила v2.0 target_only, препроцессинг не нужен
 @register_preprocessor("prikaz_ic_el", "текст_приказа")
 def normalize_text_for_rule3(text: str) -> str:
     """
@@ -92,7 +92,6 @@ def normalize_text_for_rule3(text: str) -> str:
     return text
 
 
-@register_preprocessor("prikaz_ic", "шапка")
 @register_preprocessor("prikaz_ic_el", "шапка")
 def normalize_header(text: str) -> str:
     """
@@ -133,7 +132,6 @@ def normalize_header(text: str) -> str:
     return '\n'.join(new_lines)
 
 
-@register_preprocessor("prikaz_ic", "приложение_2_к_приказу")
 @register_preprocessor("prikaz_ic_el", "приложение_2_к_приказу")
 def trim_appendix2_to_relevant_sections(text: str) -> str:
     """

@@ -641,7 +641,228 @@ def check_signatory_with_stamp(
 # Регистрация для prikaz_formirovanie_po
 # ============================================================================
 
-@register("prikaz_formirovanie_po", 9)
+@register("prikaz_formirovanie_po", 3)
+def check_rekvizity_formirovanie_po(target_doc, config):
+    """
+    Правило #3: реквизиты приказа — юрлицо, дата, номер, город.
+
+    Проверяет наличие 4 обязательных реквизитов в шапке документа:
+    1) Юрлицо: ООО/ЗАО/АО/ПАО + наименование
+    2) Дата: числовой (ДД.ММ.ГГГГ) или словесный («ДД» месяц ГГГГ г.)
+    3) Номер приказа: символ № + непустое значение
+    4) Город: г. + название
+    """
+    scopes = ["шапка"]
+    text = _get_scopes_text(target_doc, scopes)
+    violations = []
+    rule_index = 3
+    rule_title = "Проверка реквизитов приказа"
+
+    # 1) Юрлицо: ООО/ЗАО/АО/ПАО + текст в кавычках или без
+    has_org = bool(re.search(
+        r'(ООО|ЗАО|АО|ПАО)\s*[«"\']?.+',
+        text
+    ))
+    if not has_org:
+        violations.append({
+            "rule_index": rule_index,
+            "rule_title": rule_title,
+            "Целевой документ": "отсутствует",
+            "Различие": "Отсутствует наименование юрлица (ООО/ЗАО/АО/ПАО)"
+        })
+
+    # 2) Дата: числовой или словесный формат
+    months = (
+        r'январ[яь]|феврал[яь]|март[а]?|апрел[яь]|ма[йя]|'
+        r'июн[яь]|июл[яь]|август[а]?|сентябр[яь]|октябр[яь]|'
+        r'ноябр[яь]|декабр[яь]'
+    )
+    has_date = bool(re.search(
+        r'\d{2}[.\s]+\d{2}[.\s]+\d{4}|'
+        r'[«"\'"]?\d{1,2}[»"\'"]?\s*(?:' + months + r')',
+        text, re.IGNORECASE
+    ))
+    # Плейсхолдер даты (__.__.202_) — не считаем
+    if has_date and re.search(r'_+\._+\._+', text):
+        has_date = False
+    if not has_date:
+        violations.append({
+            "rule_index": rule_index,
+            "rule_title": rule_title,
+            "Целевой документ": "отсутствует",
+            "Различие": "Отсутствует дата приказа"
+        })
+
+    # 3) Номер приказа: № + непустое значение
+    number_match = re.search(r'№\s*(.+)', text)
+    if number_match:
+        after_sign = number_match.group(1).strip()
+        cleaned = re.sub(r'[_\s]', '', after_sign)
+        is_bn = bool(re.match(r'^б[/\\]?н$', cleaned, re.IGNORECASE))
+        if not cleaned or is_bn:
+            violations.append({
+                "rule_index": rule_index,
+                "rule_title": rule_title,
+                "Целевой документ": f"№ {after_sign}",
+                "Различие": "Номер приказа не заполнен"
+            })
+    else:
+        violations.append({
+            "rule_index": rule_index,
+            "rule_title": rule_title,
+            "Целевой документ": "отсутствует",
+            "Различие": "Отсутствует символ № с номером приказа"
+        })
+
+    # 4) Город: г. + название
+    has_city = bool(re.search(
+        r'г\.\s*[А-ЯЁ][а-яё]+|город\s+[А-ЯЁ]|Москв[аеы]|Санкт-Петербург',
+        text
+    ))
+    if not has_city:
+        violations.append({
+            "rule_index": rule_index,
+            "rule_title": rule_title,
+            "Целевой документ": "отсутствует",
+            "Различие": "Отсутствует город подписания (например «г. Москва»)"
+        })
+
+    return violations
+
+
+@register("prikaz_formirovanie_po", 4)
 def check_stamp_formirovanie_po(target_doc, config):
-    """Правило #9: должность + ФИО + М.П./ПЕЧАТЬ для Приказа о формировании ПО."""
-    return check_signatory_with_stamp(target_doc, config, 9, "Проверка подписи директора и М.П.")
+    """Правило #4: должность + ФИО + М.П./ПЕЧАТЬ для Приказа о формировании ПО."""
+    return check_signatory_with_stamp(target_doc, config, 4, "Проверка подписанта и М.П.")
+
+
+# ============================================================================
+# Регистрация для prikaz_ic (Приказ о создании ИЦ предприятия)
+# ============================================================================
+
+@register("prikaz_ic", 2)
+def check_rekvizity_ic(target_doc, config):
+    """
+    Правило #2: реквизиты приказа (OCR-толерантный) для Приказа о создании ИЦ.
+
+    Проверяет 5 обязательных реквизитов в шапке:
+    1) Юрлицо: ООО/ЗАО/АО/ПАО (+ OCR: 000=ООО)
+    2) ПРИКАЗ
+    3) Дата
+    4) Номер
+    5) Город
+    """
+    scopes = ["шапка"]
+    text = _get_scopes_text(target_doc, scopes)
+    violations = []
+    rule_index = 2
+    rule_title = "Проверка реквизитов приказа"
+
+    # 1) Юрлицо: ООО/000 (OCR-артефакт нулей вместо букв О) + текст
+    has_org = bool(re.search(
+        r'(ООО|000|OOO|ЗАО|АО|ПАО)\s*[«"\']?.+',
+        text
+    ))
+    if not has_org:
+        violations.append({
+            "rule_index": rule_index,
+            "rule_title": rule_title,
+            "Целевой документ": "отсутствует",
+            "Различие": "Отсутствует наименование юрлица (ООО/ЗАО/АО/ПАО)"
+        })
+
+    # 2) ПРИКАЗ
+    has_prikaz = bool(re.search(
+        r'П\s*Р\s*И\s*К\s*А\s*З|Приказ',
+        text, re.IGNORECASE
+    ))
+    if not has_prikaz:
+        violations.append({
+            "rule_index": rule_index,
+            "rule_title": rule_title,
+            "Целевой документ": "отсутствует",
+            "Различие": "Отсутствует слово «ПРИКАЗ»"
+        })
+
+    # 3) Дата: числовой или словесный формат
+    months = (
+        r'январ[яь]|феврал[яь]|март[а]?|апрел[яь]|ма[йя]|'
+        r'июн[яь]|июл[яь]|август[а]?|сентябр[яь]|октябр[яь]|'
+        r'ноябр[яь]|декабр[яь]'
+    )
+    has_date = bool(re.search(
+        r'\d{2}[.\s]+\d{2}[.\s]+\d{4}|'
+        r'[«"\'"]?\d{1,2}[»"\'"]?\s*(?:' + months + r')',
+        text, re.IGNORECASE
+    ))
+    if has_date and re.search(r'_+\._+\._+', text):
+        has_date = False
+    if not has_date:
+        violations.append({
+            "rule_index": rule_index,
+            "rule_title": rule_title,
+            "Целевой документ": "отсутствует",
+            "Различие": "Отсутствует дата приказа"
+        })
+
+    # 4) Номер приказа: № + непустое значение
+    number_match = re.search(r'№\s*(.+)', text)
+    if number_match:
+        after_sign = number_match.group(1).strip()
+        cleaned = re.sub(r'[_\s]', '', after_sign)
+        is_bn = bool(re.match(r'^б[/\\]?н$', cleaned, re.IGNORECASE))
+        if not cleaned or is_bn:
+            violations.append({
+                "rule_index": rule_index,
+                "rule_title": rule_title,
+                "Целевой документ": f"№ {after_sign}",
+                "Различие": "Номер приказа не заполнен"
+            })
+    else:
+        violations.append({
+            "rule_index": rule_index,
+            "rule_title": rule_title,
+            "Целевой документ": "отсутствует",
+            "Различие": "Отсутствует символ № с номером приказа"
+        })
+
+    # 5) Город: г. + название
+    has_city = bool(re.search(
+        r'г\.\s*[А-ЯЁ][а-яё]+|город\s+[А-ЯЁ]|Москв[аеы]|Санкт-Петербург',
+        text
+    ))
+    if not has_city:
+        violations.append({
+            "rule_index": rule_index,
+            "rule_title": rule_title,
+            "Целевой документ": "отсутствует",
+            "Различие": "Отсутствует город подписания (например «г. Москва»)"
+        })
+
+    return violations
+
+
+@register("prikaz_ic", 4)
+def check_signatory_ic(target_doc, config):
+    """Правило #4: должность + ФИО подписанта для Приказа о создании ИЦ."""
+    return check_signatory(target_doc, config, 4,
+                           "Проверка подписанта.", scopes=["шапка"])
+
+
+@register("prikaz_ic", 6)
+def check_responsible_fio_ic(target_doc, config):
+    """
+    Правило #6: ФИО ответственных лиц в регламенте для Приказа о создании ИЦ.
+
+    Переиспользует логику check_responsible_fio_ic_potoka с маппингом scope:
+    prikaz_ic использует "приложение_2_к_приказу", а не "приложение_2_регламент".
+    """
+    # Адаптируем scope для совместимости с check_responsible_fio_ic_potoka
+    adapted_doc = dict(target_doc)
+    adapted_doc["приложение_2_регламент"] = target_doc.get("приложение_2_к_приказу", "")
+    violations = check_responsible_fio_ic_potoka(adapted_doc, config)
+    # Переписываем rule_index/title на актуальные для prikaz_ic
+    for v in violations:
+        v["rule_index"] = 6
+        v["rule_title"] = "Проверка ФИО ответственных лиц в регламенте."
+    return violations

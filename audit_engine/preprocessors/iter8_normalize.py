@@ -112,41 +112,6 @@ def preprocess_polozhenie_punkt_1_5(text: str) -> str:
     return normalize_text_for_comparison(text)
 
 
-# ============================================================================
-# Регистрация для prikaz_formirovanie_po — все scope с compare=template
-# ============================================================================
 
-@register_preprocessor("prikaz_formirovanie_po", "заголовок")
-def preprocess_prikaz_zagolovok(text: str) -> str:
-    """Нормализация заголовка для сравнения с шаблоном."""
-    return normalize_text_for_comparison(text)
-
-
-@register_preprocessor("prikaz_formirovanie_po", "текст_приказа")
-def preprocess_prikaz_tekst(text: str) -> str:
-    """
-    Нормализация текста приказа для структурного сравнения.
-
-    1) Склейка строк-продолжений внутри пунктов (Vision-артефакт):
-       «2. Разработать положение о ПО.\nОтветственный...» →
-       «2. Разработать положение о ПО. Ответственный...»
-    2) Стандартная нормализация переменных (даты, ФИО, организации)
-    """
-    # --- Шаг 1: Склейка строк-продолжений внутри пунктов ---
-    # Vision иногда разбивает пункт на строки. Пункт начинается с «N.» (цифра + точка).
-    # Всё что не начинается с «N.» или «ПРИКАЗЫВАЮ» — продолжение предыдущего пункта.
-    lines = text.split('\n')
-    merged = []
-    for line in lines:
-        stripped = line.strip()
-        if not stripped:
-            continue
-        if re.match(r'^\d+\.', stripped) or stripped.startswith('ПРИКАЗЫВАЮ'):
-            merged.append(stripped)
-        elif merged:
-            merged[-1] = merged[-1] + ' ' + stripped
-        else:
-            merged.append(stripped)
-    text = '\n'.join(merged)
-
-    return normalize_text_for_comparison(text)
+# Препроцессоры для prikaz_formirovanie_po УДАЛЕНЫ:
+# Все правила переведены на target_only/non-LLM (v2.0), template-сравнений нет.
