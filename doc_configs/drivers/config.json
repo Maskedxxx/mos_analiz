@@ -5,5 +5,8 @@
   "model": "openai/gpt-oss-120b",
   "temperature": 0.0,
   "primary_threshold": 9.0,
-  "fallback_threshold": 7.0
+  "fallback_threshold": 7.0,
+  "llm_base_url": "http://localhost:8001/v1/",
+  "reasoning_effort": "medium",
+  "llm_seed": 42
 }

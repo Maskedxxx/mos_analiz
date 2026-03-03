@@ -97,11 +97,10 @@ def run(args) -> AuditResult:
 
     # === Шаг 2: LLM-анализ секций ===
     print("\n[2/4] LLM-анализ секций...")
-    api_key = os.environ.get("OPENAI_API_KEY")
-    if not api_key:
-        raise RuntimeError("OPENAI_API_KEY не найден в переменных окружения")
+    api_key = os.environ.get("OPENAI_API_KEY", "dummy")
+    base_url = config.get("llm_base_url", "http://localhost:8001/v1/")
 
-    client = OpenAI(api_key=api_key)
+    client = OpenAI(api_key=api_key, base_url=base_url)
 
     # Загрузка промпта
     system_prompt = load_driver_prompt()
