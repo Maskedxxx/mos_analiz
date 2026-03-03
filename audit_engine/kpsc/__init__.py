@@ -72,8 +72,12 @@ def run(args) -> AuditResult:
     print(f"  Параллельность: {max_workers}")
     print()
 
-    # Установка переменной среды для валидаторов
+    # Установка переменных среды для валидаторов (subprocess)
     os.environ["VALIDATION_RULES_PATH"] = str(rules_path)
+    os.environ["LLM_BASE_URL"] = config.get("llm_base_url", "http://localhost:8001/v1/")
+    os.environ["LLM_MODEL"] = config.get("model", "openai/gpt-oss-120b")
+    if not os.environ.get("OPENAI_API_KEY"):
+        os.environ["OPENAI_API_KEY"] = "dummy"
 
     # === Шаг 1: Парсинг (9 парсеров) ===
     print("[1/3] Запуск 9 парсеров...")

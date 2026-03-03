@@ -98,10 +98,11 @@ def build_prompt(extracted_data: dict, rule: dict) -> str:
 
 def call_llm(prompt: str, api_key: str) -> dict:
     """Вызов OpenAI API"""
-    client = OpenAI(api_key=api_key)
+    base_url = os.environ.get("LLM_BASE_URL", "http://localhost:8001/v1/")
+    client = OpenAI(api_key=api_key, base_url=base_url)
 
     response = client.chat.completions.create(
-        model="gpt-4.1-mini-2025-04-14",
+        model=os.environ.get("LLM_MODEL", "openai/gpt-oss-120b"),
         messages=[
             {"role": "system", "content": "Ты эксперт по валидации документов КПСЦ. Отвечаешь строго в формате JSON."},
             {"role": "user", "content": prompt}
@@ -150,9 +151,7 @@ def main():
     args = parser.parse_args()
 
     # Получение API ключа
-    api_key = os.environ.get("OPENAI_API_KEY")
-    if not api_key:
-        raise ValueError("Не найден OPENAI_API_KEY в переменных окружения")
+    api_key = os.environ.get("OPENAI_API_KEY", "dummy")
 
 
     # Настройка логирования
@@ -189,7 +188,7 @@ def main():
     if args.verbose:
         log_step(log_file, 4, "Сформированный промпт для LLM", f"FULL PROMPT:\n{prompt}")
 
-    print("[5/6] Вызов LLM (gpt-4.1-mini-2025-04-14)")
+    print("[5/6] Вызов LLM")
     result = call_llm(prompt, api_key)
     if args.verbose:
         log_step(log_file, 5, "Ответ от LLM", f"LLM Response:\n{json.dumps(result, ensure_ascii=False, indent=2)}")

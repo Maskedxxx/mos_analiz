@@ -4,5 +4,8 @@
   "engine": "kpsc",
   "model": "openai/gpt-oss-120b",
   "temperature": 0.0,
-  "max_workers": 5
+  "max_workers": 5,
+  "llm_base_url": "http://localhost:8001/v1/",
+  "reasoning_effort": "medium",
+  "llm_seed": 42
 }
