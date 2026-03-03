@@ -8,6 +8,7 @@
 """
 
 import re
+import unicodedata
 from typing import Any, Dict, List
 
 from .registry import register
@@ -29,7 +30,8 @@ def check_filename_universal(
     actual = target_doc.get("имя_файла", "")
     # Убираем расширение
     actual_clean = re.sub(r'\.(docx?|pptx?|pdf)$', '', actual, flags=re.IGNORECASE)
-    name_lower = actual_clean.lower()
+    # NFC-нормализация: macOS/некоторые ФС записывают «й» как «и» + combining breve
+    name_lower = unicodedata.normalize('NFC', actual_clean).lower()
 
     # Режим 1: список ключевых слов (приоритет)
     keywords = getattr(config, 'filename_keywords', None)
