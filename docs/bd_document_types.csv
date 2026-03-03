@@ -1,23 +1,26 @@
-number,service,done,has_tests,test_docs_path,doc_type
-1,0.1,да,нет,,akt_nachala
-2,0.2,нет,нет,,
-3,0.2,нет,нет,,
-4,0.5,да,нет,test_docs/doc_3,prikaz_tirazh
-5,1.1,да,нет,,drivers
-6,1.3,да,да,test_docs/prikaz_ic_potoka; test_docs/prikaz_ic_potoka_el,prikaz_ic_potoka; prikaz_ic_potoka_el
-7,1.4,нет,нет,,
-8,1.5,да,да,test_docs/prikaz_ic; test_docs/prikaz_ic_el,prikaz_ic; prikaz_ic_el
-9,2.1,да,да,test_docs/kpsc,kpsc
-10,2.2,да,нет,test_docs/doc_1,prikaz_pa
-11,2.3,нет,нет,,
-12,2.4,да,да,test_docs/kartochka_proekta,kartochka_proekta
-13,2.5,да,да,test_docs/cheklist_eu; test_docs/presentation_eu,cheklist_eu; presentation_eu
-14,2.6,нет,нет,,
-15,3.3,нет,нет,,
-16,3.5,да,да,test_docs/polozhenie_po,polozhenie_po
-17,3.5,да,да,test_docs/prikaz_formirovanie_po,prikaz_formirovanie_po
-18,3.6,да,да,test_docs/prikaz_vyhod,prikaz_vyhod
-19,3.10,да,да,test_docs/prikaz_ppu,prikaz_ppu
-20,3.10,да,да,test_docs/prikaz_comp_ppu,prikaz_comp_ppu
-21,3.10,да,да,test_docs/polozhenie_comp_ppu,polozhenie_comp_ppu
-22,3.10,да,да,test_docs/polozhenie_ppu,polozhenie_ppu
+number,code,name,doc_type,status,test_docs
+1,0.1,Акт начала мероприятий,akt_nachala,done,1
+2,0.2,Приказ об ответственных,—,not_started,0
+3,0.2,Карточка проекта,kartochka_proekta,done,2
+4,0.5,Приказ о переходе на этап Тиражирования,prikaz_tirazh,done,1
+5,1.1,Драйверы производительности,drivers,done,9
+6,1.3,Приказ о создании ИЦ потока с прилож.,prikaz_ic_potoka,done,6
+7,1.3,Приказ о создании ИЦ потока (эл. вид),prikaz_ic_potoka_el,done,1
+8,1.4,Справка ЭЭ,—,not_started,0
+9,1.5,Приказ о создании ИЦ предприятия с прилож.,prikaz_ic,done,7
+10,1.5,Приказ о создании ИЦ предприятия (эл. вид),prikaz_ic_el,done,3
+11,2.1,КПСЦ и Спагетти ТС,kpsc,done,7
+12,2.2,Приказ о внедрении ПА с приложениями,prikaz_pa,done,1
+13,2.3,КПСЦ и Спагетти ЦС,—,not_started,0
+14,2.4,Утверждённая Карточка проекта,kartochka_proekta,done,2
+15,2.5,Чек-лист выбора ЭУ,cheklist_eu,done,7
+16,2.5,Презентация ЭУ,presentation_eu,done,3
+17,2.6,План-график,—,not_started,0
+18,3.3,Отчёт о результатах,—,not_started,0
+19,3.5,Положение о ПО,polozhenie_po,done,5
+20,3.5,Приказ о формировании ПО,prikaz_formirovanie_po,done,5
+21,3.6,Приказ о проведении выхода + График обхода,prikaz_vyhod,done,12
+22,3.10,Приказ о ППУ,prikaz_ppu,done,4
+23,3.10,Приказ о конкурсах ППУ,prikaz_comp_ppu,done,6
+24,3.10,Положение о конкурсах проектов и ППУ,polozhenie_comp_ppu,done,4
+25,3.10,Положение о ППУ,polozhenie_ppu,done,5

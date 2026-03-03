@@ -60,3 +60,8 @@ uploads/
 /*.png
 /*.docx
 /*.xlsx
+
+# Бинарные документы (docx, pptx, xlsx) — везде
+*.docx
+*.pptx
+*.xlsx

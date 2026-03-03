@@ -99,8 +99,7 @@ def run(args) -> AuditResult:
     print("\n[2/4] LLM-анализ секций...")
     api_key = os.environ.get("OPENAI_API_KEY")
     if not api_key:
-        print("  OPENAI_API_KEY не найден в переменных окружения")
-        raise SystemExit(1)
+        raise RuntimeError("OPENAI_API_KEY не найден в переменных окружения")
 
     client = OpenAI(api_key=api_key)
 

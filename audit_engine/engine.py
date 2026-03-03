@@ -172,7 +172,7 @@ class AuditEngine:
         # Проверяем наличие целевого файла
         if not Path(target_path).exists():
             self.logger.log(f"❌ Целевой документ не найден: {target_path}")
-            sys.exit(1)
+            raise FileNotFoundError(f"Целевой документ не найден: {target_path}")
 
         # Предупреждение: конфиг требует secondary, но не передан
         if self.config.secondary_file and not secondary_path:
@@ -181,7 +181,7 @@ class AuditEngine:
         # Проверяем наличие вторичного файла
         if secondary_path and not Path(secondary_path).exists():
             self.logger.log(f"❌ Вторичный файл не найден: {secondary_path}")
-            sys.exit(1)
+            raise FileNotFoundError(f"Вторичный файл не найден: {secondary_path}")
 
         # Загружаем правила
         self.logger.log(f"📋 Загрузка правил...")
@@ -197,7 +197,7 @@ class AuditEngine:
             rules = [r for r in all_rules if r.index == rule_filter]
             if not rules:
                 self.logger.log(f"❌ Правило #{rule_filter} не найдено")
-                sys.exit(1)
+                raise ValueError(f"Правило #{rule_filter} не найдено в {self.doc_type}")
             rule = rules[0]
             chunks_to_parse = [rule.scope] if isinstance(rule.scope, str) else list(rule.scope)
             self.logger.log(f"   ⚠️ Фильтр: только правило #{rule_filter}")
@@ -325,7 +325,7 @@ class AuditEngine:
                 from .paddle_parser import PaddleParser
             except ImportError as e:
                 self.logger.log(f"❌ Не удалось импортировать PaddleParser: {e}")
-                sys.exit(1)
+                raise ImportError(f"PaddleParser недоступен: {e}") from e
 
             parser = PaddleParser(config=self.config, log_dir=str(vision_log_dir))
             doc = parser.parse(file_path, chunk_filter=chunk_filter_arg)
@@ -336,7 +336,7 @@ class AuditEngine:
                 from .ocr_parser import OcrParser
             except ImportError as e:
                 self.logger.log(f"❌ Не удалось импортировать OcrParser: {e}")
-                sys.exit(1)
+                raise ImportError(f"OcrParser недоступен: {e}") from e
 
             parser = OcrParser(config=self.config, log_dir=str(vision_log_dir))
             doc = parser.parse(file_path, chunk_filter=chunk_filter_arg)
@@ -348,7 +348,7 @@ class AuditEngine:
             except ImportError as e:
                 self.logger.log(f"❌ Не удалось импортировать VisionParser: {e}")
                 self.logger.log(f"   Убедитесь, что установлены зависимости: pip install pdf2image tenacity Pillow")
-                sys.exit(1)
+                raise ImportError(f"VisionParser недоступен: {e}") from e
 
             vision_parser = VisionParser(
                 str(self.config.chunks_vision_path),
@@ -492,7 +492,11 @@ class AuditEngine:
                 self.logger.log(f"🔧 Запуск non-LLM правила #{spec.index}: {spec.title}")
                 check_fn = get_check(self.doc_type, spec.index)
                 if check_fn:
-                    violations = check_fn(target_doc, self.config)
+                    try:
+                        violations = check_fn(target_doc, self.config)
+                    except Exception as e:
+                        self.logger.log(f"   ❌ Ошибка в non-LLM проверке #{spec.index}: {e}")
+                        violations = []
                 else:
                     self.logger.log(f"   ⚠️ Нет зарегистрированной проверки для {self.doc_type}#{spec.index}")
                     violations = []

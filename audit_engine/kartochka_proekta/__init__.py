@@ -127,8 +127,7 @@ def run(args) -> AuditResult:
         rule_filter_str = str(args.rule_filter)
         rules = [r for r in rules if r["rule_index"] == rule_filter_str]
         if not rules:
-            print(f"  Правило {rule_filter_str} не найдено")
-            raise SystemExit(1)
+            raise ValueError(f"Правило {rule_filter_str} не найдено в kartochka_proekta")
         print(f"  Фильтр: только правило {rule_filter_str}")
 
     print(f"  Правил к проверке: {len(rules)}")

@@ -214,8 +214,61 @@ async def download_report(request: Request, session_id: str):
 
 # ── Фоновый поток аудита ─────────────────────────────────────────
 
+def _detect_engine(doc_type: str) -> str:
+    """
+    Определяет тип движка по полю "engine" в config.json.
+
+    Returns:
+        str: значение поля "engine" или "standard" если поля нет.
+    """
+    config_path = Path(__file__).parent / "doc_configs" / doc_type / "config.json"
+    if config_path.exists():
+        with open(config_path, "r", encoding="utf-8") as f:
+            data = json.load(f)
+        return data.get("engine", "standard")
+    return "standard"
+
+
+# Маппинг спецдвижков на модули (аналог run_audit.py)
+SPECIAL_ENGINES = {
+    "drivers": "audit_engine.drivers",
+    "kpsc": "audit_engine.kpsc",
+    "kartochka_proekta": "audit_engine.kartochka_proekta",
+}
+
+
+def _run_special_engine(engine_type: str, doc_type: str, target_path: str,
+                        session_dir: str) -> "AuditResult":
+    """
+    Запуск спецдвижка (kpsc, drivers, kartochka_proekta).
+
+    Спецдвижки ожидают argparse Namespace — эмулируем его.
+
+    Args:
+        engine_type: ключ из SPECIAL_ENGINES
+        doc_type: тип документа
+        target_path: путь к файлу
+        session_dir: директория для логов
+    Returns:
+        AuditResult
+    """
+    import importlib
+    from types import SimpleNamespace
+
+    module = importlib.import_module(SPECIAL_ENGINES[engine_type])
+    args = SimpleNamespace(
+        target=target_path,
+        parse_only=False,
+        rule_filter=None,
+        model=None,
+        temperature=None,
+        session_dir=session_dir,
+    )
+    return module.run(args)
+
+
 def _run_audit_thread(session_id: str, doc_type: str, target_path: str):
-    """Запуск AuditEngine.run() в фоновом потоке с progress_callback."""
+    """Запуск аудита в фоновом потоке с progress_callback."""
     session = sessions[session_id]
     loop = session["loop"]
     queue = session["events"]
@@ -228,13 +281,34 @@ def _run_audit_thread(session_id: str, doc_type: str, target_path: str):
         )
 
     try:
-        from audit_engine.engine import AuditEngine
+        # Определяем тип движка
+        engine_type = _detect_engine(doc_type)
 
-        engine = AuditEngine(doc_type)
-        result = engine.run(
-            target_path,
-            progress_callback=progress_callback,
-        )
+        if engine_type in SPECIAL_ENGINES:
+            # Спецдвижок (kpsc, drivers, kartochka_proekta)
+            progress_callback("audit_start", {
+                "doc_type": doc_type,
+                "filename": Path(target_path).name,
+                "engine": engine_type,
+            })
+
+            # Создаём session_dir для спецдвижка
+            from datetime import datetime as dt
+            timestamp = dt.now().strftime("%Y%m%d_%H%M%S")
+            session_dir = str(
+                Path(__file__).parent / "logs_result" / doc_type / f"session_{timestamp}"
+            )
+
+            result = _run_special_engine(engine_type, doc_type, target_path, session_dir)
+        else:
+            # Стандартный pipeline (Vision/Paddle + rules.json)
+            from audit_engine.engine import AuditEngine
+
+            engine = AuditEngine(doc_type)
+            result = engine.run(
+                target_path,
+                progress_callback=progress_callback,
+            )
 
         session["result"] = {
             "violations": result.violations,

@@ -23,7 +23,7 @@ def find_title(ws) -> int:
             v = ws.cell(row=r, column=c).value
             if isinstance(v, str) and TITLE_PHRASE in v.lower():
                 return r
-    raise SystemExit("Title 'Текущие показатели потока' not found")
+    raise ValueError("Title 'Текущие показатели потока' not found")
 
 
 def find_header_row(ws, title_row: int) -> int:
@@ -127,7 +127,7 @@ def build_payload(xlsx: Path, sheet_name: Optional[str] = None):
     title_row = None
     try:
         title_row = find_title(ws)
-    except SystemExit:
+    except ValueError:
         # Заголовок не найден — возвращаем пустой результат
         return {
             "meta": {"workbook": str(xlsx), "sheet": actual_sheet, "title_row": None},
