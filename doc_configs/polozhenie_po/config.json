@@ -3,7 +3,7 @@
   "doc_title": "3.5 Положение о ПО",
   "model": "openai/gpt-oss-120b",
   "system_prompt": "default.txt",
-  "filename_pattern": "3.5 Положение о ПО",
+  "filename_keywords": ["положение", "ПО"],
   "max_workers": 1,
   "temperature": 0.0,
   "parser": "paddle",
