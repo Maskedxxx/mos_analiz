@@ -318,7 +318,16 @@ class AuditEngine:
             else None
         )
 
-        if self.config.parser == "paddle":
+        if self.config.parser == "pptx":
+            # Прямое извлечение текста из PPTX через python-pptx (без OCR)
+            self.logger.log(f"📄 PPTX-парсинг: {file_path}...")
+            from .pptx_parser import parse_pptx
+            doc = parse_pptx(
+                file_path,
+                str(self.config.chunks_vision_path),
+                chunk_filter=chunk_filter_arg,
+            )
+        elif self.config.parser == "paddle":
             # Layout-aware OCR: Heron-101 + PaddleOCR-VL-1.5
             self.logger.log(f"📄 Paddle-парсинг: {file_path}...")
             try:

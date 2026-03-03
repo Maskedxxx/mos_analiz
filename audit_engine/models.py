@@ -89,7 +89,7 @@ class AuditConfig:
     max_workers: int = 1
     temperature: float = 0.0
     secondary_file: Optional[SecondaryFileConfig] = None
-    # Выбор парсера: "vision" (облако GPT) | "ocr" (локальный HunyuanOCR)
+    # Выбор парсера: "vision" | "ocr" | "paddle" | "pptx" (python-pptx, без OCR)
     parser: str = "vision"
     # OCR-параметры (используются при parser="ocr")
     ocr_model: Optional[str] = None
