@@ -3,8 +3,8 @@
 """
 Валидатор 1: Название файла.
 
-Проверяет что имя XLSX-файла содержит '0.2 Карточка проекта'
-и наименование предприятия.
+Проверяет что имя XLSX-файла содержит ключевые слова «Карточка» и «проект».
+Наименование предприятия НЕ проверяется (динамические данные).
 Без LLM — детерминированная проверка.
 """
 
@@ -38,40 +38,23 @@ def load_data(parser_outputs_dir: Path) -> dict:
 
 
 def validate(data: dict, rule: dict) -> dict:
-    """Проверка названия файла."""
+    """Проверка названия файла.
+
+    Проверяет наличие ключевых слов «Карточка» и «проект» в имени файла.
+    Наименование предприятия НЕ проверяется — оно динамическое.
+    """
     filename = data.get("meta", {}).get("workbook", "")
-    org_name = data.get("header", {}).get("org_name", "")
+    filename_lower = filename.lower()
 
-    # Мок: ожидаемый паттерн (Этап 2 — из БД через API)
-    expected_prefix = "0.2 Карточка проекта"
+    keywords = ["карточка", "проект"]
+    missing = [kw for kw in keywords if kw not in filename_lower]
 
-    errors = []
-
-    # Проверка 1: файл содержит ожидаемый префикс
-    if expected_prefix.lower() not in filename.lower():
-        errors.append(
-            f"Имя файла '{filename}' не содержит ожидаемый префикс '{expected_prefix}'"
-        )
-
-    # Проверка 2: файл содержит наименование предприятия
-    # Извлекаем название из org_name (убираем юр. форму и кавычки)
-    if org_name:
-        # "ООО \"ОБРАЗЕЦ\"" → "ОБРАЗЕЦ"
-        import re
-        name_match = re.search(r'["\«](.+?)["\»]', org_name)
-        if name_match:
-            enterprise_name = name_match.group(1).lower()
-            if enterprise_name not in filename.lower():
-                errors.append(
-                    f"Имя файла не содержит наименование предприятия '{name_match.group(1)}'"
-                )
-
-    if errors:
+    if missing:
         return {
             "rule_index": RULE_INDEX,
             "rule_title": RULE_TITLE,
             "status": "FAIL",
-            "discrepancy": "; ".join(errors),
+            "discrepancy": f"Имя файла '{filename}' не содержит ключевые слова: {missing}",
         }
 
     return {
