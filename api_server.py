@@ -24,6 +24,18 @@ import traceback
 
 # Печатает traceback даже при segfault (SIGSEGV, SIGFPE, SIGABRT)
 faulthandler.enable(file=sys.stderr)
+
+# Резервируем CUDA-контекст при старте (~1.5GB), ДО запуска VLLM.
+# Без этого VLLM забирает всю GPU-память и LayoutDetector не может инициализироваться.
+try:
+    import torch
+    if torch.cuda.is_available():
+        torch.cuda.init()
+        _dummy = torch.zeros(1, device="cuda:0")
+        del _dummy
+        print(f"[CUDA] Контекст зарезервирован на {torch.cuda.get_device_name(0)}")
+except Exception as e:
+    print(f"[CUDA] Не удалось зарезервировать контекст: {e}")
 import threading
 import uuid
 from pathlib import Path
@@ -40,7 +52,7 @@ app = FastAPI(title="AuditAPI")
 # CORS для dev-режима (Vite на :5173)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173"],
+    allow_origins=["http://localhost:5173", "http://192.168.20.118:5173"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
