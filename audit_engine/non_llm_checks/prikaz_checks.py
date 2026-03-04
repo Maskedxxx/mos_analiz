@@ -219,7 +219,7 @@ def check_signatory(
         r'(?<![А-ЯЁа-яё])ФИО(?![А-ЯЁа-яё])',
         text
     )
-    if fio_placeholders:
+    if fio_placeholders and not has_fio:
         has_fio = False
 
     if not has_fio:
@@ -425,8 +425,196 @@ def check_secretary_vyhod(target_doc, config):
         "назначить секретарем проведения обхода")
 
 
+# ============================================================================
+# Вспомогательные функции для проверки регламента
+# ============================================================================
+
+def _extract_paragraph(text: str, start_re: str, end_re: str) -> str:
+    """Извлекает текст параграфа между start_re и end_re (regex-маркеры)."""
+    start = re.search(start_re, text)
+    if not start:
+        return ""
+    rest = text[start.end():]
+    end = re.search(end_re, rest)
+    if end:
+        return rest[:end.start()].strip()
+    return rest.strip()
+
+
+def _trim_to_section_2(reglament: str) -> str:
+    """Обрезает регламент до раздела 2 — чтобы «1.2.1.» не совпадал с «2.1.» в regex."""
+    section_2 = re.search(r'(?:^|\n)\s*2\.\s+[А-ЯЁA-Z]', reglament)
+    if section_2:
+        return reglament[section_2.start():]
+    return reglament
+
+
+def _check_reglament_times(
+    reglament: str,
+    rule_index: int,
+    rule_title: str
+) -> List[Dict[str, Any]]:
+    """
+    Проверяет формат времени в п.2.7 (12-00) и п.2.8 (17-00) регламента.
+
+    Возвращает violations если время обрезано/отсутствует.
+    """
+    violations = []
+    reglament = _trim_to_section_2(reglament)
+
+    # п.2.7: «не позднее 12-00 следующего рабочего дня»
+    text_27 = _extract_paragraph(reglament, r'2\.7\.?\s', r'\n\s*2\.8')
+    if text_27 and not re.search(r'12[\-:\.]\s*00', text_27):
+        violations.append({
+            "rule_index": rule_index,
+            "rule_title": rule_title,
+            "Целевой документ": f"п.2.7: {text_27[:200]}",
+            "Различие": "Время «12-00» не указано или неполное"
+        })
+
+    # п.2.8: «не позднее 17-00 рабочего дня до проведения совещания»
+    text_28 = _extract_paragraph(reglament, r'2\.8\.?\s', r'\n\s*2\.9')
+    if text_28 and not re.search(r'17[\-:\.]\s*00', text_28):
+        violations.append({
+            "rule_index": rule_index,
+            "rule_title": rule_title,
+            "Целевой документ": f"п.2.8: {text_28[:200]}",
+            "Различие": "Время «17-00» не указано или неполное"
+        })
+
+    return violations
+
+
+def _normalize_org_form(text: str) -> str:
+    """Нормализует юрформу: 000/OOO → ООО (OCR-толерантно)."""
+    return text.replace('000', 'ООО').replace('OOO', 'ООО').replace('0OO', 'ООО').replace('OO0', 'ООО')
+
+
+def _extract_org_names(text: str) -> list:
+    """
+    Извлекает все упоминания юрлиц из текста: [(позиция, raw, normalized), ...].
+
+    OCR-толерантно: ООО = 000 = OOO.
+    """
+    org_forms = r'(ООО|000|OOO|ЗАО|АО|ПАО|ОАО)'
+    quotes = r'[«"\'\u201c\u201e]([^»"\'\u201d\u201f]{1,100})[»"\'\u201d\u201f]'
+    results = []
+    for m in re.finditer(org_forms + r'\s*' + quotes, text):
+        form = m.group(1)
+        name = m.group(2).strip()
+        norm_form = _normalize_org_form(form)
+        norm = f'{norm_form} "{name}"'
+        results.append((m.start(), m.group(0), norm))
+    return results
+
+
+def check_company_name_cross(
+    target_doc: Dict[str, Any],
+    config: Any,
+    rule_index: int = 10,
+    rule_title: str = "Сверка наименования компании.",
+    header_scope: str = "шапка",
+    body_scope: str = "приложение_2_к_приказу"
+) -> List[Dict[str, Any]]:
+    """
+    Проверяет что наименование компании из шапки совпадает с упоминаниями в приложении_2.
+
+    Извлекает эталонное наименование юрлица из шапки (первое упоминание),
+    затем ищет все упоминания юрлиц в body_scope и сравнивает с эталоном.
+    OCR-толерантно: ООО = 000 = OOO (кириллица/латиница/нули).
+    """
+    violations = []
+
+    header = target_doc.get(header_scope, "")
+    body = target_doc.get(body_scope, "")
+
+    if not header or not body:
+        return violations
+
+    header_orgs = _extract_org_names(header)
+    body_orgs = _extract_org_names(body)
+
+    if not header_orgs:
+        return violations  # Нет юрлица в шапке — пропускаем
+
+    # Первое юрлицо из шапки — эталон
+    _, etalon_raw, etalon_norm = header_orgs[0]
+
+    for pos, raw, norm in body_orgs:
+        if norm != etalon_norm:
+            # Определяем ближайший номер пункта перед найденным юрлицом
+            before_text = body[:pos]
+            punkt_matches = list(re.finditer(r'(\d+\.\d+(?:\.\d+)?)', before_text))
+            punkt = punkt_matches[-1].group(1) if punkt_matches else "?"
+
+            violations.append({
+                "rule_index": rule_index,
+                "rule_title": rule_title,
+                "Целевой документ": f"{etalon_raw} (п.{punkt}: {raw})",
+                "Различие": f"Наименование в п.{punkt} отличается от эталонного"
+            })
+
+    return violations
+
+
+def check_org_name_in_header(
+    target_doc: Dict[str, Any],
+    config: Any,
+    rule_index: int = 6,
+    rule_title: str = "Проверка юр.формы и наименования организации.",
+    scopes: List[str] = None
+) -> List[Dict[str, Any]]:
+    """
+    Проверяет наличие наименования организации с юр. формой в шапке.
+
+    Ищет паттерн: юр.форма (ООО/ЗАО/АО/ПАО/ОАО) + наименование.
+    OCR-толерантно: ○○○ (circles) / 000 (нули) / OOO (латиница) → ООО.
+    """
+    if scopes is None:
+        scopes = ["шапка"]
+    text = _get_scopes_text(target_doc, scopes)
+    violations = []
+
+    if not text.strip():
+        violations.append({
+            "rule_index": rule_index,
+            "rule_title": rule_title,
+            "Целевой документ": "отсутствует",
+            "Различие": "Текст шапки пуст"
+        })
+        return violations
+
+    # OCR-нормализация: ○○○ (Unicode circles U+25CB), 000, OOO → ООО
+    normalized = text.replace('○○○', 'ООО')
+    normalized = _normalize_org_form(normalized)
+
+    # Ищем юрформу + что-то после неё (наименование)
+    has_org = bool(re.search(
+        r'(ООО|ОАО|ЗАО|АО|ПАО|НАО)\s*[«"\']?.+',
+        normalized
+    ))
+
+    if not has_org:
+        violations.append({
+            "rule_index": rule_index,
+            "rule_title": rule_title,
+            "Целевой документ": "отсутствует",
+            "Различие": "Отсутствует наименование организации с юридической формой (ООО, ЗАО, АО и т.п.) в шапке"
+        })
+
+    return violations
+
+
 # === Регистрация для prikaz_ic_potoka ===
 # У этого типа scope "шапка" вместо ["заголовок_город", "номер_дата"]
+
+@register("prikaz_ic_potoka", 6)
+def check_org_name_ic_potoka(target_doc, config):
+    """Правило #6: юр.форма + наименование в шапке для Приказа о создании ИЦ потока."""
+    return check_org_name_in_header(target_doc, config, 6,
+                                    "Проверка юр.формы и наименования организации.",
+                                    scopes=["шапка"])
+
 
 @register("prikaz_ic_potoka", 4)
 def check_prikaz_number_ic_potoka(target_doc, config):
@@ -509,19 +697,11 @@ def check_responsible_fio_ic_potoka(target_doc, config):
     if not reglament or not reglament.strip() or '[НЕТ СТРАНИЦ' in reglament or '[Фильтр: не найдено]' in reglament:
         return violations
 
-    # Вспомогательная функция: извлекает текст параграфа между двумя маркерами
-    def extract_paragraph(text, start_re, end_re):
-        start = re.search(start_re, text)
-        if not start:
-            return ""
-        rest = text[start.end():]
-        end = re.search(end_re, rest)
-        if end:
-            return rest[:end.start()].strip()
-        return rest.strip()
+    # Обрезаем до раздела 2 — чтобы «1.2.1.» не совпадал с «2.1.» в regex
+    reglament = _trim_to_section_2(reglament)
 
     # Позиция B: п.2.1 — ответственный за работу ИЦ → должно быть ФИО
-    text_21 = extract_paragraph(reglament, r'2\.1\.?\s', r'\n\s*2\.2')
+    text_21 = _extract_paragraph(reglament, r'2\.1\.?\s', r'\n\s*2\.2')
     if text_21 and not re.search(fio_pattern, text_21):
         violations.append({
             "rule_index": rule_index,
@@ -531,7 +711,7 @@ def check_responsible_fio_ic_potoka(target_doc, config):
         })
 
     # Позиция C: п.2.2 — исполняющий обязанности → ФИО ПОСЛЕ этих слов
-    text_22 = extract_paragraph(reglament, r'2\.2\.?\s', r'\n\s*2\.3')
+    text_22 = _extract_paragraph(reglament, r'2\.2\.?\s', r'\n\s*2\.3')
     if text_22:
         io_match = re.search(r'исполняющ\w*\s+обязанност\w*', text_22, re.IGNORECASE)
         if io_match:
@@ -546,7 +726,7 @@ def check_responsible_fio_ic_potoka(target_doc, config):
                 })
 
     # Позиция D: п.2.3 — администратор → ФИО
-    text_23 = extract_paragraph(reglament, r'2\.3\.?\s', r'\n\s*2\.4')
+    text_23 = _extract_paragraph(reglament, r'2\.3\.?\s', r'\n\s*2\.4')
     if text_23:
         # Ищем строку с «Администратор» и проверяем ФИО в ней
         for line in text_23.split('\n'):
@@ -771,9 +951,9 @@ def check_rekvizity_ic(target_doc, config):
             "Различие": "Отсутствует наименование юрлица (ООО/ЗАО/АО/ПАО)"
         })
 
-    # 2) ПРИКАЗ
+    # 2) ПРИКАЗ — lookahead (?![А-ЯЁа-яё]) чтобы не матчить внутри ПРИКАЗЫВАЮ
     has_prikaz = bool(re.search(
-        r'П\s*Р\s*И\s*К\s*А\s*З|Приказ',
+        r'(?:П\s*Р\s*И\s*К\s*А\s*З|Приказ)(?![А-ЯЁа-яё])',
         text, re.IGNORECASE
     ))
     if not has_prikaz:
@@ -866,3 +1046,54 @@ def check_responsible_fio_ic(target_doc, config):
         v["rule_index"] = 6
         v["rule_title"] = "Проверка ФИО ответственных лиц в регламенте."
     return violations
+
+
+# ============================================================================
+# Регистрация для prikaz_ic_el (электронный вид — те же проверки что prikaz_ic)
+# ============================================================================
+
+@register("prikaz_ic_el", 2)
+def check_rekvizity_ic_el(target_doc, config):
+    """Правило #2: реквизиты приказа (OCR-толерантный) для Приказа о создании ИЦ (эл.)."""
+    return check_rekvizity_ic(target_doc, config)
+
+
+@register("prikaz_ic_el", 4)
+def check_signatory_ic_el(target_doc, config):
+    """Правило #4: должность + ФИО подписанта для Приказа о создании ИЦ (эл.)."""
+    return check_signatory(target_doc, config, 4,
+                           "Проверка подписанта.", scopes=["шапка"])
+
+
+@register("prikaz_ic_el", 6)
+def check_responsible_fio_ic_el(target_doc, config):
+    """
+    Правило #6: заполненность регламента для Приказа о создании ИЦ (эл.).
+
+    Проверяет:
+    - ФИО в 4 позициях (A-D) — через check_responsible_fio_ic_potoka
+    - Время в п.2.7 (12-00) и п.2.8 (17-00) — через _check_reglament_times
+    Маппинг scope: prikaz_ic_el использует "приложение_2_к_приказу".
+    """
+    adapted_doc = dict(target_doc)
+    reglament = target_doc.get("приложение_2_к_приказу", "")
+    adapted_doc["приложение_2_регламент"] = reglament
+
+    # ФИО-проверки (позиции A, B, C, D)
+    violations = check_responsible_fio_ic_potoka(adapted_doc, config)
+
+    # Проверки времени (позиции E, F)
+    if reglament and reglament.strip():
+        violations.extend(_check_reglament_times(reglament, 6, "Проверка заполненности регламента."))
+
+    # Унифицируем rule_index/title
+    for v in violations:
+        v["rule_index"] = 6
+        v["rule_title"] = "Проверка заполненности регламента."
+    return violations
+
+
+@register("prikaz_ic_el", 10)
+def check_company_cross_ic_el(target_doc, config):
+    """Правило #10: сверка наименования компании шапка↔приложение_2 для ИЦ (эл.)."""
+    return check_company_name_cross(target_doc, config, 10, "Сверка наименования компании.")

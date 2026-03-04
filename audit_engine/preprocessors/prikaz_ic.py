@@ -12,11 +12,11 @@ normalize_text_for_rule3 — удаляет плейсхолдеры из тек
 
 import re
 
-from .registry import register_preprocessor
+# prikaz_ic и prikaz_ic_el: регистрации УБРАНЫ — все правила v2.0 target_only,
+# препроцессинг не нужен (strip дат/ФИО ломает target_only проверки).
+# Функции сохранены как утилиты для возможного переиспользования.
 
 
-# prikaz_ic: регистрация УБРАНА — все правила v2.0 target_only, препроцессинг не нужен
-@register_preprocessor("prikaz_ic_el", "текст_приказа")
 def normalize_text_for_rule3(text: str) -> str:
     """
     Нормализует текст приказа для сравнения с шаблоном.
@@ -92,7 +92,6 @@ def normalize_text_for_rule3(text: str) -> str:
     return text
 
 
-@register_preprocessor("prikaz_ic_el", "шапка")
 def normalize_header(text: str) -> str:
     """
     Нормализует шапку приказа — заменяет юридический адрес на краткий формат города.
@@ -132,7 +131,6 @@ def normalize_header(text: str) -> str:
     return '\n'.join(new_lines)
 
 
-@register_preprocessor("prikaz_ic_el", "приложение_2_к_приказу")
 def trim_appendix2_to_relevant_sections(text: str) -> str:
     """
     Сокращает чанк приложение_2_к_приказу — убирает основное тело Регламента,
