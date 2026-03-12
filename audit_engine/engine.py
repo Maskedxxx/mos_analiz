@@ -205,16 +205,31 @@ class AuditEngine:
         if chunk_filter:
             chunks_to_parse = [chunk_filter]
 
-        # Vision-парсинг документов
-        _emit("parsing_target", {})
-        target_doc = self._parse_document(target_path, chunks_to_parse, session_path / "vision_target")
-        _emit("parsing_target_done", {})
+        # Определяем тип загруженного файла для doc_types с secondary_file
+        # Если загружен xlsx вместо docx — парсим как вторичный файл
+        target_ext = Path(target_path).suffix.lower()
+        _is_secondary_upload = False
 
-        # Парсинг вторичного файла и merge в target_doc
-        if secondary_path and self.config.secondary_file:
-            secondary_chunks = self._parse_secondary(secondary_path)
-            target_doc.update(secondary_chunks)
-            self.logger.log(f"   📊 Merged {len(secondary_chunks)} чанков из вторичного файла")
+        if (self.config.secondary_file
+                and target_ext == f".{self.config.secondary_file.type}"
+                and not secondary_path):
+            # Пользователь загрузил вторичный файл (xlsx) как основной
+            _is_secondary_upload = True
+            self.logger.log(f"📊 Загружен {target_ext} — парсим как вторичный файл")
+            _emit("parsing_target", {})
+            target_doc = self._parse_secondary(target_path)
+            _emit("parsing_target_done", {})
+        else:
+            # Стандартный парсинг основного документа
+            _emit("parsing_target", {})
+            target_doc = self._parse_document(target_path, chunks_to_parse, session_path / "vision_target")
+            _emit("parsing_target_done", {})
+
+            # Парсинг вторичного файла и merge в target_doc
+            if secondary_path and self.config.secondary_file:
+                secondary_chunks = self._parse_secondary(secondary_path)
+                target_doc.update(secondary_chunks)
+                self.logger.log(f"   📊 Merged {len(secondary_chunks)} чанков из вторичного файла")
 
         # Получаем шаблон
         _emit("parsing_template", {})
@@ -241,6 +256,23 @@ class AuditEngine:
                 target_path=target_path,
                 duration_sec=time.time() - start_time
             )
+
+        # Фильтруем правила: пропускаем те, чьи scope-чанки отсутствуют в target_doc
+        # (актуально для doc_types с secondary_file — если загружен только один файл)
+        available_keys = set(target_doc.keys())
+        filtered_rules = []
+        for r in rules:
+            scopes = [r.scope] if isinstance(r.scope, str) else list(r.scope)
+            # Правило с scope "имя_файла" всегда доступно
+            if all(s == "имя_файла" or s in available_keys for s in scopes):
+                filtered_rules.append(r)
+            else:
+                missing = [s for s in scopes if s != "имя_файла" and s not in available_keys]
+                self.logger.log(f"   ⏭️ Пропуск правила #{r.index} ({r.title}): нет чанков {missing}")
+
+        if len(filtered_rules) < len(rules):
+            self.logger.log(f"   📋 Доступно {len(filtered_rules)} из {len(rules)} правил (остальные пропущены)")
+        rules = filtered_rules
 
         # Сохраняем сводку правил
         rules_summary = [
