@@ -129,6 +129,17 @@ async def start_audit(
     """Запуск аудита: принимает файл + тип, возвращает session_id."""
     _check_auth(request)
 
+    # Валидация формата файла
+    file_ext = Path(file.filename).suffix.lower() if file.filename else ""
+    allowed = _get_allowed_extensions(doc_type)
+    if file_ext not in allowed:
+        ext_list = ", ".join(sorted(allowed))
+        raise HTTPException(
+            status_code=400,
+            detail=f"Неподдерживаемый формат файла «{file_ext}». "
+                   f"Для типа «{doc_type}» допустимы: {ext_list}"
+        )
+
     session_id = uuid.uuid4().hex[:8]
 
     # Сохраняем файл
@@ -251,6 +262,56 @@ def _detect_engine(doc_type: str) -> str:
             data = json.load(f)
         return data.get("engine", "standard")
     return "standard"
+
+
+# Допустимые расширения по типу движка/парсера
+_STANDARD_EXTENSIONS = {".docx", ".doc", ".pdf", ".odt", ".rtf"}
+_XLSX_EXTENSIONS = {".xlsx"}
+_PPTX_EXTENSIONS = {".pptx"}
+
+
+def _get_allowed_extensions(doc_type: str) -> set:
+    """
+    Возвращает допустимые расширения файлов для данного doc_type.
+
+    Логика:
+      - Спецдвижки (drivers, kpsc, kartochka_proekta) → .xlsx
+      - parser: "pptx" → .pptx
+      - secondary_file → .docx/.doc/.pdf + .xlsx
+      - Остальные (paddle) → .docx/.doc/.pdf/.odt/.rtf
+
+    Args:
+        doc_type: тип документа
+    Returns:
+        set расширений (с точкой, нижний регистр)
+    """
+    config_path = Path(__file__).parent / "doc_configs" / doc_type / "config.json"
+    if not config_path.exists():
+        return _STANDARD_EXTENSIONS
+
+    with open(config_path, "r", encoding="utf-8") as f:
+        data = json.load(f)
+
+    engine = data.get("engine", "standard")
+
+    # Спецдвижки — только xlsx
+    if engine in SPECIAL_ENGINES:
+        return _XLSX_EXTENSIONS
+
+    parser = data.get("parser", "paddle")
+
+    # PPTX-парсер
+    if parser == "pptx":
+        return _PPTX_EXTENSIONS
+
+    # Стандартный парсер + возможен secondary_file (xlsx)
+    allowed = set(_STANDARD_EXTENSIONS)
+    if data.get("secondary_file"):
+        sec_type = data["secondary_file"].get("type", "")
+        if sec_type:
+            allowed.add(f".{sec_type}")
+
+    return allowed
 
 
 # Маппинг спецдвижков на модули (аналог run_audit.py)
