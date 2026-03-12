@@ -19,6 +19,7 @@ export default function ScreenProgress({ sessionId, filename, onComplete, onErro
   const [rulesProgress, setRulesProgress] = useState({ current: 0, total: 0 });
   const [elapsed, setElapsed] = useState(0);
   const [errorMsg, setErrorMsg] = useState('');
+  const [queuePosition, setQueuePosition] = useState(0);
   const sourceRef = useRef(null);
   const startRef = useRef(Date.now());
   const timerRef = useRef(null);
@@ -30,6 +31,12 @@ export default function ScreenProgress({ sessionId, filename, onComplete, onErro
 
     // SSE-подписка
     sourceRef.current = subscribeToProgress(sessionId, (type, data) => {
+      // Обработка очереди — вне setStepStatuses, т.к. не меняет шаги
+      if (type === 'queue') {
+        setQueuePosition(data.position || 0);
+        return;
+      }
+
       setStepStatuses((prev) => {
         const next = [...prev];
 
@@ -92,6 +99,21 @@ export default function ScreenProgress({ sessionId, filename, onComplete, onErro
 
   return (
     <div className="animate-fade-in max-w-xl mx-auto px-4 py-12 space-y-8">
+      {/* Баннер очереди */}
+      {queuePosition > 0 && (
+        <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 flex items-center gap-3 animate-fade-in">
+          <Clock className="w-5 h-5 text-amber-600 shrink-0" />
+          <div>
+            <p className="font-medium text-amber-800">
+              Идёт проверка другого документа
+            </p>
+            <p className="text-sm text-amber-600">
+              Вы {queuePosition}-{queuePosition === 1 ? 'й' : 'й'} в очереди. Проверка начнётся автоматически.
+            </p>
+          </div>
+        </div>
+      )}
+
       {/* Заголовок */}
       <div className="text-center space-y-2">
         <h2 className="text-2xl font-bold text-gray-900">Анализ документа</h2>

@@ -49,6 +49,11 @@ from sse_starlette.sse import EventSourceResponse
 
 app = FastAPI(title="AuditAPI")
 
+# Глобальная блокировка: один аудит за раз, остальные в очереди
+_audit_lock = threading.Lock()
+_queue_counter = 0  # Сколько потоков ждут/выполняют аудит
+_queue_counter_lock = threading.Lock()  # Защита счётчика
+
 # CORS для dev-режима (Vite на :5173)
 app.add_middleware(
     CORSMiddleware,
@@ -60,7 +65,7 @@ app.add_middleware(
 
 # --- Конфигурация ---
 AUTH_LOGIN = os.getenv("AUDIT_LOGIN", "admin")
-AUTH_PASSWORD = os.getenv("AUDIT_PASSWORD", "admin")
+AUTH_PASSWORD = os.getenv("AUDIT_PASSWORD", "mos186124kva")
 AUTH_TOKEN = os.getenv("AUDIT_TOKEN", "audit-session-token-2026")
 UPLOAD_DIR = Path("uploads")
 UPLOAD_DIR.mkdir(exist_ok=True)
@@ -280,7 +285,8 @@ def _run_special_engine(engine_type: str, doc_type: str, target_path: str,
 
 
 def _run_audit_thread(session_id: str, doc_type: str, target_path: str):
-    """Запуск аудита в фоновом потоке с progress_callback."""
+    """Запуск аудита в фоновом потоке с очередью и progress_callback."""
+    global _queue_counter
     session = sessions[session_id]
     loop = session["loop"]
     queue = session["events"]
@@ -292,50 +298,70 @@ def _run_audit_thread(session_id: str, doc_type: str, target_path: str):
             loop,
         )
 
+    # Встаём в очередь
+    with _queue_counter_lock:
+        _queue_counter += 1
+        position = _queue_counter
+
+    # Если не первый — сообщаем позицию в очереди
+    if position > 1:
+        progress_callback("queue", {"position": position - 1})
+        print(f"[QUEUE] Сессия {session_id} встала в очередь, позиция {position - 1}")
+
     try:
-        # Определяем тип движка
-        engine_type = _detect_engine(doc_type)
+        # Ждём своей очереди (блокирующий вызов)
+        with _audit_lock:
+            # Сообщаем что очередь дошла
+            progress_callback("queue", {"position": 0})
 
-        if engine_type in SPECIAL_ENGINES:
-            # Спецдвижок (kpsc, drivers, kartochka_proekta)
-            progress_callback("audit_start", {
-                "doc_type": doc_type,
-                "filename": Path(target_path).name,
-                "engine": engine_type,
-            })
+            try:
+                # Определяем тип движка
+                engine_type = _detect_engine(doc_type)
 
-            # Создаём session_dir для спецдвижка
-            from datetime import datetime as dt
-            timestamp = dt.now().strftime("%Y%m%d_%H%M%S")
-            session_dir = str(
-                Path(__file__).parent / "logs_result" / doc_type / f"session_{timestamp}"
-            )
+                if engine_type in SPECIAL_ENGINES:
+                    # Спецдвижок (kpsc, drivers, kartochka_proekta)
+                    progress_callback("audit_start", {
+                        "doc_type": doc_type,
+                        "filename": Path(target_path).name,
+                        "engine": engine_type,
+                    })
 
-            result = _run_special_engine(engine_type, doc_type, target_path, session_dir)
-        else:
-            # Стандартный pipeline (Vision/Paddle + rules.json)
-            from audit_engine.engine import AuditEngine
+                    # Создаём session_dir для спецдвижка
+                    from datetime import datetime as dt
+                    timestamp = dt.now().strftime("%Y%m%d_%H%M%S")
+                    session_dir = str(
+                        Path(__file__).parent / "logs_result" / doc_type / f"session_{timestamp}"
+                    )
 
-            engine = AuditEngine(doc_type)
-            result = engine.run(
-                target_path,
-                progress_callback=progress_callback,
-            )
+                    result = _run_special_engine(engine_type, doc_type, target_path, session_dir)
+                else:
+                    # Стандартный pipeline (Vision/Paddle + rules.json)
+                    from audit_engine.engine import AuditEngine
 
-        session["result"] = {
-            "violations": result.violations,
-            "rules_checked": result.rules_checked,
-            "duration_sec": result.duration_sec,
-        }
-        session["session_dir"] = str(result.session_dir)
-        session["status"] = "done"
+                    engine = AuditEngine(doc_type)
+                    result = engine.run(
+                        target_path,
+                        progress_callback=progress_callback,
+                    )
 
-        progress_callback("complete", session["result"])
+                session["result"] = {
+                    "violations": result.violations,
+                    "rules_checked": result.rules_checked,
+                    "duration_sec": result.duration_sec,
+                }
+                session["session_dir"] = str(result.session_dir)
+                session["status"] = "done"
 
-    except Exception as e:
-        err_msg = f"{type(e).__name__}: {e}"
-        traceback.print_exc(file=sys.stderr)
-        sys.stderr.flush()
-        print(f"[AUDIT ERROR] {err_msg}", file=sys.stderr, flush=True)
-        session["status"] = "error"
-        progress_callback("error", {"message": err_msg})
+                progress_callback("complete", session["result"])
+
+            except Exception as e:
+                err_msg = f"{type(e).__name__}: {e}"
+                traceback.print_exc(file=sys.stderr)
+                sys.stderr.flush()
+                print(f"[AUDIT ERROR] {err_msg}", file=sys.stderr, flush=True)
+                session["status"] = "error"
+                progress_callback("error", {"message": err_msg})
+
+    finally:
+        with _queue_counter_lock:
+            _queue_counter -= 1
