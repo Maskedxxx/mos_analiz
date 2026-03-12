@@ -14,3 +14,4 @@ from . import filename
 from . import shapka_elements
 from . import prikaz_checks
 from . import prikaz_tirazh_checks
+from . import cheklist_scores
