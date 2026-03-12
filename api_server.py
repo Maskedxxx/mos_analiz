@@ -431,5 +431,15 @@ def _run_audit_thread(session_id: str, doc_type: str, target_path: str):
                 progress_callback("error", {"message": err_msg})
 
     finally:
+        # Сохраняем оригинал в session_dir/original/ (и при успехе, и при ошибке)
+        try:
+            sd = session.get("session_dir")
+            if sd:
+                orig_dir = Path(sd) / "original"
+                orig_dir.mkdir(exist_ok=True)
+                shutil.copy2(target_path, orig_dir / Path(target_path).name)
+        except Exception:
+            pass  # не критично
+
         with _queue_counter_lock:
             _queue_counter -= 1
