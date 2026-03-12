@@ -218,9 +218,16 @@ async def download_report(request: Request, session_id: str):
     if not session or not session.get("session_dir"):
         raise HTTPException(status_code=404, detail="Отчёт не найден")
 
-    xlsx_path = Path(session["session_dir"]) / "audit_result.xlsx"
+    session_dir = Path(session["session_dir"])
+    # Стандартный pipeline → audit_result.xlsx
+    # Спецдвижки → validation_report.xlsx (kpsc, kartochka) или 03_report.xlsx (drivers)
+    xlsx_path = session_dir / "audit_result.xlsx"
     if not xlsx_path.exists():
-        raise HTTPException(status_code=404, detail="Excel не сформирован")
+        # Ищем любой xlsx в директории сессии
+        xlsx_files = list(session_dir.glob("*.xlsx"))
+        if not xlsx_files:
+            raise HTTPException(status_code=404, detail="Excel не сформирован")
+        xlsx_path = xlsx_files[0]
 
     return FileResponse(
         str(xlsx_path),
