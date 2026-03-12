@@ -8,13 +8,17 @@
 """
 
 import json
+import logging
 import os
 import time
+import traceback
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict
 
 from openai import OpenAI
+
+logger = logging.getLogger(__name__)
 
 from audit_engine.models import AuditResult
 from .parser import parse_excel_to_json
@@ -71,6 +75,35 @@ def run(args) -> AuditResult:
     print(f"  Пороги: primary={primary_threshold}, fallback={fallback_threshold}")
     print(f"  Сессия: {session_dir}")
     print()
+
+    try:
+        return _run_pipeline(args, config, model, temperature,
+                             primary_threshold, fallback_threshold,
+                             session_dir, start_time)
+    except Exception as e:
+        # Логируем ошибку в файл сессии — чтобы пустые сессии не были "молчаливыми"
+        duration = time.time() - start_time
+        error_msg = f"{type(e).__name__}: {e}\n{traceback.format_exc()}"
+        error_path = session_dir / "ERROR.txt"
+        error_path.write_text(error_msg, encoding="utf-8")
+        logger.error("drivers: ошибка аудита → %s: %s", error_path, e)
+        print(f"\n  ОШИБКА: {e}")
+        print(f"  Лог ошибки: {error_path}")
+        raise
+
+
+def _run_pipeline(
+    args,
+    config: Dict[str, Any],
+    model: str,
+    temperature: float,
+    primary_threshold: float,
+    fallback_threshold: float,
+    session_dir: Path,
+    start_time: float,
+) -> AuditResult:
+    """Основной пайплайн аудита драйверов."""
+    target_path = Path(args.target)
 
     # === Шаг 1: Парсинг Excel ===
     print("[1/4] Парсинг Excel...")
