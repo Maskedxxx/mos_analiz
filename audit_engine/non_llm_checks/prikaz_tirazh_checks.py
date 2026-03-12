@@ -38,7 +38,8 @@ def _check_number_and_date(
     header_text = prikaz_split[0] if prikaz_split else text[:500]
 
     # --- Проверка номера: символ № с непустым текстом в шапке ---
-    number_match = re.search(r'№\s*(.+)', header_text)
+    # OCR может распознать «№» как «Ne», «No», «N⁰», «Nе» (лат+кир) и др.
+    number_match = re.search(r'(?:№|No|Ne|N[еo°⁰])\s*(.+)', header_text, re.IGNORECASE)
     if number_match:
         after_sign = number_match.group(1).strip()
         # Берём текст до конца строки или до "от"
