@@ -44,7 +44,7 @@ class OcrExtractor:
 
     def __init__(
         self,
-        base_url: str = "http://localhost:8000/v1/",
+        base_url: str = "http://localhost:8010/v1/",
         model: Optional[str] = None,
         prompt: str = "",
         dpi: int = 200,

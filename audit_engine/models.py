@@ -93,7 +93,7 @@ class AuditConfig:
     parser: str = "vision"
     # OCR-параметры (используются при parser="ocr")
     ocr_model: Optional[str] = None
-    ocr_base_url: str = "http://localhost:8000/v1/"
+    ocr_base_url: str = "http://localhost:8010/v1/"
     ocr_prompt: str = "提取文档图片中正文的所有信息用markdown格式表示，忽略页眉页脚。表格用html格式表达，公式用LaTeX格式表示，按照阅读顺序组织进行解析。特别注意：保留表格上方和下方的所有独立标题行和文本，不要将标题合并到表格中。"
     ocr_dpi: int = 200
     # LLM-параметры (для сверки правил через локальный vLLM)
@@ -189,7 +189,7 @@ def load_audit_config(config_dir: Path) -> AuditConfig:
         # Парсер и OCR
         parser=data.get("parser", "vision"),
         ocr_model=data.get("ocr_model", None),
-        ocr_base_url=data.get("ocr_base_url", "http://localhost:8000/v1/"),
+        ocr_base_url=data.get("ocr_base_url", "http://localhost:8010/v1/"),
         ocr_prompt=data.get("ocr_prompt", AuditConfig.ocr_prompt),
         ocr_dpi=data.get("ocr_dpi", 200),
         # Paddle-параметры

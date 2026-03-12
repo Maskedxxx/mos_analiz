@@ -53,7 +53,7 @@ class PaddleExtractor:
 
     def __init__(
         self,
-        vlm_base_url: str = "http://localhost:8000/v1",
+        vlm_base_url: str = "http://localhost:8010/v1",
         vlm_model: Optional[str] = None,
         layout_model_repo: Optional[str] = None,
         layout_device: str = "cuda:0",

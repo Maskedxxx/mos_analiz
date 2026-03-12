@@ -16,7 +16,7 @@ docker run --rm --gpus all --network host --ipc=host \
   --max-num-batched-tokens 4096 \
   --no-enable-prefix-caching \
   --served-model-name PaddleOCR-VL-1.5 \
-  --host 0.0.0.0 --port 8000
+  --host 0.0.0.0 --port 8010
 
 # ── Терминал 2: gpt-oss-120b (LLM, порт 8001) ──────────────────
 docker run --rm --gpus all --network host --ipc=host \

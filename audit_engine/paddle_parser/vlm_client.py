@@ -36,7 +36,7 @@ class VLMClient:
 
     def __init__(
         self,
-        base_url: str = "http://localhost:8000/v1",
+        base_url: str = "http://localhost:8010/v1",
         model_name: Optional[str] = None,
         api_key: Optional[str] = None,
         max_tokens: Optional[int] = None,

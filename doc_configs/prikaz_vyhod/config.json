@@ -12,7 +12,7 @@
     "chunk_prefix": "xlsx_"
   },
   "parser": "paddle",
-  "ocr_base_url": "http://localhost:8000/v1/",
+  "ocr_base_url": "http://localhost:8010/v1/",
   "ocr_dpi": 200,
   "llm_base_url": "http://localhost:8001/v1/",
   "llm_max_tokens": 4096,
