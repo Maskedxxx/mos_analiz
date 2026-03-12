@@ -140,7 +140,7 @@ def run(args) -> AuditResult:
     duration = time.time() - start_time
     violations = [
         {
-            "rule_index": f"driver_{r.get('number', '?')}",
+            "rule_index": f"driver_{r.get('section_title', 'x')}_{r.get('number', '?')}",
             "rule_title": r.get("driver_name", ""),
             "section_title": r.get("section_title", ""),
             "issue": r.get("issue", ""),
