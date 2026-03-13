@@ -166,13 +166,7 @@ def _check_date_in_punkt_11(
 
 # === Регистрация проверок для prikaz_tirazh ===
 
-@register("prikaz_tirazh", 2)
-def check_number_date_tirazh(target_doc: Dict[str, Any], config: Any) -> List[Dict[str, Any]]:
-    """Правило #2: номер приказа + дата для Приказа о тиражировании."""
-    text = target_doc.get("текст_приказа", "")
-    return _check_number_and_date(
-        text, 2, "Проверка номера приказа и даты."
-    )
+## Rule 2 перенесён на LLM (rules.json: "llm": true) — non-LLM regex не справляется с OCR-артефактами
 
 
 @register("prikaz_tirazh", 7)
