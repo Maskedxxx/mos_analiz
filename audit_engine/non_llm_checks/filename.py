@@ -160,3 +160,9 @@ def check_filename_prikaz_pa(target_doc, config):
 def check_filename_prikaz_tirazh(target_doc, config):
     """Правило #1: проверка имени файла для Приказа о тиражировании."""
     return check_filename_universal(target_doc, config, 1, "Проверка имени файла документа.")
+
+
+@register("otchet_rezultatov", 1)
+def check_filename_otchet_rezultatov(target_doc, config):
+    """Правило #1: проверка имени файла для Отчёта о результатах опроса."""
+    return check_filename_universal(target_doc, config, 1, "Проверка названия файла")

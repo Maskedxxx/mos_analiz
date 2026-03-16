@@ -350,7 +350,23 @@ class AuditEngine:
             else None
         )
 
-        if self.config.parser == "pptx":
+        # Автовыбор парсера для DOCX: если parser=paddle, но файл .docx → docx_parser
+        file_ext = Path(file_path).suffix.lower()
+        effective_parser = self.config.parser
+        if effective_parser == "paddle" and file_ext == ".docx":
+            effective_parser = "docx"
+            self.logger.log(f"📄 Файл .docx — переключение на docx-парсер (без OCR)")
+
+        if effective_parser == "docx":
+            # Прямое извлечение текста из DOCX через python-docx (без OCR)
+            self.logger.log(f"📄 DOCX-парсинг: {file_path}...")
+            from .docx_parser import parse_docx
+            doc = parse_docx(
+                file_path,
+                str(self.config.chunks_vision_path),
+                chunk_filter=chunk_filter_arg,
+            )
+        elif effective_parser == "pptx":
             # Прямое извлечение текста из PPTX через python-pptx (без OCR)
             self.logger.log(f"📄 PPTX-парсинг: {file_path}...")
             from .pptx_parser import parse_pptx
@@ -359,7 +375,7 @@ class AuditEngine:
                 str(self.config.chunks_vision_path),
                 chunk_filter=chunk_filter_arg,
             )
-        elif self.config.parser == "paddle":
+        elif effective_parser == "paddle":
             # Layout-aware OCR: Heron-101 + PaddleOCR-VL-1.5
             self.logger.log(f"📄 Paddle-парсинг: {file_path}...")
             try:

@@ -38,6 +38,7 @@ class RuleSpec:
     instructions: List[str] = field(default_factory=list)
     context_filter: Dict[str, List[str]] = field(default_factory=dict)
     context_filter_mode: str = "paragraphs"
+    max_chars: Optional[int] = None  # обрезка текста чанка перед отправкой в LLM
 
 
 @dataclass
@@ -160,7 +161,8 @@ def load_rules(rules_path: str) -> List[RuleSpec]:
             llm=rule["llm"],
             instructions=rule.get("content", []),
             context_filter=rule.get("context_filter", {}),
-            context_filter_mode=rule.get("context_filter_mode", "paragraphs")
+            context_filter_mode=rule.get("context_filter_mode", "paragraphs"),
+            max_chars=rule.get("max_chars", None)
         )
         rules.append(spec)
 

@@ -110,17 +110,24 @@ def build_context_for_rule(
             return fn(content)
         return content
 
+    def apply_max_chars(content: str) -> str:
+        """Обрезает текст до max_chars если задано в правиле."""
+        if spec.max_chars and len(content) > spec.max_chars:
+            return content[:spec.max_chars] + "\n[...текст обрезан...]"
+        return content
+
     if spec.compare == "target_only":
         for scope in scopes:
             content = target_doc.get(scope, "")
-            content = apply_filter(str(content), scope)
+            content = apply_max_chars(str(content))
+            content = apply_filter(content, scope)
             context_parts.append(f"[TARGET_{scope}]")
             context_parts.append(content)
             context_parts.append(f"[/TARGET_{scope}]")
 
     elif spec.compare == "template":
         for scope in scopes:
-            target_content = str(target_doc.get(scope, ""))
+            target_content = apply_max_chars(str(target_doc.get(scope, "")))
             template_content = str(template_doc.get(scope, ""))
 
             # Фильтрация контекста
@@ -142,6 +149,7 @@ def build_context_for_rule(
     elif spec.compare == "cross_check":
         for scope in scopes:
             content = str(target_doc.get(scope, ""))
+            content = apply_max_chars(content)
             content = apply_filter(content, scope)
             context_parts.append(f"[TARGET_{scope}]")
             context_parts.append(content)
