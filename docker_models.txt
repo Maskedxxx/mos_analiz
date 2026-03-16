@@ -5,7 +5,7 @@
 
 # ── Терминал 1: PaddleOCR-VL-1.5 (OCR, порт 8000) ──────────────
 # Веса: ~2 GiB. max-model-len=4096 (для OCR не нужен 128K контекст)
-docker run --rm --gpus all --network host --ipc=host \
+docker run --rm -d --gpus all --network host --ipc=host \
   --name paddleocr-vl-15 \
   -v ~/.cache/huggingface:/root/.cache/huggingface \
   scitrera/dgx-spark-vllm:0.15.1-t4 \
@@ -19,7 +19,7 @@ docker run --rm --gpus all --network host --ipc=host \
   --host 0.0.0.0 --port 8010
 
 # ── Терминал 2: gpt-oss-120b (LLM, порт 8001) ──────────────────
-docker run --rm --gpus all --network host --ipc=host \
+docker run --rm -d --gpus all --network host --ipc=host \
   --name gpt-oss-120b \
   -v ~/.cache/huggingface:/root/.cache/huggingface \
   scitrera/dgx-spark-vllm:0.15.1-t4 \
