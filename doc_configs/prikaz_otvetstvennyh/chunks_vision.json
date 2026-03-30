@@ -1,0 +1,19 @@
+{
+  "description": "Чанки для парсинга — 0.2 Приказ о назначении ответственных (DOCX → python-docx, PDF → Paddle)",
+  "version": "1.0",
+  "chunks": [
+    {
+      "name": "весь_текст",
+      "pages": "all",
+      "prompt": "Извлеки ВСЮ страницу целиком — весь текст, все таблицы. Игнорируй жёлтые метки."
+    }
+  ],
+  "vision": {
+    "model": "gpt-4.1-mini",
+    "dpi": 200,
+    "max_workers": 1,
+    "timeout": 90,
+    "max_retries": 3,
+    "detail": "high"
+  }
+}

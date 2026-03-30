@@ -1,0 +1,16 @@
+{
+  "doc_type": "prikaz_otvetstvennyh",
+  "doc_title": "0.2 Приказ о назначении ответственных",
+  "model": "openai/gpt-oss-120b",
+  "system_prompt": "default.txt",
+  "filename_keywords": ["0.2", "приказ", "отв"],
+  "max_workers": 1,
+  "temperature": 0.0,
+  "parser": "paddle",
+  "ocr_base_url": "http://localhost:8010/v1/",
+  "ocr_dpi": 200,
+  "llm_base_url": "http://localhost:8001/v1/",
+  "llm_max_tokens": 4096,
+  "reasoning_effort": "medium",
+  "llm_seed": 42
+}
