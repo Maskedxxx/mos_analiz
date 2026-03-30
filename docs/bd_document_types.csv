@@ -1,6 +1,6 @@
 number,code,name,doc_type,status,test_docs
 1,0.1,Акт начала мероприятий,akt_nachala,done,1
-2,0.2,Приказ об ответственных,—,not_started,0
+2,0.2,Приказ об ответственных,prikaz_otvetstvennyh,done,1
 3,0.2,Карточка проекта,kartochka_proekta,done,2
 4,0.5,Приказ о переходе на этап Тиражирования,prikaz_tirazh,done,1
 5,1.1,Драйверы производительности,drivers,done,9
@@ -14,7 +14,7 @@ number,code,name,doc_type,status,test_docs
 14,2.4,Утверждённая Карточка проекта,kartochka_proekta,done,2
 15,2.5,Чек-лист выбора ЭУ,cheklist_eu,done,7
 16,2.5,Презентация ЭУ,presentation_eu,done,3
-17,2.6,План-график,—,not_started,0
+17,2.6,План-график,plan_grafik,done,2
 18,3.3,Отчёт о результатах,otchet_rezultatov,done,3
 19,3.5,Положение о ПО,polozhenie_po,done,5
 20,3.5,Приказ о формировании ПО,prikaz_formirovanie_po,done,5

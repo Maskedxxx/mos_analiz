@@ -363,6 +363,7 @@ SPECIAL_ENGINES = {
     "drivers": "audit_engine.drivers",
     "kpsc": "audit_engine.kpsc",
     "kartochka_proekta": "audit_engine.kartochka_proekta",
+    "plan_grafik": "audit_engine.plan_grafik",
 }
 
 

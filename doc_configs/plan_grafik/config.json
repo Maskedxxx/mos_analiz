@@ -1,0 +1,9 @@
+{
+  "doc_type": "plan_grafik",
+  "doc_title": "2.6 План-график мероприятий",
+  "engine": "plan_grafik",
+  "model": "openai/gpt-oss-120b",
+  "temperature": 0.0,
+  "max_workers": 1,
+  "parser": "paddle"
+}
