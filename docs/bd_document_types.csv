@@ -6,7 +6,6 @@ number,code,name,doc_type,status,test_docs
 5,1.1,Драйверы производительности,drivers,done,9
 6,1.3,Приказ о создании ИЦ потока с прилож.,prikaz_ic_potoka,done,6
 7,1.3,Приказ о создании ИЦ потока (эл. вид),prikaz_ic_potoka_el,done,1
-8,1.4,Справка ЭЭ,—,not_started,0
 9,1.5,Приказ о создании ИЦ предприятия с прилож.,prikaz_ic,done,7
 10,1.5,Приказ о создании ИЦ предприятия (эл. вид),prikaz_ic_el,done,3
 11,2.1,КПСЦ и Спагетти ТС,kpsc,done,7
@@ -16,7 +15,7 @@ number,code,name,doc_type,status,test_docs
 15,2.5,Чек-лист выбора ЭУ,cheklist_eu,done,7
 16,2.5,Презентация ЭУ,presentation_eu,done,3
 17,2.6,План-график,—,not_started,0
-18,3.3,Отчёт о результатах,—,not_started,0
+18,3.3,Отчёт о результатах,otchet_rezultatov,done,3
 19,3.5,Положение о ПО,polozhenie_po,done,5
 20,3.5,Приказ о формировании ПО,prikaz_formirovanie_po,done,5
 21,3.6,Приказ о проведении выхода + График обхода,prikaz_vyhod,done,12

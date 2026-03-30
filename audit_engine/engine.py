@@ -303,7 +303,7 @@ class AuditEngine:
             xlsx_path = out_xlsx
         else:
             xlsx_path = str(session_path / "audit_result.xlsx")
-        save_to_excel(violations, xlsx_path)
+        save_to_excel(violations, xlsx_path, all_rules=rules)
         self.logger.log(f"📊 Excel сохранён: {xlsx_path}")
 
         # Итоговая статистика

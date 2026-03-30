@@ -1,6 +1,6 @@
 {
   "doc_type": "kartochka_proekta",
-  "doc_title": "0.2 / 2.4 Утверждённая Карточка проекта",
+  "doc_title": "0.2 / 2.4 Карточка проекта",
   "engine": "kartochka_proekta",
   "model": "openai/gpt-oss-120b",
   "temperature": 0.0,

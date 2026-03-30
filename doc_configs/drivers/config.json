@@ -1,6 +1,6 @@
 {
   "doc_type": "drivers",
-  "doc_title": "Расчёт драйверов производительности",
+  "doc_title": "1.1 Расчёт драйверов производительности",
   "engine": "drivers",
   "model": "openai/gpt-oss-120b",
   "temperature": 0.0,

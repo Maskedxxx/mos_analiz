@@ -3,7 +3,7 @@ import { LogIn, Loader2, AlertCircle } from 'lucide-react';
 import { login } from './api';
 
 export default function ScreenLogin({ onLoginSuccess }) {
-  const [form, setForm] = useState({ login: '', password: '' });
+  const [form, setForm] = useState({ login: 'guest', password: '' });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 

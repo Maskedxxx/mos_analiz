@@ -1,0 +1,16 @@
+.venv
+node_modules
+logs_result
+test_docs
+test_feedback
+uploads
+__pycache__
+*.pyc
+.git
+.claude
+*.xlsx
+*.docx
+*.pptx
+*.jpeg
+*.png
+*.pdf

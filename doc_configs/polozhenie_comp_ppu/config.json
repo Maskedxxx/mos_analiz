@@ -1,6 +1,6 @@
 {
   "doc_type": "polozhenie_comp_ppu",
-  "doc_title": "Положение о конкурсах ППУ",
+  "doc_title": "3.10 Положение о конкурсах проектов и ППУ",
   "model": "openai/gpt-oss-120b",
   "system_prompt": "default.txt",
   "filename_pattern": "reg_comp_ppu",

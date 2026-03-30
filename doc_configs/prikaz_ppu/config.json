@@ -1,6 +1,6 @@
 {
   "doc_type": "prikaz_ppu",
-  "doc_title": "Приказ о ППУ",
+  "doc_title": "3.10 Приказ о ППУ",
   "model": "openai/gpt-oss-120b",
   "system_prompt": "default.txt",
   "filename_pattern": "order_ppu",
