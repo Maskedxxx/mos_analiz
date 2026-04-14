@@ -105,6 +105,7 @@ class AuditConfig:
     # Paddle-параметры (используются при parser="paddle")
     paddle_layout_model: Optional[str] = None      # HF repo Heron-101 (None = дефолт)
     paddle_layout_device: str = "cuda:0"            # GPU для layout detection
+    paddle_layout_base_url: Optional[str] = None    # URL удалённого Layout API (если задан — используется вместо локального)
     paddle_vlm_model: Optional[str] = None          # Имя VLM (None = автоопределение)
     # OCR post-processing: имена чанков, где убирать аннотации Word-форм ("текст -> значение")
     strip_annotations_chunks: List[str] = field(default_factory=list)
@@ -197,6 +198,7 @@ def load_audit_config(config_dir: Path) -> AuditConfig:
         # Paddle-параметры
         paddle_layout_model=data.get("paddle_layout_model", None),
         paddle_layout_device=data.get("paddle_layout_device", "cuda:0"),
+        paddle_layout_base_url=data.get("paddle_layout_base_url", None),
         paddle_vlm_model=data.get("paddle_vlm_model", None),
         # LLM-параметры для локального vLLM
         llm_base_url=data.get("llm_base_url", "http://localhost:8001/v1/"),

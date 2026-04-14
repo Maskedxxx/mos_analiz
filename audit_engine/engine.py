@@ -365,6 +365,7 @@ class AuditEngine:
                 file_path,
                 str(self.config.chunks_vision_path),
                 chunk_filter=chunk_filter_arg,
+                vlm_base_url=getattr(self.config, 'ocr_base_url', None),
             )
         elif effective_parser == "pptx":
             # Прямое извлечение текста из PPTX через python-pptx (без OCR)

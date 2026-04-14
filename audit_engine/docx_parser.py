@@ -29,6 +29,7 @@ def parse_docx(
     file_path: str,
     chunks_vision_path: str,
     chunk_filter: Optional[str] = None,
+    vlm_base_url: Optional[str] = None,
 ) -> Dict[str, Any]:
     """
     Парсинг DOCX-файла через python-docx.
@@ -52,8 +53,15 @@ def parse_docx(
     doc = Document(str(file_path))
     logger.info(f"DOCX: {file_path.name}, абзацев: {len(doc.paragraphs)}, таблиц: {len(doc.tables)}")
 
+    # --- Извлечение текста из embedded images (шапка-картинка) через OCR ---
+    header_ocr_text = _ocr_header_images(doc, vlm_base_url)
+    if header_ocr_text:
+        logger.info(f"  OCR шапки-картинки: {len(header_ocr_text)} chars")
+
     # --- Извлечение всех элементов в порядке документа ---
     elements = _extract_elements_in_order(doc)
+    if header_ocr_text:
+        elements.insert(0, header_ocr_text)
     total_elements = len(elements)
     logger.info(f"  Извлечено элементов: {total_elements}")
 
@@ -64,7 +72,16 @@ def parse_docx(
         pages = chunk.get("pages", [])
         if pages == "all":
             continue
+        if isinstance(pages, str):
+            # Диапазон "4-7" → [4, 5, 6, 7]
+            parts = pages.split("-")
+            try:
+                pages = list(range(int(parts[0]), int(parts[1]) + 1))
+            except (ValueError, IndexError):
+                continue
         for p in pages:
+            if not isinstance(p, int):
+                continue
             abs_p = abs(p)
             if abs_p > max_page:
                 max_page = abs_p
@@ -91,9 +108,19 @@ def parse_docx(
             result[name] = "\n\n".join(elements)
             continue
 
+        # Нормализуем строковые диапазоны "4-7" → [4, 5, 6, 7]
+        if isinstance(pages, str):
+            parts_str = pages.split("-")
+            try:
+                pages = list(range(int(parts_str[0]), int(parts_str[1]) + 1))
+            except (ValueError, IndexError):
+                pages = []
+
         # Резолвим номера страниц
         resolved = []
         for p in pages:
+            if not isinstance(p, int):
+                continue
             if p < 0:
                 resolved.append(total_pages + p + 1)
             else:
@@ -112,6 +139,66 @@ def parse_docx(
         result[name] = "\n\n".join(parts)
 
     return result
+
+
+def _ocr_header_images(doc: Document, vlm_base_url: Optional[str] = None) -> str:
+    """
+    Извлекает embedded images из первых параграфов документа и OCR-ит их.
+
+    Многие DOCX используют растровые бланки (логотип + реквизиты) вместо текста.
+    python-docx не видит текст в таких изображениях — нужен OCR.
+
+    Returns:
+        Объединённый OCR-текст заголовочных картинок, или "" если нет картинок/VLM.
+    """
+    if not vlm_base_url:
+        return ""
+
+    import base64
+    import io
+    import requests
+    from PIL import Image
+
+    ns_a = 'http://schemas.openxmlformats.org/drawingml/2006/main'
+    ns_r = 'http://schemas.openxmlformats.org/officeDocument/2006/relationships'
+
+    ocr_parts = []
+    # Проверяем только первые 6 параграфов (шапка обычно в начале)
+    for p in doc.paragraphs[:6]:
+        blips = p._element.findall(f'.//{{{ns_a}}}blip')
+        for blip in blips:
+            rId = blip.get(f'{{{ns_r}}}embed')
+            if not rId or rId not in doc.part.rels:
+                continue
+            try:
+                blob = doc.part.rels[rId].target_part.blob
+                img = Image.open(io.BytesIO(blob))
+                # Пропускаем мелкие картинки (иконки, декор)
+                if img.width < 200 or img.height < 50:
+                    continue
+                buf = io.BytesIO()
+                img.save(buf, format='PNG')
+                b64 = base64.b64encode(buf.getvalue()).decode()
+                r = requests.post(
+                    f"{vlm_base_url}chat/completions",
+                    json={
+                        "model": "PaddleOCR-VL-1.5",
+                        "messages": [{"role": "user", "content": [
+                            {"type": "image_url", "image_url": {"url": f"data:image/png;base64,{b64}"}},
+                            {"type": "text", "text": "OCR this image. Return all text exactly as written."}
+                        ]}],
+                        "max_tokens": 256, "temperature": 0.0,
+                    },
+                    timeout=30,
+                )
+                text = r.json()["choices"][0]["message"]["content"].strip()
+                if text:
+                    ocr_parts.append(text)
+                    logger.info(f"  OCR image ({img.width}x{img.height}): {text[:80]}")
+            except Exception as e:
+                logger.warning(f"  OCR image failed: {e}")
+
+    return "\n".join(ocr_parts)
 
 
 def _extract_elements_in_order(doc: Document) -> List[str]:
@@ -141,9 +228,7 @@ def _extract_elements_in_order(doc: Document) -> List[str]:
         tag = child.tag
 
         if tag == qn("w:p"):
-            # Параграф
-            text = child.text or ""
-            # Собираем текст из всех run-элементов
+            # Параграф — основной текст из run-элементов
             runs_text = []
             for r in child.findall(qn("w:r")):
                 for t in r.findall(qn("w:t")):
@@ -152,6 +237,20 @@ def _extract_elements_in_order(doc: Document) -> List[str]:
             full_text = "".join(runs_text).strip()
             if full_text:
                 elements.append(full_text)
+
+            # Textbox-ы внутри параграфа (w:drawing → wps:txbx → w:txbxContent)
+            ns_w = 'http://schemas.openxmlformats.org/wordprocessingml/2006/main'
+            ns_wps = 'http://schemas.microsoft.com/office/word/2010/wordprocessingShape'
+            for txbx_content in child.findall(f'.//{{{ns_wps}}}txbx/{{{ns_w}}}txbxContent'):
+                txbx_runs = []
+                for tp in txbx_content.findall(f'{{{ns_w}}}p'):
+                    for tr in tp.findall(f'{{{ns_w}}}r'):
+                        for tt in tr.findall(f'{{{ns_w}}}t'):
+                            if tt.text:
+                                txbx_runs.append(tt.text)
+                txbx_text = "".join(txbx_runs).strip()
+                if txbx_text:
+                    elements.append(txbx_text)
 
         elif tag == qn("w:tbl"):
             # Таблица

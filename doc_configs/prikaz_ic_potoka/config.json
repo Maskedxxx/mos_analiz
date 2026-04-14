@@ -7,10 +7,11 @@
   "max_workers": 1,
   "temperature": 0.0,
   "parser": "paddle",
-  "ocr_base_url": "http://localhost:8010/v1/",
+  "ocr_base_url": "http://172.16.10.35:11438/v1/",
   "ocr_dpi": 200,
-  "llm_base_url": "http://localhost:8001/v1/",
+  "llm_base_url": "http://172.16.10.35:11437/v1/",
   "llm_max_tokens": 4096,
   "reasoning_effort": "medium",
-  "llm_seed": 42
+  "llm_seed": 42,
+  "paddle_layout_base_url": "http://172.16.10.35:11439"
 }

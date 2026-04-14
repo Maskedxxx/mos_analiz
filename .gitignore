@@ -72,3 +72,21 @@ uploads/
 *.docx
 *.pptx
 *.xlsx
+
+# Методички и документы (PDF не коммитим)
+docs/методички/
+docs/last_dialog.json
+
+# Дубликаты/бэкапы CLAUDE.md
+CLAUDE_1.md
+
+# PDF-документы везде (тяжёлые, не код)
+*.pdf
+
+# Артефакты multi-rule эксперимента (промпты, ответы LLM — регенерируются)
+docs/testing/notes/24_experiment/response_*
+docs/testing/notes/24_experiment/system_prompt*.txt
+docs/testing/notes/24_experiment/user_prompt*.txt
+
+# Бэкапы
+*.bak*

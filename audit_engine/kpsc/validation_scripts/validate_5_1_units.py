@@ -72,6 +72,21 @@ def extract_relevant_data(data: dict) -> dict:
             if not indicator_name or str(indicator_name).strip() == "":
                 indicator_name = cells_dict.get(3, "")
 
+            # Пропускаем качественные показатели без числовых данных:
+            # если в колонках данных (col >= 5) нет ни одного числового значения,
+            # строка описательная (метод хранения, способ транспортировки и т.п.)
+            has_numeric_data = False
+            for col_idx, val in cells_dict.items():
+                if col_idx >= 5 and val is not None:
+                    try:
+                        float(str(val).replace(",", ".").strip())
+                        has_numeric_data = True
+                        break
+                    except (ValueError, TypeError):
+                        pass
+            if not has_numeric_data:
+                continue
+
             empty_units.append({
                 "row": row_num,
                 "indicator": str(indicator_name).strip()

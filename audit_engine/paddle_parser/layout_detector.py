@@ -11,7 +11,10 @@ import logging
 from pathlib import Path
 from typing import List, Dict, Any, Optional, Union
 
-import torch
+try:
+    import torch  # требуется только для локального детектора
+except ImportError:
+    torch = None
 from PIL import Image
 
 from . import config
@@ -33,6 +36,8 @@ class LayoutDetector:
         model_name: Optional[str] = None,
         device: str = "cuda:0"
     ):
+        if torch is None:
+            raise ImportError("torch не установлен — используйте RemoteLayoutDetector через layout_base_url")
         from transformers import RTDetrV2ForObjectDetection, RTDetrImageProcessor
 
         repo = model_name or config.LAYOUT_MODEL_REPO

@@ -94,10 +94,30 @@ def extract_relevant_data(data: dict) -> dict:
             kpsc_indicators_normalized.add(original_name.lower())
 
     # Проверяем наличие показателей из "Показатели" в "КПСЦ"
+    # Имена в КПСЦ могут быть расширенными или сокращёнными:
+    #   "Численность персонала * (Количество операторов)" → подстрока "количество операторов"
+    #   "ВПП" → аббревиатура "Время протекания процесса"
+    # Детерминированные алиасы (сокращения/перефразировки):
+    ALIASES = {
+        "время протекания процесса": ["впп"],
+        "выработка": ["выпуск продукции"],
+        "объем выпускаемой продукции": ["выпуск продукции"],
+    }
+
     missing_indicators = []
 
     for indicator in pokazateli_indicators:
-        if indicator.lower() not in kpsc_indicators_normalized:
+        ind_lower = indicator.lower()
+        # Точное совпадение или вхождение как подстроки
+        found = (ind_lower in kpsc_indicators_normalized or
+                 any(ind_lower in kpsc_name for kpsc_name in kpsc_indicators_normalized))
+        # Проверяем алиасы
+        if not found:
+            for alias in ALIASES.get(ind_lower, []):
+                if any(alias in kpsc_name for kpsc_name in kpsc_indicators_normalized):
+                    found = True
+                    break
+        if not found:
             missing_indicators.append(indicator)
 
     return {

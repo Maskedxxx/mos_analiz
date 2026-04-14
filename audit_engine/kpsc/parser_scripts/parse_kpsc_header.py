@@ -166,6 +166,28 @@ def extract_fields(ws) -> Dict[str, Any]:
     }
 
 
+def _find_takt_time_in_pokazateli(wb) -> Optional[Any]:
+    """
+    Fallback: ищет 'Время такта' на листе Показатели если не найдено в шапке КПСЦ.
+    Сканирует весь лист, ищет строку-лейбл и берёт значение из соседней ячейки справа.
+    """
+    ws = find_sheet(wb, keywords=["показател"])
+    if ws is None:
+        return None
+    for r in range(1, (ws.max_row or 50) + 1):
+        for c in range(1, min(5, (ws.max_column or 5) + 1)):
+            v = ws.cell(row=r, column=c).value
+            if not isinstance(v, str):
+                continue
+            if "время такта" in v.strip().lower() or "такт" in v.strip().lower():
+                # Берём первое непустое значение справа
+                for vc in range(c + 1, min(c + 4, (ws.max_column or c) + 1)):
+                    val = ws.cell(row=r, column=vc).value
+                    if val not in (None, ""):
+                        return val
+    return None
+
+
 def build_payload(xlsx: Path, sheet_name: Optional[str] = None):
     """Строит payload из данных header-блока КПСЦ."""
     wb = load_workbook(xlsx, data_only=True)
@@ -191,6 +213,10 @@ def build_payload(xlsx: Path, sheet_name: Optional[str] = None):
 
     # Извлекаем поля через динамический поиск
     fields = extract_fields(ws)
+
+    # Fallback: если takt_time не найден в шапке КПСЦ, ищем на листе Показатели
+    if not fields.get("takt_time"):
+        fields["takt_time"] = _find_takt_time_in_pokazateli(wb)
 
     return {
         "meta": {

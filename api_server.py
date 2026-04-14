@@ -34,6 +34,8 @@ try:
         _dummy = torch.zeros(1, device="cuda:0")
         del _dummy
         print(f"[CUDA] Контекст зарезервирован на {torch.cuda.get_device_name(0)}")
+    else:
+        print("[CUDA] GPU не обнаружен — пропуск CUDA warmup (модели на удалённом сервере)")
 except Exception as e:
     print(f"[CUDA] Не удалось зарезервировать контекст: {e}")
 import threading
@@ -104,29 +106,32 @@ async def health_check():
 
     # PaddleOCR
     try:
-        r = urlopen("http://localhost:8010/v1/models", timeout=5)
+        r = urlopen("http://172.16.10.35:11438/v1/models", timeout=5)
         services["paddleocr"] = {"status": "ok", "code": r.status}
     except Exception as e:
         services["paddleocr"] = {"status": "error", "detail": str(e)}
 
     # gpt-oss-120b
     try:
-        r = urlopen("http://localhost:8001/v1/models", timeout=5)
+        r = urlopen("http://172.16.10.35:11437/v1/models", timeout=5)
         services["llm"] = {"status": "ok", "code": r.status}
     except Exception as e:
         services["llm"] = {"status": "error", "detail": str(e)}
 
-    # CUDA
+    # CUDA (опционально — сервер может быть без GPU)
     try:
-        cuda_ok = torch.cuda.is_available()
+        import torch as _torch
+        cuda_ok = _torch.cuda.is_available()
         services["cuda"] = {
-            "status": "ok" if cuda_ok else "error",
-            "device": torch.cuda.get_device_name(0) if cuda_ok else None,
+            "status": "ok" if cuda_ok else "skip",
+            "device": _torch.cuda.get_device_name(0) if cuda_ok else "нет GPU (модели на удалённом сервере)",
         }
+    except ImportError:
+        services["cuda"] = {"status": "skip", "device": "torch не установлен (модели на удалённом сервере)"}
     except Exception as e:
         services["cuda"] = {"status": "error", "detail": str(e)}
 
-    overall = all(s["status"] == "ok" for s in services.values())
+    overall = all(s["status"] in ("ok", "skip") for s in services.values())
     return {
         "status": "ok" if overall else "degraded",
         "services": services,

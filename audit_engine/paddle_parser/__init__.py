@@ -73,6 +73,7 @@ class PaddleParser:
             vlm_model=config.paddle_vlm_model,
             layout_model_repo=config.paddle_layout_model,
             layout_device=config.paddle_layout_device,
+            layout_base_url=config.paddle_layout_base_url,  # удалённый Layout API (опционально)
             dpi=config.ocr_dpi,
             log_dir=log_dir,
         )

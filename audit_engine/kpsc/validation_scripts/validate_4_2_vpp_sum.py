@@ -62,7 +62,7 @@ def extract_relevant_data(data: dict) -> dict:
                 if "ВПП" in cell_value:
                     vpp_row_idx = i
                     # Ищем заголовок "Показатель" - обычно несколько строк выше
-                    for j in range(max(0, i-10), i):
+                    for j in range(max(0, i-20), i):
                         row_cells = rows[j].get("cells", [])
                         for rc in row_cells:
                             if rc.get("col") in [2, 3]:

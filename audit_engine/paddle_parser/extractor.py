@@ -22,12 +22,11 @@ from collections import Counter
 from pathlib import Path
 from typing import Dict, List, Optional, Set, Tuple
 
+import fitz  # pymupdf — в 40x быстрее poppler на рендере PDF→PNG
 import numpy as np
 from PIL import Image
-from pdf2image import convert_from_path
 
 from . import config
-from .layout_detector import LayoutDetector
 from .vlm_client import VLMClient
 from .reading_order import sort_by_reading_order
 from .normalizer import merge_text_and_tables
@@ -57,6 +56,7 @@ class PaddleExtractor:
         vlm_model: Optional[str] = None,
         layout_model_repo: Optional[str] = None,
         layout_device: str = "cuda:0",
+        layout_base_url: Optional[str] = None,
         dpi: int = 200,
         log_dir: Optional[str] = None,
     ):
@@ -64,21 +64,31 @@ class PaddleExtractor:
         self.vlm_model = vlm_model
         self.layout_model_repo = layout_model_repo
         self.layout_device = layout_device
+        self.layout_base_url = layout_base_url  # если задан — используем удалённый Layout API
         self.dpi = dpi
+        self.max_page_pixels = 4000  # макс. ширина/высота страницы в px (защита от гигантских PDF)
         self.log_dir = Path(log_dir) if log_dir else None
 
         # Lazy init — модели загружаются при первом extract_pages()
-        self._detector: Optional[LayoutDetector] = None
+        self._detector = None
         self._vlm: Optional[VLMClient] = None
 
     def _ensure_models(self) -> None:
         """Загружает модели если ещё не загружены."""
         if self._detector is None:
-            logger.info("Загрузка Heron-101 layout detector...")
-            self._detector = LayoutDetector(
-                model_name=self.layout_model_repo,
-                device=self.layout_device,
-            )
+            if self.layout_base_url:
+                # Удалённый layout detector через HTTP API (для серверов без torch/GPU)
+                logger.info(f"Использую RemoteLayoutDetector: {self.layout_base_url}")
+                from .layout_client import RemoteLayoutDetector
+                self._detector = RemoteLayoutDetector(base_url=self.layout_base_url)
+            else:
+                # Локальный layout detector (требует torch + GPU)
+                logger.info("Загрузка Heron-101 layout detector...")
+                from .layout_detector import LayoutDetector
+                self._detector = LayoutDetector(
+                    model_name=self.layout_model_repo,
+                    device=self.layout_device,
+                )
         if self._vlm is None:
             logger.info("Инициализация VLM-клиента...")
             self._vlm = VLMClient(
@@ -102,9 +112,21 @@ class PaddleExtractor:
         white_ratio = (arr >= 250).sum() / arr.size
         return white_ratio >= threshold
 
+    def _render_page(self, doc: fitz.Document, page_idx: int, target_dpi: int = 72) -> Image.Image:
+        """Рендер одной страницы PDF через pymupdf с ограничением max_page_pixels."""
+        page = doc[page_idx]
+        # Масштаб: target_dpi / 72 (базовый DPI PDF), но не больше max_page_pixels
+        scale = target_dpi / 72.0
+        long_side = max(page.rect.width, page.rect.height) * scale
+        if long_side > self.max_page_pixels:
+            scale = self.max_page_pixels / max(page.rect.width, page.rect.height)
+        mat = fitz.Matrix(scale, scale)
+        pix = page.get_pixmap(matrix=mat)
+        return Image.frombytes("RGB", [pix.width, pix.height], pix.samples)
+
     def detect_blank_pages(self, pdf_path: str) -> Tuple[int, Set[int]]:
         """
-        Определяет пустые страницы в PDF (быстрый рендер 72 DPI).
+        Определяет пустые страницы в PDF (быстрый рендер, pymupdf).
 
         Args:
             pdf_path: путь к PDF
@@ -113,10 +135,11 @@ class PaddleExtractor:
             (total_pages, blank_indices): общее число страниц и множество
             0-based индексов пустых страниц
         """
-        images = convert_from_path(pdf_path, dpi=72, fmt='PNG')
-        total = len(images)
+        doc = fitz.open(pdf_path)
+        total = len(doc)
         blanks = set()
-        for i, img in enumerate(images):
+        for i in range(total):
+            img = self._render_page(doc, i, target_dpi=72)
             if self._is_blank_page(img):
                 blanks.add(i)
                 logger.info(f"  стр.{i+1}: пустая (пропускаем)")
@@ -148,9 +171,8 @@ class PaddleExtractor:
 
         self._ensure_models()
 
-        # PDF → PNG[]
-        images = convert_from_path(pdf_path, dpi=self.dpi, fmt='PNG')
-        total_pages = len(images)
+        doc = fitz.open(pdf_path)
+        total_pages = len(doc)
 
         if total_pages == 0:
             raise ValueError("PDF не содержит страниц")
@@ -166,11 +188,29 @@ class PaddleExtractor:
 
         logger.info(f"Paddle OCR: {len(unique_indices)} страниц из {total_pages}")
 
-        # Обработка каждой страницы
+        # Рендерим и обрабатываем постранично через pymupdf
         page_texts = asyncio.run(
-            self._process_pages_async(images, unique_indices)
+            self._process_pages_from_pdf(doc, unique_indices)
         )
 
+        return page_texts
+
+    async def _process_pages_from_pdf(
+        self,
+        doc: fitz.Document,
+        page_indices: List[int]
+    ) -> Dict[int, str]:
+        """Постраничный рендер (pymupdf) + обработка."""
+        page_texts = {}
+        for idx in page_indices:
+            page_num = idx + 1
+            try:
+                img = self._render_page(doc, idx, target_dpi=self.dpi)
+                md = await self._process_single_page(img, page_num)
+                page_texts[page_num] = md
+            except Exception as e:
+                logger.error(f"Ошибка Paddle OCR стр.{page_num}: {e}")
+                page_texts[page_num] = f"[ОШИБКА Paddle OCR: {e}]"
         return page_texts
 
     async def _process_pages_async(

@@ -37,7 +37,8 @@ def extract_relevant_data(data: dict) -> dict:
     """Извлечение данных для проверки"""
     return {
         "title": data["fields"].get("title", ""),
-        "organization": data["fields"].get("organization", "")
+        "organization": data["fields"].get("organization", ""),
+        "workbook": data.get("meta", {}).get("workbook", ""),
     }
 
 def build_prompt(extracted_data: dict, rule: dict) -> str:
@@ -176,13 +177,20 @@ def main():
         log_step(log_file, 3, "Извлечение релевантных данных",
                  f"Extracted data:\n{json.dumps(extracted, ensure_ascii=False, indent=2)}")
 
-    # Детерминированная предпроверка: если organization содержит ООО/АО/ПАО → PASS
+    # Детерминированная предпроверка: если organization/title/filename содержит ООО/АО/ПАО → PASS
+    # Кавычки опциональны — в реальных документах ООО часто без кавычек
     import re
+    ORG_PATTERN = r'(ООО|АО|ПАО|ОАО|ЗАО)\s*[«"\']?.+?[»"\']?'
     org = extracted.get("organization", "") or ""
-    org_found = bool(re.search(r'(ООО|АО|ПАО|ОАО|ЗАО)\s*[«"\'].+?[»"\'\"]', org))
-    title_has_org = bool(re.search(r'(ООО|АО|ПАО|ОАО|ЗАО)\s*[«"\'].+?[»"\'\"]', extracted.get("title", "") or ""))
+    title = extracted.get("title", "") or ""
+    workbook = extracted.get("workbook", "") or ""
+    # Из имени файла берём только basename
+    workbook_name = Path(workbook).stem if workbook else ""
+    org_found = bool(re.search(ORG_PATTERN, org))
+    title_has_org = bool(re.search(ORG_PATTERN, title))
+    filename_has_org = bool(re.search(ORG_PATTERN, workbook_name))
 
-    if org_found or title_has_org:
+    if org_found or title_has_org or filename_has_org:
         print(f"[4/6] Детерминированная проверка: найдено '{org or extracted['title']}' → PASS")
         result = {
             "rule_index": rule["rule_index"],
