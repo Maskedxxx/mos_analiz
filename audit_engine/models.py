@@ -109,6 +109,8 @@ class AuditConfig:
     paddle_vlm_model: Optional[str] = None          # Имя VLM (None = автоопределение)
     # OCR post-processing: имена чанков, где убирать аннотации Word-форм ("текст -> значение")
     strip_annotations_chunks: List[str] = field(default_factory=list)
+    # Режим проверки правил: "legacy" (per-rule LLM calls) или "multi_rule" (один вызов со всеми правилами)
+    engine_mode: str = "legacy"
     # Пути (заполняются автоматически при загрузке)
     config_dir: Path = field(default_factory=Path)
     rules_path: Path = field(default_factory=Path)
@@ -206,6 +208,7 @@ def load_audit_config(config_dir: Path) -> AuditConfig:
         reasoning_effort=data.get("reasoning_effort", None),
         llm_seed=data.get("llm_seed", None),
         strip_annotations_chunks=data.get("strip_annotations_chunks", []),
+        engine_mode=data.get("engine_mode", "legacy"),
         config_dir=config_dir,
         rules_path=config_dir / "rules.json",
         chunks_vision_path=config_dir / "chunks_vision.json",

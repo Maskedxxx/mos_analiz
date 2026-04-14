@@ -20,5 +20,6 @@
     "текст_приказа",
     "шапка"
   ],
-  "paddle_layout_base_url": "http://172.16.10.35:11439"
+  "paddle_layout_base_url": "http://172.16.10.35:11439",
+  "engine_mode": "multi_rule"
 }
