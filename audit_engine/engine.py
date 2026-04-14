@@ -28,7 +28,7 @@ from .llm_client import call_llm, parse_json_response
 from .excel_reporter import save_to_excel
 from .non_llm_checks.registry import get_check
 from .preprocessors.registry import get_preprocessors
-from .multi_rule import load_multi_rule_config, run_multi_rule_audit
+from .multi_rule import load_multi_rule_config, load_methodology_config, run_multi_rule_audit
 
 
 class AuditEngine:
@@ -293,8 +293,8 @@ class AuditEngine:
                 self.logger.log(f"⚠️ engine_mode=multi_rule, но sections.json/rules_multi.json не найдены — fallback на legacy")
 
         if mr_config is not None:
-            # ─── Multi-rule режим: один LLM-вызов со всеми правилами ───
-            self.logger.log(f"🔍 Запуск multi-rule аудита (1 LLM-вызов, {len(mr_config['rules'])} правил)...")
+            # ─── Multi-rule режим: один LLM-вызов со всеми правилами (базовый слой) ───
+            self.logger.log(f"🔍 Запуск multi-rule аудита (базовый слой, {len(mr_config['rules'])} правил)...")
             _emit("checking_rules", {"total": len(mr_config["rules"])})
             # Для multi-rule используем модель из config.model только если это Qwen;
             # иначе — дефолт "Qwen3.5-35B-A3B" (prod-модель на vLLM)
@@ -308,13 +308,43 @@ class AuditEngine:
                 llm_base_url=self.config.llm_base_url or self.config.ocr_base_url,
                 llm_model=mr_model,
                 session_dir=session_path,
+                layer="base",
             )
             violations = mr_result["violations"]
             self.logger.log(
-                f"   Multi-rule usage: prompt={mr_result['usage']['prompt_tokens']} "
+                f"   Base usage: prompt={mr_result['usage']['prompt_tokens']} "
                 f"completion={mr_result['usage']['completion_tokens']} "
                 f"total={mr_result['usage']['total_tokens']}"
             )
+
+            # ─── Методический слой (опционально) — второй LLM-вызов ───
+            meth_config = load_methodology_config(doc_configs_dir, self.doc_type)
+            if meth_config is not None:
+                self.logger.log(
+                    f"🔍 Запуск методического слоя ({len(meth_config['rules'])} правил, "
+                    f"источник: {meth_config.get('source', 'МР/МУ')[:80]})..."
+                )
+                meth_result = run_multi_rule_audit(
+                    parsed=target_doc,
+                    sections=mr_config["sections"],  # переиспользуем карту секций
+                    rules=meth_config["rules"],
+                    include_scopes=meth_config.get("include_scopes") or mr_config.get("include_scopes"),
+                    filename=target_doc.get("имя_файла", Path(target_path).name),
+                    llm_base_url=self.config.llm_base_url or self.config.ocr_base_url,
+                    llm_model=mr_model,
+                    session_dir=session_path,
+                    layer="methodology",
+                )
+                violations.extend(meth_result["violations"])
+                self.logger.log(
+                    f"   Methodology usage: prompt={meth_result['usage']['prompt_tokens']} "
+                    f"completion={meth_result['usage']['completion_tokens']} "
+                    f"total={meth_result['usage']['total_tokens']}"
+                )
+                self.logger.log(
+                    f"   Methodology violations: {len(meth_result['violations'])}"
+                )
+
             _emit("checking_rules_done", {"violations": len(violations)})
         else:
             # ─── Legacy режим: per-rule вызовы через ThreadPoolExecutor ───

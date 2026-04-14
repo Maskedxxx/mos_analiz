@@ -185,12 +185,21 @@ def _parse_response(response_text: str) -> List[Dict[str, Any]]:
     return verdicts
 
 
-def _verdict_to_violations(verdicts: List[Dict[str, Any]], rules: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+def _verdict_to_violations(
+    verdicts: List[Dict[str, Any]],
+    rules: List[Dict[str, Any]],
+    layer: str = "base",
+) -> List[Dict[str, Any]]:
     """
     Конвертирует массив verdicts из multi-rule формата в формат legacy violations.
 
+    Args:
+        verdicts: ответ LLM
+        rules: список правил (для подстановки названий)
+        layer: "base" (менеджерский слой) или "methodology" (методический слой из МР/МУ)
+
     Legacy format (как в старом engine.py):
-        [{"правило": "...", "Целевой документ": "...", "Различие": "..."}]
+        [{"правило": "...", "Целевой документ": "...", "Различие": "...", "layer": "base"}]
 
     Multi-rule format:
         [{"rule_index": 1, "verdict": {"status": "fail", "нарушения": [...]}, "reasoning": "..."}]
@@ -211,6 +220,7 @@ def _verdict_to_violations(verdicts: List[Dict[str, Any]], rules: List[Dict[str,
                 violations.append({
                     "правило": rule_title,
                     "rule_index": idx,
+                    "layer": layer,
                     "Целевой документ": violation.get("Целевой документ", "отсутствует"),
                     "Различие": violation.get("Различие", "?"),
                 })
@@ -228,6 +238,7 @@ def run_multi_rule_audit(
     llm_base_url: str,
     llm_model: str = "Qwen3.5-35B-A3B",
     session_dir: Optional[Path] = None,
+    layer: str = "base",
 ) -> Dict[str, Any]:
     """
     Запускает multi-rule audit: сборка промпта → LLM → парсинг вердикта.
@@ -242,12 +253,15 @@ def run_multi_rule_audit(
     doc_text = _collect_doc_text(parsed, include_scopes)
     user_prompt = build_user_prompt(filename, doc_text, sections, rules)
 
+    # Префикс файлов: базовый слой без префикса, методический — с methodology_
+    prefix = "multi_rule" if layer == "base" else f"multi_rule_{layer}"
+
     # Сохраняем промпты для отладки
     if session_dir:
         session_dir = Path(session_dir)
         session_dir.mkdir(parents=True, exist_ok=True)
-        (session_dir / "multi_rule_system_prompt.txt").write_text(SYSTEM_PROMPT, encoding="utf-8")
-        (session_dir / "multi_rule_user_prompt.txt").write_text(user_prompt, encoding="utf-8")
+        (session_dir / f"{prefix}_system_prompt.txt").write_text(SYSTEM_PROMPT, encoding="utf-8")
+        (session_dir / f"{prefix}_user_prompt.txt").write_text(user_prompt, encoding="utf-8")
 
     # LLM-вызов
     client = OpenAI(base_url=llm_base_url, api_key="dummy")
@@ -273,16 +287,16 @@ def run_multi_rule_audit(
     response_text = response.choices[0].message.content or ""
 
     if session_dir:
-        (session_dir / "multi_rule_response_raw.txt").write_text(response_text, encoding="utf-8")
+        (session_dir / f"{prefix}_response_raw.txt").write_text(response_text, encoding="utf-8")
 
     verdicts = _parse_response(response_text)
 
     if session_dir:
-        (session_dir / "multi_rule_response_parsed.json").write_text(
+        (session_dir / f"{prefix}_response_parsed.json").write_text(
             json.dumps(verdicts, ensure_ascii=False, indent=2), encoding="utf-8"
         )
 
-    violations = _verdict_to_violations(verdicts, rules)
+    violations = _verdict_to_violations(verdicts, rules, layer=layer)
 
     return {
         "verdicts": verdicts,
@@ -318,4 +332,29 @@ def load_multi_rule_config(doc_configs_dir: Path, doc_type: str) -> Optional[Dic
         "sections": sections_data["sections"],
         "rules": rules_data["rules"],
         "include_scopes": rules_data.get("include_scopes"),
+    }
+
+
+def load_methodology_config(doc_configs_dir: Path, doc_type: str) -> Optional[Dict[str, Any]]:
+    """
+    Загружает методический конфиг (rules_methodology.json) для типа документа.
+
+    Sections переиспользуются из sections.json (та же семантическая карта).
+
+    Returns:
+        {"rules": ..., "include_scopes": ..., "source": ...} или None если методический
+        слой не настроен для этого типа.
+    """
+    base = Path(doc_configs_dir) / doc_type
+    rules_path = base / "rules_methodology.json"
+
+    if not rules_path.exists():
+        return None
+
+    rules_data = json.loads(rules_path.read_text(encoding="utf-8"))
+
+    return {
+        "rules": rules_data["rules"],
+        "include_scopes": rules_data.get("include_scopes"),
+        "source": rules_data.get("source", ""),
     }
