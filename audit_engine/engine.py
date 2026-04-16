@@ -345,8 +345,18 @@ class AuditEngine:
                     f"   Methodology violations: {len(meth_result['violations'])}"
                 )
 
+            # Собираем полный список правил обоих слоёв для Excel
+            _all_multi_rules = [
+                {**r, "layer": "base"} for r in mr_config["rules"]
+            ]
+            if meth_config is not None:
+                _all_multi_rules.extend(
+                    {**r, "layer": "methodology"} for r in meth_config["rules"]
+                )
+
             _emit("checking_rules_done", {"violations": len(violations)})
         else:
+            _all_multi_rules = None  # legacy — используем all_rules
             # ─── Legacy режим: per-rule вызовы через ThreadPoolExecutor ───
             self.logger.log(f"🔍 Запуск проверок...")
             violations = self._run_checks(
@@ -368,7 +378,11 @@ class AuditEngine:
             xlsx_path = out_xlsx
         else:
             xlsx_path = str(session_path / "audit_result.xlsx")
-        save_to_excel(violations, xlsx_path, all_rules=rules)
+        save_to_excel(
+            violations, xlsx_path,
+            all_rules=rules if _all_multi_rules is None else None,
+            multi_rules=_all_multi_rules,
+        )
         self.logger.log(f"📊 Excel сохранён: {xlsx_path}")
 
         # Итоговая статистика

@@ -6,24 +6,22 @@
 Формирует отчёт с колонками:
 - №  — номер правила
 - Проверка — название правила
+- Тип проверки — базовая / методическая
+- Статус — ОК / FAIL
 - Целевой документ — что фактически в документе
 - Различие — что должно быть или в чём проблема
 """
 
 from pathlib import Path
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 
 from openpyxl import Workbook
 from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
 from openpyxl.utils import get_column_letter
 
 
-# Названия столбцов для отображения
-_DISPLAY_HEADERS = ["№", "Проверка", "Статус", "Целевой документ", "Различие"]
-
-# Стили для статуса
-_OK_FONT = Font(name="Calibri", size=14, bold=True, color="1F7A1F")
-_FAIL_FONT = Font(name="Calibri", size=14, bold=True, color="CC0000")
+# Названия столбцов
+_DISPLAY_HEADERS = ["№", "Проверка", "Тип проверки", "Статус", "Целевой документ", "Различие"]
 
 # Стили
 _FONT_SIZE = 14
@@ -39,30 +37,42 @@ _THIN_BORDER = Border(
     bottom=Side(style="thin"),
 )
 
-# Минимальная ширина столбцов (в символах)
-_MIN_WIDTHS = [6, 35, 10, 40, 40]
-# Максимальная ширина
-_MAX_WIDTHS = [6, 50, 10, 60, 60]
+_MIN_WIDTHS = [6, 35, 18, 10, 40, 40]
+_MAX_WIDTHS = [6, 50, 18, 10, 60, 60]
 
-# Заливка для строк ОК / FAIL
 _OK_FILL = PatternFill(start_color="E2EFDA", end_color="E2EFDA", fill_type="solid")
 _FAIL_FILL = PatternFill(start_color="FCE4EC", end_color="FCE4EC", fill_type="solid")
+_OK_FONT = Font(name="Calibri", size=_FONT_SIZE, bold=True, color="1F7A1F")
+_FAIL_FONT = Font(name="Calibri", size=_FONT_SIZE, bold=True, color="CC0000")
+
+# Заливка для методического слоя (слегка другой оттенок)
+_METH_OK_FILL = PatternFill(start_color="D6EAF8", end_color="D6EAF8", fill_type="solid")
+_METH_FAIL_FILL = PatternFill(start_color="FADBD8", end_color="FADBD8", fill_type="solid")
+
+
+def _layer_label(layer: str) -> str:
+    if layer == "methodology":
+        return "Методическая"
+    return "Базовая"
 
 
 def save_to_excel(
     violations: List[Dict[str, Any]],
     output_path: str,
-    all_rules: List[Any] = None,
+    all_rules: Optional[List[Any]] = None,
+    multi_rules: Optional[List[Dict[str, Any]]] = None,
 ) -> None:
     """
     Сохраняет результаты аудита в форматированный Excel.
 
     Показывает ВСЕ правила: ОК если нарушений нет, FAIL с деталями если есть.
+    Колонка «Тип проверки» разделяет базовые и методические правила.
 
     Args:
-        violations: список нарушений (list of dicts)
+        violations: список нарушений (list of dicts, каждый с полем "layer")
         output_path: путь для сохранения .xlsx
-        all_rules: список всех RuleSpec (если передан — показываем все правила)
+        all_rules: список всех RuleSpec (legacy формат)
+        multi_rules: список dict-правил из rules_multi.json + rules_methodology.json
     """
     Path(output_path).parent.mkdir(parents=True, exist_ok=True)
 
@@ -79,44 +89,71 @@ def save_to_excel(
         cell.border = _THIN_BORDER
     ws.row_dimensions[1].height = 30
 
-    # --- Собираем данные: все правила с ОК/FAIL ---
-    # Группируем нарушения по rule_index
+    # --- Группируем нарушения по (rule_index, layer) ---
     violations_by_rule = {}
     for v in violations:
-        idx = v.get("rule_index", 0)
-        violations_by_rule.setdefault(idx, []).append(v)
+        key = (v.get("rule_index", 0), v.get("layer", "base"))
+        violations_by_rule.setdefault(key, []).append(v)
 
     rows_data = []
 
-    if all_rules:
-        # Показываем ВСЕ правила
-        for rule in sorted(all_rules, key=lambda r: r.index):
-            rule_violations = violations_by_rule.get(rule.index, [])
+    if multi_rules:
+        # Multi-rule формат: правила — dict с index, title, layer
+        for rule in sorted(multi_rules, key=lambda r: (0 if r.get("layer", "base") == "base" else 1, r.get("index", 0))):
+            idx = rule.get("index", 0)
+            layer = rule.get("layer", "base")
+            key = (idx, layer)
+            rule_violations = violations_by_rule.get(key, [])
             if rule_violations:
-                # FAIL — строка для каждого нарушения
                 for v in rule_violations:
                     rows_data.append({
-                        "index": rule.index,
-                        "title": rule.title,
+                        "index": idx,
+                        "title": rule.get("title", ""),
+                        "layer": layer,
                         "status": "FAIL",
                         "target": v.get("Целевой документ", ""),
                         "diff": v.get("Различие", ""),
                     })
             else:
-                # ОК
+                rows_data.append({
+                    "index": idx,
+                    "title": rule.get("title", ""),
+                    "layer": layer,
+                    "status": "ОК",
+                    "target": "",
+                    "diff": "",
+                })
+    elif all_rules:
+        # Legacy RuleSpec формат
+        for rule in sorted(all_rules, key=lambda r: r.index):
+            key = (rule.index, "base")
+            rule_violations = violations_by_rule.get(key, [])
+            if rule_violations:
+                for v in rule_violations:
+                    rows_data.append({
+                        "index": rule.index,
+                        "title": rule.title,
+                        "layer": "base",
+                        "status": "FAIL",
+                        "target": v.get("Целевой документ", ""),
+                        "diff": v.get("Различие", ""),
+                    })
+            else:
                 rows_data.append({
                     "index": rule.index,
                     "title": rule.title,
+                    "layer": "base",
                     "status": "ОК",
                     "target": "",
                     "diff": "",
                 })
     else:
-        # Fallback: только нарушения (старое поведение)
+        # Fallback: только нарушения
         for v in sorted(violations, key=lambda v: v.get("rule_index", 0)):
             rows_data.append({
                 "index": v.get("rule_index", ""),
-                "title": v.get("rule_title", ""),
+                "title": v.get("правило", ""),
+                "layer": v.get("layer", "base"),
                 "status": "FAIL",
                 "target": v.get("Целевой документ", ""),
                 "diff": v.get("Различие", ""),
@@ -125,9 +162,21 @@ def save_to_excel(
     # --- Записываем строки ---
     for row_idx, row in enumerate(rows_data, start=2):
         is_ok = row["status"] == "ОК"
-        fill = _OK_FILL if is_ok else _FAIL_FILL
+        is_meth = row.get("layer") == "methodology"
 
-        values = [row["index"], row["title"], row["status"], row["target"], row["diff"]]
+        if is_meth:
+            fill = _METH_OK_FILL if is_ok else _METH_FAIL_FILL
+        else:
+            fill = _OK_FILL if is_ok else _FAIL_FILL
+
+        values = [
+            row["index"],
+            row["title"],
+            _layer_label(row.get("layer", "base")),
+            row["status"],
+            row["target"],
+            row["diff"],
+        ]
         for col_idx, value in enumerate(values, start=1):
             cell = ws.cell(row=row_idx, column=col_idx, value=value)
             cell.font = _CELL_FONT
@@ -136,9 +185,10 @@ def save_to_excel(
 
             if col_idx == 1:  # №
                 cell.alignment = _CENTER_ALIGNMENT
-            elif col_idx == 3:  # Статус
+            elif col_idx in (3, 4):  # Тип проверки, Статус
                 cell.alignment = _CENTER_ALIGNMENT
-                cell.font = _OK_FONT if is_ok else _FAIL_FONT
+                if col_idx == 4:
+                    cell.font = _OK_FONT if is_ok else _FAIL_FONT
             else:
                 cell.alignment = _WRAP_ALIGNMENT
 
