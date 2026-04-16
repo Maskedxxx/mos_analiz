@@ -5,12 +5,14 @@ import {
 import { getDownloadUrl } from './api';
 
 export default function ScreenResults({ result, sessionId, filename, onReset }) {
-  const [expandedIdx, setExpandedIdx] = useState(null);
+  const [expandedKey, setExpandedKey] = useState(null);
 
   const violations = result.violations || [];
   const rulesChecked = result.rules_checked || 0;
   const duration = result.duration_sec || 0;
-  const failedRules = [...new Set(violations.map((v) => v.rule_index))].length;
+
+  const baseViolations = violations.filter((v) => !v.layer || v.layer === 'base');
+  const methViolations = violations.filter((v) => v.layer === 'methodology');
 
   return (
     <div className="animate-fade-in max-w-3xl mx-auto px-4 py-12 space-y-8">
@@ -42,82 +44,25 @@ export default function ScreenResults({ result, sessionId, filename, onReset }) 
         />
       </div>
 
-      {/* Сводка */}
-      {violations.length === 0 ? (
-        <div className="bg-green-50 border border-green-200 rounded-xl p-6 text-center">
-          <CheckCircle className="w-10 h-10 text-green-500 mx-auto mb-2" />
-          <p className="text-green-800 font-medium">Все проверки пройдены!</p>
-          <p className="text-green-600 text-sm mt-1">Замечаний не обнаружено</p>
-        </div>
-      ) : (
-        <div className="space-y-3">
-          <h3 className="text-lg font-semibold text-gray-900">
-            Замечания ({violations.length})
-          </h3>
+      {/* Формальные проверки (base) */}
+      <ViolationBlock
+        title="Формальные проверки"
+        violations={baseViolations}
+        expandedKey={expandedKey}
+        setExpandedKey={setExpandedKey}
+        keyPrefix="base"
+        accentColor="red"
+      />
 
-          {violations.map((v, idx) => {
-            const isExpanded = expandedIdx === idx;
-            return (
-              <div
-                key={idx}
-                className="animate-slide-up bg-white border border-gray-200 rounded-xl overflow-hidden"
-                style={{ animationDelay: `${idx * 40}ms` }}
-              >
-                {/* Шапка карточки */}
-                <button
-                  onClick={() => setExpandedIdx(isExpanded ? null : idx)}
-                  className="w-full px-5 py-4 flex items-center gap-3 text-left hover:bg-gray-50 transition-colors cursor-pointer"
-                >
-                  <span className="text-xs font-mono bg-red-100 text-red-700 px-2 py-0.5 rounded-md shrink-0">
-                    #{v.rule_index}
-                  </span>
-                  <span className="text-gray-900 font-medium flex-1 truncate">
-                    {v.rule_title}
-                  </span>
-                  {isExpanded ? (
-                    <ChevronUp className="w-4 h-4 text-gray-400 shrink-0" />
-                  ) : (
-                    <ChevronDown className="w-4 h-4 text-gray-400 shrink-0" />
-                  )}
-                </button>
-
-                {/* Тело карточки */}
-                {isExpanded && (
-                  <div className="px-5 pb-4 space-y-3 border-t border-gray-100 pt-3">
-                    {v['Целевой документ'] && (
-                      <div>
-                        <p className="text-xs text-gray-400 uppercase mb-1">В документе</p>
-                        <p className="text-sm text-gray-700 bg-red-50 rounded-lg px-3 py-2 whitespace-pre-wrap">
-                          {v['Целевой документ']}
-                        </p>
-                      </div>
-                    )}
-                    {v['Различие'] && (
-                      <div>
-                        <p className="text-xs text-gray-400 uppercase mb-1">Замечание</p>
-                        <p className="text-sm text-gray-700 bg-gray-50 rounded-lg px-3 py-2 whitespace-pre-wrap">
-                          {v['Различие']}
-                        </p>
-                      </div>
-                    )}
-                    {/* Дополнительные поля */}
-                    {Object.entries(v)
-                      .filter(([k]) => !['rule_index', 'rule_title', 'Целевой документ', 'Различие'].includes(k))
-                      .map(([k, val]) => (
-                        <div key={k}>
-                          <p className="text-xs text-gray-400 uppercase mb-1">{k}</p>
-                          <p className="text-sm text-gray-700 bg-gray-50 rounded-lg px-3 py-2 whitespace-pre-wrap">
-                            {typeof val === 'object' ? JSON.stringify(val, null, 2) : String(val)}
-                          </p>
-                        </div>
-                      ))}
-                  </div>
-                )}
-              </div>
-            );
-          })}
-        </div>
-      )}
+      {/* Проверка по методике (methodology) */}
+      <ViolationBlock
+        title="Проверка по методике"
+        violations={methViolations}
+        expandedKey={expandedKey}
+        setExpandedKey={setExpandedKey}
+        keyPrefix="meth"
+        accentColor="amber"
+      />
 
       {/* Кнопки */}
       <div className="flex gap-3">
@@ -137,6 +82,94 @@ export default function ScreenResults({ result, sessionId, filename, onReset }) 
           Скачать Excel
         </a>
       </div>
+    </div>
+  );
+}
+
+const HIDDEN_FIELDS = ['rule_index', 'rule_title', 'Целевой документ', 'Различие', 'layer'];
+
+function ViolationBlock({ title, violations, expandedKey, setExpandedKey, keyPrefix, accentColor }) {
+  const borderColor = accentColor === 'amber' ? 'border-amber-300' : 'border-red-300';
+  const bgColor = accentColor === 'amber' ? 'bg-amber-50' : 'bg-red-50';
+  const badgeBg = accentColor === 'amber' ? 'bg-amber-100 text-amber-700' : 'bg-red-100 text-red-700';
+
+  return (
+    <div className={`${bgColor} border ${borderColor} rounded-xl p-5 space-y-3`}>
+      <div className="flex items-center justify-between">
+        <h3 className="text-lg font-semibold text-gray-900">{title}</h3>
+        <span className={`text-xs font-medium px-2.5 py-1 rounded-full ${violations.length > 0 ? badgeBg : 'bg-green-100 text-green-700'}`}>
+          {violations.length > 0 ? `${violations.length} замеч.` : 'Нет замечаний'}
+        </span>
+      </div>
+
+      {violations.length === 0 ? (
+        <div className="bg-white/70 rounded-lg p-4 text-center">
+          <CheckCircle className="w-7 h-7 text-green-500 mx-auto mb-1" />
+          <p className="text-green-700 text-sm font-medium">Все проверки пройдены</p>
+        </div>
+      ) : (
+        <div className="space-y-2">
+          {violations.map((v, idx) => {
+            const key = `${keyPrefix}-${idx}`;
+            const isExpanded = expandedKey === key;
+            return (
+              <div
+                key={key}
+                className="animate-slide-up bg-white border border-gray-200 rounded-xl overflow-hidden"
+                style={{ animationDelay: `${idx * 40}ms` }}
+              >
+                <button
+                  onClick={() => setExpandedKey(isExpanded ? null : key)}
+                  className="w-full px-5 py-4 flex items-center gap-3 text-left hover:bg-gray-50 transition-colors cursor-pointer"
+                >
+                  <span className={`text-xs font-mono ${badgeBg} px-2 py-0.5 rounded-md shrink-0`}>
+                    #{v.rule_index}
+                  </span>
+                  <span className="text-gray-900 font-medium flex-1 truncate">
+                    {v.rule_title}
+                  </span>
+                  {isExpanded ? (
+                    <ChevronUp className="w-4 h-4 text-gray-400 shrink-0" />
+                  ) : (
+                    <ChevronDown className="w-4 h-4 text-gray-400 shrink-0" />
+                  )}
+                </button>
+
+                {isExpanded && (
+                  <div className="px-5 pb-4 space-y-3 border-t border-gray-100 pt-3">
+                    {v['Целевой документ'] && (
+                      <div>
+                        <p className="text-xs text-gray-400 uppercase mb-1">В документе</p>
+                        <p className="text-sm text-gray-700 bg-red-50 rounded-lg px-3 py-2 whitespace-pre-wrap">
+                          {v['Целевой документ']}
+                        </p>
+                      </div>
+                    )}
+                    {v['Различие'] && (
+                      <div>
+                        <p className="text-xs text-gray-400 uppercase mb-1">Замечание</p>
+                        <p className="text-sm text-gray-700 bg-gray-50 rounded-lg px-3 py-2 whitespace-pre-wrap">
+                          {v['Различие']}
+                        </p>
+                      </div>
+                    )}
+                    {Object.entries(v)
+                      .filter(([k]) => !HIDDEN_FIELDS.includes(k))
+                      .map(([k, val]) => (
+                        <div key={k}>
+                          <p className="text-xs text-gray-400 uppercase mb-1">{k}</p>
+                          <p className="text-sm text-gray-700 bg-gray-50 rounded-lg px-3 py-2 whitespace-pre-wrap">
+                            {typeof val === 'object' ? JSON.stringify(val, null, 2) : String(val)}
+                          </p>
+                        </div>
+                      ))}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }
