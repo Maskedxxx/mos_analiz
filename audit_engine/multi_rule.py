@@ -180,6 +180,47 @@ def _parse_response(response_text: str) -> List[Dict[str, Any]]:
         except json.JSONDecodeError:
             logger.warning(f"Пропущен невалидный JSON-объект: {obj_text[:100]}...")
 
+    if verdicts:
+        return verdicts
+
+    # Попытка 3: LLM склеил вердикты в псевдо-массив без правильных разделителей.
+    # Режем текст на куски между маркерами "rule_index":, каждый кусок — один объект.
+    rule_markers = [m.start() for m in re.finditer(r'"rule_index"\s*:', clean)]
+    if len(rule_markers) >= 2:
+        # Границы кусков: от `{` перед маркером до `{` перед следующим маркером
+        boundaries = []
+        for marker_pos in rule_markers:
+            brace = clean.rfind('{', 0, marker_pos)
+            if brace >= 0:
+                boundaries.append(brace)
+        boundaries.append(len(clean))
+
+        for idx in range(len(boundaries) - 1):
+            start = boundaries[idx]
+            end = boundaries[idx + 1]
+            chunk = clean[start:end]
+            # Обрезаем хвост до последней `}` и отбрасываем лишние запятые/пробелы
+            last_brace = chunk.rfind('}')
+            if last_brace < 0:
+                continue
+            candidate = chunk[:last_brace + 1].strip().rstrip(',').strip()
+            # Балансируем скобки: лишние закрывающие отрезаем, недостающие добавляем
+            opens = candidate.count('{')
+            closes = candidate.count('}')
+            if closes > opens:
+                # Отрезаем хвостовые `}` пока не выровняемся
+                extra = closes - opens
+                for _ in range(extra):
+                    candidate = candidate.rstrip()
+                    if candidate.endswith('}'):
+                        candidate = candidate[:-1].rstrip()
+            elif closes < opens:
+                candidate += '}' * (opens - closes)
+            try:
+                verdicts.append(json.loads(candidate))
+            except json.JSONDecodeError:
+                logger.warning(f"Пропущен чанк: {candidate[:80]}...")
+
     if not verdicts:
         raise json.JSONDecodeError("Не удалось распарсить ни одного объекта", clean, 0)
     return verdicts
