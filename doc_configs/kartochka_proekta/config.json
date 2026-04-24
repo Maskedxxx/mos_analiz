@@ -4,6 +4,5 @@
   "engine": "kartochka_proekta",
   "model": "openai/gpt-oss-120b",
   "temperature": 0.0,
-  "max_workers": 5,
-  "paddle_layout_base_url": "http://172.16.10.35:11439"
+  "max_workers": 5
 }
