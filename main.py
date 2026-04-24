@@ -187,7 +187,6 @@ except ImportError:
 PROJECT_ROOT = Path(__file__).resolve().parent
 DOC_CONFIGS_DIR = PROJECT_ROOT / 'doc_configs'
 LOGS_RESULT_DIR = PROJECT_ROOT / 'logs_result'
-SYSTEM_PROMPTS_DIR = PROJECT_ROOT / 'audit_engine' / 'system_prompts'
 
 # END_PATHS_AND_SETTINGS
 
@@ -273,7 +272,6 @@ class AuditConfig:
         doc_type — идентификатор типа документа (prikaz_ic, cheklist_eu, ...)
         doc_title — человекочитаемое название
         model — модель LLM для проверок
-        system_prompt — имя файла системного промпта (из system_prompts/)
         filename_pattern — ожидаемое имя файла для non-LLM проверки (подстрока)
         filename_keywords — список ключевых слов для проверки имени файла (все должны быть в имени)
         max_workers — количество параллельных LLM-запросов
@@ -285,16 +283,12 @@ class AuditConfig:
         engine — имя кастомного движка для doc_type (kpsc, kartochka_proekta, ...).
                  Заполнено только для special-движков; взаимоисключающе с parser_by_ext.
         llm_base_url, llm_max_tokens, reasoning_effort, llm_seed — параметры LLM-клиента.
-        engine_mode — 'legacy' / 'multi_rule' — режим аудит-движка.
         config_dir — путь к папке с конфигами (автоматически)
         rules_path — путь к rules.json (автоматически)
-        template_path — путь к файлу шаблона (автоматически)
-        template_cached_path — путь к кэшу шаблона
     """
     doc_type: str
     doc_title: str = ''
     model: str = field(default_factory=lambda: LLM_CONFIG.default_model)
-    system_prompt: str = 'default.txt'
     filename_pattern: str = ''
     filename_keywords: Optional[List[str]] = None
     max_workers: int = 1
@@ -304,15 +298,12 @@ class AuditConfig:
     parser_by_ext: Dict[str, str] = field(default_factory=dict)
     # Имя special-движка (kpsc, kartochka_proekta, ...). Взаимоисключающе с parser_by_ext.
     engine: Optional[str] = None
-    llm_base_url: Optional[str] = 'http://172.16.10.35:11437/v1/'
-    llm_max_tokens: int = 4096
-    reasoning_effort: Optional[str] = None
-    llm_seed: Optional[int] = None
-    engine_mode: str = 'legacy'
+    llm_base_url: Optional[str] = field(default_factory=lambda: LLM_CONFIG.base_url)
+    llm_max_tokens: int = field(default_factory=lambda: LLM_CONFIG.default_max_tokens)
+    reasoning_effort: Optional[str] = field(default_factory=lambda: LLM_CONFIG.default_reasoning_effort)
+    llm_seed: Optional[int] = field(default_factory=lambda: LLM_CONFIG.default_seed)
     config_dir: Path = field(default_factory=Path)
     rules_path: Path = field(default_factory=Path)
-    template_path: Optional[Path] = None
-    template_cached_path: Optional[Path] = None
 
 @dataclass
 class AuditResult:
@@ -379,34 +370,22 @@ def load_audit_config(config_dir: Path) -> AuditConfig:
         doc_type=data['doc_type'],
         doc_title=data.get('doc_title', data['doc_type']),
         model=data.get('model', LLM_CONFIG.default_model),
-        system_prompt=data.get('system_prompt', 'default.txt'),
         filename_pattern=data.get('filename_pattern', ''),
         filename_keywords=data.get('filename_keywords', None),
         max_workers=data.get('max_workers', 1),
         temperature=data.get('temperature', 0.0),
         parser_by_ext=parser_by_ext if has_parser_map else {},
         engine=engine if has_engine else None,
-        llm_base_url=data.get('llm_base_url', 'http://172.16.10.35:11437/v1/'),
-        llm_max_tokens=data.get('llm_max_tokens', 4096),
-        reasoning_effort=data.get('reasoning_effort', None),
-        llm_seed=data.get('llm_seed', None),
-        engine_mode=data.get('engine_mode', 'legacy'),
+        llm_base_url=data.get('llm_base_url', LLM_CONFIG.base_url),
+        llm_max_tokens=data.get('llm_max_tokens', LLM_CONFIG.default_max_tokens),
+        reasoning_effort=data.get('reasoning_effort', LLM_CONFIG.default_reasoning_effort),
+        llm_seed=data.get('llm_seed', LLM_CONFIG.default_seed),
         config_dir=config_dir,
         rules_path=config_dir / 'rules.json',
     )
     if 'secondary_file' in data:
         sf = data['secondary_file']
         config.secondary_file = SecondaryFileConfig(type=sf['type'], parser=sf['parser'], chunk_prefix=sf.get('chunk_prefix', 'xlsx_'))
-    template_dir = config_dir / 'template'
-    if template_dir.exists():
-        for ext in ['*.docx', '*.pptx']:
-            templates = list(template_dir.glob(ext))
-            if templates:
-                config.template_path = templates[0]
-                break
-        cached = template_dir / 'template_cached.json'
-        if cached.exists():
-            config.template_cached_path = cached
     return config
 
 models_module = SimpleNamespace(RuleSpec=RuleSpec, SecondaryFileConfig=SecondaryFileConfig, AuditConfig=AuditConfig, AuditResult=AuditResult, load_rules=load_rules, load_audit_config=load_audit_config)
@@ -423,734 +402,6 @@ models_module = SimpleNamespace(RuleSpec=RuleSpec, SecondaryFileConfig=Secondary
 # LINKS: audit_engine/preprocessors/*.py.
 # RATIONALE: Preprocessors remain data-shaping business logic even inside one file.
 
-# START_SOURCE_PREPROCESSORS_REGISTRY
-# PURPOSE: Inlined source from audit_engine/preprocessors/registry.py.
-preprocessors_registry__REGISTRY: Dict[Tuple[str, str], Callable[[str], str]] = {}
-
-def register_preprocessor(doc_type: str, scope: str):
-    """
-    Декоратор для регистрации препроцессора.
-
-    Args:
-        doc_type: тип документа
-        scope: чанк, к которому применяется препроцессор
-
-    Функция должна принимать str → str.
-    """
-
-    def decorator(fn: Callable[[str], str]):
-        preprocessors_registry__REGISTRY[doc_type, scope] = fn
-        return fn
-    return decorator
-
-def get_preprocessors(doc_type: str) -> Dict[str, Callable[[str], str]]:
-    """
-    Возвращает все препроцессоры для типа документа.
-
-    Returns:
-        Словарь {scope: preprocess_fn}
-    """
-    return {scope: fn for (dt, scope), fn in preprocessors_registry__REGISTRY.items() if dt == doc_type}
-
-preprocessors_registry_module = SimpleNamespace(_REGISTRY=preprocessors_registry__REGISTRY, register_preprocessor=register_preprocessor, get_preprocessors=get_preprocessors)
-
-# END_SOURCE_PREPROCESSORS_REGISTRY
-
-# START_SOURCE_PREPROCESSORS_CHEKLIST
-# PURPOSE: Inlined source from audit_engine/preprocessors/cheklist.py.
-def preprocessors_cheklist_normalize_text_for_comparison(text: str) -> str:
-    """
-    Нормализует текст перед сравнением, заменяя плейсхолдеры на унифицированные метки.
-    Применяется и к целевому документу и к шаблону.
-    """
-    text = re.sub('\\s+-\\s+(заголовок|дата|номер|форма|место|подпись).*$', '', text, flags=re.MULTILINE | re.IGNORECASE)
-    text = re.sub('[ \\t]+', ' ', text)
-    text = re.sub('\\n\\s*\\n', '\n\n', text)
-    text = re.sub('\\d{1,2}\\.\\d{1,2}\\.\\d{4}\\s*г?\\.?', '[ДАТА]', text)
-    text = re.sub('«?\\d{1,2}»?\\s*[а-яё]+\\s*\\d{4}\\s*г?\\.?', '[ДАТА]', text, flags=re.IGNORECASE)
-    text = re.sub('_{2,}\\.\\s*_{2,}\\.\\s*\\d{4}|_{2,}\\.\\s*_{2,}\\.\\s*202_?', '[ДАТА]', text)
-    text = re.sub('[А-ЯЁ][а-яё]+\\s+[А-ЯЁ]\\.[А-ЯЁ]\\.', '[ФИО]', text)
-    text = re.sub('[А-ЯЁ]\\.[А-ЯЁ]\\.\\s*[А-ЯЁ][а-яё]+', '[ФИО]', text)
-    text = re.sub('И\\.О\\.\\s*Фамилия', '[ФИО]', text)
-    text = re.sub('\\(Фамилия И\\.О\\.\\)', '', text)
-    text = re.sub('(ООО|ЗАО|АО|ПАО)\\s*[«"][\\w\\s]+[»"]', '[ОРГАНИЗАЦИЯ]', text)
-    text = re.sub('(ООО|ЗАО|АО|ПАО)\\s*[«"]_+[»"]', '[ОРГАНИЗАЦИЯ]', text)
-    text = re.sub('№\\s*\\d+[а-яА-Я]*', '№ [НОМЕР]', text)
-    text = re.sub('№\\s*_+', '№ [НОМЕР]', text)
-    text = re.sub('_+', '[ПЛЕЙСХОЛДЕР]', text)
-    text = re.sub('\\[ДАТА\\]\\s*\\[ДАТА\\]', '[ДАТА]', text)
-    text = re.sub('\\[ФИО\\]\\s*\\[ФИО\\]', '[ФИО]', text)
-    return text.strip()
-
-def normalize_table_for_comparison(table_text: str) -> str:
-    """
-    Нормализует таблицу критериев для сравнения TARGET и TEMPLATE.
-
-    1. Заменяет числовые оценки (0, 1, 2) на [ОЦЕНКА]
-    2. Добавляет номера критериев если отсутствуют
-    3. Убирает структурные различия
-    """
-    if not table_text:
-        return table_text
-    criteria_keywords = {'Влияние результатов работы эталонного участка': '1', 'Руководство предприятия выделяет этот участок': '2', 'На участке выявлены резервы повышения производительности': '3', 'Применение обязательных инструментов БП': '4', 'На участке есть проблемы, которые возможно исключить': '5', 'На какие потоки предприятия влияет': '6', 'Оцените потенциал тиражирования': '7'}
-    lines = table_text.split('\n')
-    normalized_lines = []
-    for line in lines:
-        if line.strip().startswith('[') or 'Итоговая оценка' in line:
-            normalized_lines.append(line)
-            continue
-        if '|' in line:
-            parts = line.split('|')
-            if len(parts) > 5:
-                line = '|'.join(parts[:4]) + '|'
-            for keyword, num in criteria_keywords.items():
-                if keyword in line:
-                    pattern = '^\\|\\s*\\|\\s*(' + re.escape(keyword[:20]) + ')'
-                    if re.search(pattern, line):
-                        line = re.sub(pattern, '| ' + num + ' | \\1', line)
-                    break
-            line = re.sub('\\|\\s*([012])\\s*\\|', '| [ОЦЕНКА] |', line)
-            if re.match('^\\|[\\s\\-|]+$', line):
-                dashes = line.split('|')
-                if len(dashes) > 5:
-                    line = '|'.join(dashes[:4]) + '|'
-        normalized_lines.append(line)
-    return '\n'.join(normalized_lines)
-
-@register_preprocessor('cheklist_eu', 'шапка')
-def preprocess_cheklist_shapa(text: str) -> str:
-    """Нормализация шапки чек-листа."""
-    return preprocessors_cheklist_normalize_text_for_comparison(text)
-
-@register_preprocessor('cheklist_eu', 'таблица_критериев')
-def preprocess_cheklist_table(text: str) -> str:
-    """Нормализация таблицы критериев."""
-    text = preprocessors_cheklist_normalize_text_for_comparison(text)
-    text = normalize_table_for_comparison(text)
-    return text
-
-@register_preprocessor('cheklist_eu', 'подвал')
-def preprocess_cheklist_podval(text: str) -> str:
-    """Нормализация подвала чек-листа."""
-    return preprocessors_cheklist_normalize_text_for_comparison(text)
-
-preprocessors_cheklist_module = SimpleNamespace(normalize_text_for_comparison=preprocessors_cheklist_normalize_text_for_comparison, normalize_table_for_comparison=normalize_table_for_comparison, preprocess_cheklist_shapa=preprocess_cheklist_shapa, preprocess_cheklist_table=preprocess_cheklist_table, preprocess_cheklist_podval=preprocess_cheklist_podval)
-
-# END_SOURCE_PREPROCESSORS_CHEKLIST
-
-# START_SOURCE_PREPROCESSORS_ITER8_NORMALIZE
-# PURPOSE: Inlined source from audit_engine/preprocessors/iter8_normalize.py.
-def preprocessors_iter8_normalize_normalize_text_for_comparison(text: str) -> str:
-    """
-    Нормализует текст перед сравнением с шаблоном.
-
-    Заменяет переменные данные (даты, ФИО, организации) на метки [ДАТА], [ФИО] и т.д.
-    Применяется и к целевому документу, и к шаблону.
-    """
-    text = re.sub('\\s*-\\s*[а-яё\\s]+$', '', text, flags=re.MULTILINE | re.IGNORECASE)
-    text = re.sub('\\s*-\\s*(заголовок|дата|номер|форма|место|подпись).*$', '', text, flags=re.MULTILINE | re.IGNORECASE)
-    text = re.sub('[ \\t]+', ' ', text)
-    text = re.sub('\\n\\s*\\n', '\n\n', text)
-    text = re.sub('\\d{1,2}\\.\\d{1,2}\\.\\d{4}\\s*г?\\.?', '[ДАТА]', text)
-    text = re.sub('«?\\d{1,2}»?\\s*[а-яё]+\\s*\\d{4}\\s*г?\\.?', '[ДАТА]', text, flags=re.IGNORECASE)
-    text = re.sub('_{2,}\\.\\s*_{2,}\\.\\s*\\d{4}|_{2,}\\.\\s*_{2,}\\.\\s*202_?', '[ДАТА]', text)
-    text = re.sub('в срок до\\s*_+\\.?', 'в срок до [ДАТА]', text)
-    text = re.sub('в срок до\\s*\\[ДАТА\\]\\.?', 'в срок до [ДАТА]', text)
-    text = re.sub('срок\\s*_*\\d{1,2}\\.\\d{1,2}\\.\\d{4}\\.?', 'срок [ДАТА]', text)
-    text = re.sub('срок\\s*_+\\.?', 'срок [ДАТА]', text)
-    text = re.sub('срок\\s*\\[ДАТА\\]\\.?', 'срок [ДАТА]', text)
-    text = re.sub('Ответственный\\s*_+', 'Ответственный [ДОЛЖНОСТЬ]', text)
-    text = re.sub('Ответственный\\s+([а-яёА-ЯЁ\\s]+?)\\s+срок', 'Ответственный [ДОЛЖНОСТЬ] срок', text)
-    text = re.sub('руководителем ПО\\s*_+', 'руководителем ПО [ФИО]', text)
-    text = re.sub('руководителем ПО\\s+[а-яёА-ЯЁ\\s]+(?=\\s+срок)', 'руководителем ПО [ФИО]', text)
-    text = re.sub('[А-ЯЁ][а-яё]+\\s+[А-ЯЁ]\\.[А-ЯЁ]\\.', '[ФИО]', text)
-    text = re.sub('[А-ЯЁ]\\.[А-ЯЁ]\\.\\s*[А-ЯЁ][а-яё]+', '[ФИО]', text)
-    text = re.sub('И\\.О\\.\\s*Фамилия', '[ФИО]', text)
-    text = re.sub('\\(Фамилия И\\.О\\.\\)', '', text)
-    text = re.sub('(ООО|ЗАО|АО|ПАО)\\s*[«"][\\w\\s]+[»"]', '[ОРГАНИЗАЦИЯ]', text)
-    text = re.sub('(ООО|ЗАО|АО|ПАО)\\s*[«"]_+[»"]', '[ОРГАНИЗАЦИЯ]', text)
-    text = re.sub('\\(Указать наименование должности\\)', '[ДОЛЖНОСТЬ]', text)
-    text = re.sub('№\\s*\\d+[а-яА-Я]*', '№ [НОМЕР]', text)
-    text = re.sub('№\\s*_+', '№ [НОМЕР]', text)
-    text = re.sub('_+', '[ПЛЕЙСХОЛДЕР]', text)
-    text = re.sub('\\[ДАТА\\]\\s*\\[ДАТА\\]', '[ДАТА]', text)
-    text = re.sub('\\[ФИО\\]\\s*\\[ФИО\\]', '[ФИО]', text)
-    text = re.sub('\\[ДОЛЖНОСТЬ\\]\\s*\\[ДОЛЖНОСТЬ\\]', '[ДОЛЖНОСТЬ]', text)
-    return text.strip()
-
-@register_preprocessor('polozhenie_po', 'заголовок')
-def preprocess_polozhenie_zagolovok(text: str) -> str:
-    """Нормализация заголовка для сравнения с шаблоном."""
-    return preprocessors_iter8_normalize_normalize_text_for_comparison(text)
-
-@register_preprocessor('polozhenie_po', 'основной_текст')
-def preprocess_polozhenie_osnovnoy_tekst(text: str) -> str:
-    """Нормализация основного текста для структурного сравнения."""
-    return preprocessors_iter8_normalize_normalize_text_for_comparison(text)
-
-@register_preprocessor('polozhenie_po', 'структура_разделов')
-def preprocess_polozhenie_struktura(text: str) -> str:
-    """Нормализация структуры разделов для сравнения с шаблоном."""
-    return preprocessors_iter8_normalize_normalize_text_for_comparison(text)
-
-@register_preprocessor('polozhenie_po', 'пункт_1_5')
-def preprocess_polozhenie_punkt_1_5(text: str) -> str:
-    """Нормализация перечня документов для сравнения с шаблоном."""
-    return preprocessors_iter8_normalize_normalize_text_for_comparison(text)
-
-preprocessors_iter8_normalize_module = SimpleNamespace(normalize_text_for_comparison=preprocessors_iter8_normalize_normalize_text_for_comparison, preprocess_polozhenie_zagolovok=preprocess_polozhenie_zagolovok, preprocess_polozhenie_osnovnoy_tekst=preprocess_polozhenie_osnovnoy_tekst, preprocess_polozhenie_struktura=preprocess_polozhenie_struktura, preprocess_polozhenie_punkt_1_5=preprocess_polozhenie_punkt_1_5)
-
-# END_SOURCE_PREPROCESSORS_ITER8_NORMALIZE
-
-# START_SOURCE_PREPROCESSORS_POLOZHENIE_NORMALIZE
-# PURPOSE: Inlined source from audit_engine/preprocessors/polozhenie_normalize.py.
-@register_preprocessor('polozhenie_comp_ppu', 'шапка')
-@register_preprocessor('polozhenie_ppu', 'шапка')
-def preprocess_shapka(text: str) -> str:
-    """
-    Нормализует шапку:
-    1) Удаляет дублирующийся хвост (Vision Parser иногда дублирует текст)
-    2) Склеивает строку 'к приказу от <дата>' со строкой '№ <номер>'
-       Vision иногда разбивает на 2 строки: 'от 13.11.2025г.
-№ 10БП'
-       Шаблон содержит их в одной строке: 'от <...> № <...>'
-    """
-    lines = text.split('\n')
-    non_empty = [(i, l.strip()) for i, l in enumerate(lines) if l.strip()]
-    if len(non_empty) >= 3:
-        for tail_len in range(len(non_empty) // 2, 0, -1):
-            tail_texts = [t for _, t in non_empty[-tail_len:]]
-            for start in range(len(non_empty) - tail_len):
-                match = all((non_empty[start + j][1] == tail_texts[j] for j in range(tail_len)))
-                if match:
-                    cut_line = non_empty[-tail_len][0]
-                    while cut_line > 0 and (not lines[cut_line - 1].strip()):
-                        cut_line -= 1
-                    text = '\n'.join(lines[:cut_line])
-                    break
-            else:
-                continue
-            break
-    text = re.sub('\\n{2,}', '\n', text)
-    text = re.sub('(к приказу от[^\\n]*?)\\s*\\n\\s*(№)', '\\1 \\2', text)
-    text = re.sub('к приказу от[^\\n]*\\n?', '', text)
-    text = re.sub('^\\s*(?:Ne|No|№)\\s*["\\u201c\\u201e\\u00ab].*$', '', text, flags=re.MULTILINE)
-    text = re.sub('(приложение)\\s*№\\s*\\S*', '\\1', text, flags=re.IGNORECASE)
-    text = re.sub('\\n\\d+\\.\\s+.*', '', text, flags=re.DOTALL)
-    text = text.lower()
-    text = re.sub('\\s+', ' ', text).strip()
-    return text
-
-@register_preprocessor('polozhenie_comp_ppu', 'структура_разделов')
-@register_preprocessor('polozhenie_ppu', 'структура_разделов')
-@register_preprocessor('polozhenie_po', 'структура_разделов')
-def normalize_structure(text: str) -> str:
-    """
-    Нормализует структуру разделов:
-    1) Добавляет точку после голого номера раздела: '5 Порядок' → '5. Порядок'
-       Vision иногда теряет точку при извлечении заголовков.
-       НЕ затрагивает подразделы (2.2, 3.4.1) — у них уже есть точки.
-    2) Убирает пустые строки
-    """
-    text = re.sub('^(\\d+)[ \\t]+', '\\1. ', text, flags=re.MULTILINE)
-    known_sections = {'общие положения': '1', 'основные задачи': '2', 'организационная структура': '3', 'права': '4', 'ответственность': '5', 'порядок': '6'}
-    restored_lines = []
-    for line in text.split('\n'):
-        stripped = line.strip()
-        stripped_lower = stripped.lower()
-        if stripped_lower in known_sections and (not re.match('^\\d', stripped)):
-            num = known_sections[stripped_lower]
-            restored_lines.append(f'{num}. {stripped}')
-        else:
-            restored_lines.append(line)
-    text = '\n'.join(restored_lines)
-    text = re.sub('\\n{2,}', '\n', text)
-    lines = text.strip().split('\n')
-    merged = []
-    for i, line in enumerate(lines):
-        stripped = line.strip()
-        if not stripped:
-            continue
-        if re.match('^\\d', stripped):
-            merged.append(stripped)
-        elif merged:
-            if 'не найдены' in stripped.lower():
-                continue
-            remaining = [l.strip() for l in lines[i + 1:] if l.strip()]
-            has_next_section = any((re.match('^\\d', l) for l in remaining))
-            if has_next_section:
-                merged[-1] = merged[-1] + ' ' + stripped
-    top_level = [l for l in merged if re.match('^\\d+\\.\\s', l)]
-    if top_level:
-        text = '\n'.join(top_level)
-    return text
-
-@register_preprocessor('polozhenie_comp_ppu', 'основной_текст')
-@register_preprocessor('polozhenie_ppu', 'основной_текст')
-@register_preprocessor('polozhenie_po', 'основной_текст')
-def normalize_text(text: str) -> str:
-    """
-    Нормализует основной текст для сравнения с шаблоном.
-
-    1) Заменяет блок «...на ФИО-Должность - председателя» на тег
-       (и шаблон «на должность - председателя» тоже)
-    2) Заменяет ФИО вида «Фамилия И.О.» на [ФИО]
-    3) Нормализует множественные 
- → один 
-
-    """
-    text = re.sub('возлагается на .+?[ \\t]*-[ \\t]*председателя', 'возлагается на [ДОЛЖНОСТЬ_ФИО] - председателя', text)
-    text = re.sub('[А-ЯЁ][а-яё]+\\s+[А-ЯЁ]\\.[А-ЯЁ]\\.', '[ФИО]', text)
-    text = re.sub('[А-ЯЁ]\\.[А-ЯЁ]\\.\\s+[А-ЯЁ][а-яё]+', '[ФИО]', text)
-    text = re.sub('\\n{2,}', '\n', text)
-    text = re.sub('^(\\d+)[ \\t]+', '\\1. ', text, flags=re.MULTILINE)
-    text = re.sub('^(\\d+\\.\\d+(?:\\.\\d+)?)\\.\\s', '\\1 ', text, flags=re.MULTILINE)
-    lines_filtered = text.split('\n')
-    text = '\n'.join((l for l in lines_filtered if not re.match('^\\d{1,2}$', l.strip())))
-    text = '\n'.join((l for l in text.split('\n') if '\t' not in l))
-    text = re.sub('\\nФорма №.*', '', text, flags=re.DOTALL)
-    lines = text.split('\n')
-    merged = []
-    for line in lines:
-        stripped = line.strip()
-        if merged and stripped and (not re.match('^\\d', stripped)) and stripped[0].islower() and merged[-1].strip() and (merged[-1].strip()[-1] not in '.;:'):
-            merged[-1] = merged[-1].rstrip() + ' ' + stripped
-        else:
-            merged.append(line)
-    text = '\n'.join(merged)
-    text = re.sub(';[ \\t]+([а-яё])', '.\\n\\1', text)
-    text = re.sub('[;,](\\s*)$', '.\\1', text, flags=re.MULTILINE)
-    text = re.sub('^[\\-–—]\\s*', '', text, flags=re.MULTILINE)
-    text = re.sub('\\bне\\s+([а-яё])', 'не\\1', text)
-    return text
-
-preprocessors_polozhenie_normalize_module = SimpleNamespace(preprocess_shapka=preprocess_shapka, normalize_structure=normalize_structure, normalize_text=normalize_text)
-
-# END_SOURCE_PREPROCESSORS_POLOZHENIE_NORMALIZE
-
-# START_SOURCE_PREPROCESSORS_POLOZHENIE_PO
-# PURPOSE: Inlined source from audit_engine/preprocessors/polozhenie_po.py.
-@register_preprocessor('polozhenie_po', 'пункт_1_5')
-def extract_longest_bullet_list(text: str) -> str:
-    """
-    Извлекает самый длинный маркированный список (•) из чанка.
-
-    Алгоритм:
-    1. Находит все строки с маркером •
-    2. Группирует близкие буллеты (пустые строки между ними — норма для Paddle OCR)
-    3. Выбирает группу с наибольшим количеством пунктов
-    4. Возвращает заголовок секции + этот список
-
-    Args:
-        text: полный текст чанка пункт_1_5
-    Returns:
-        str: заголовок + самый длинный bullet-список
-    """
-    lines = text.split('\n')
-    bullet_indices = [i for i, line in enumerate(lines) if line.strip().startswith('•')]
-    if not bullet_indices:
-        return text
-    MAX_GAP = 3
-    groups = []
-    current_group = [bullet_indices[0]]
-    for idx in bullet_indices[1:]:
-        if idx - current_group[-1] <= MAX_GAP:
-            current_group.append(idx)
-        else:
-            groups.append(current_group)
-            current_group = [idx]
-    groups.append(current_group)
-    best_group = max(groups, key=len)
-    best_start = best_group[0]
-    best_end = best_group[-1]
-    header_line = ''
-    for i in range(best_start - 1, max(best_start - 5, -1), -1):
-        if i < 0:
-            break
-        stripped = lines[i].strip()
-        if stripped and (not stripped.startswith('•')) and (not stripped.startswith('[')):
-            header_line = stripped
-            break
-    result_lines = []
-    if header_line:
-        result_lines.append(header_line)
-    result_lines.extend(lines[best_start:best_end + 1])
-    return '\n'.join(result_lines)
-
-@register_preprocessor('polozhenie_po', 'лист_ознакомления')
-def normalize_ознакомление(text: str) -> str:
-    """
-    Нормализует лист ознакомления для корректной проверки заполненности.
-
-    Проблема: Paddle OCR не читает рукописный текст — ФИО и даты
-    превращаются в мусор типа "('r>4' 1A,nQ(((%4". LLM видит мусор
-    и считает строки пустыми.
-
-    Решение: если в ячейке ФИО есть любые символы (длина > 2) — помечаем
-    строку как "заполнено (рукописный текст, OCR не распознал)".
-
-    Args:
-        text: HTML-таблица листа ознакомления
-    Returns:
-        str: текст с пометками о заполненности
-    """
-    rows = re.findall('<tr>(.*?)</tr>', text, re.DOTALL)
-    if len(rows) <= 1:
-        return text
-    filled_count = 0
-    for row in rows[1:]:
-        cells = re.findall('<td>(.*?)</td>', row, re.DOTALL)
-        if len(cells) >= 2:
-            fio_cell = cells[1].strip()
-            cleaned = re.sub('[\\s\\-_|/\\\\.,;:!?\\\'"()\\[\\]{}]+', '', fio_cell)
-            if len(cleaned) >= 1:
-                filled_count += 1
-    if filled_count > 0:
-        summary = f'\n\n[СВОДКА: заполнено строк: {filled_count} (рукописный текст, OCR распознал частично)]'
-        return text + summary
-    return text
-
-preprocessors_polozhenie_po_module = SimpleNamespace(extract_longest_bullet_list=extract_longest_bullet_list, normalize_ознакомление=normalize_ознакомление)
-
-# END_SOURCE_PREPROCESSORS_POLOZHENIE_PO
-
-# START_SOURCE_PREPROCESSORS_PRESENTATION_EU
-# PURPOSE: Inlined source from audit_engine/preprocessors/presentation_eu.py.
-def _compress_chunk(text: str, max_lines: int=3) -> str:
-    """
-    Сжимает текст чанка до первых значимых строк.
-
-    Логика:
-    1. Убираем пустые строки в начале
-    2. Берём первые max_lines непустых строк (заголовки/начало контента)
-    3. Добавляем сводку о размере оригинала
-    """
-    if not text or not text.strip():
-        return '[Слайд отсутствует или пуст]'
-    lines = text.strip().split('\n')
-    meaningful = [l.strip() for l in lines if l.strip()]
-    if not meaningful:
-        return '[Слайд отсутствует или пуст]'
-    header_lines = meaningful[:max_lines]
-    total_lines = len(meaningful)
-    result = '[Слайд присутствует]\n'
-    result += '\n'.join(header_lines)
-    if total_lines > max_lines:
-        result += f'\n(... ещё {total_lines - max_lines} строк содержимого)'
-    return result
-
-@register_preprocessor('presentation_eu', 'титульный')
-def compress_title(text: str) -> str:
-    """Сжатие титульного слайда для структурной проверки."""
-    return _compress_chunk(text)
-
-@register_preprocessor('presentation_eu', 'план_мероприятий')
-def compress_plan(text: str) -> str:
-    """Сжатие слайда плана мероприятий."""
-    return _compress_chunk(text)
-
-@register_preprocessor('presentation_eu', 'инструменты_5с')
-def compress_instruments(text: str) -> str:
-    """Сжатие слайдов инструментов 5С."""
-    return _compress_chunk(text, max_lines=5)
-
-@register_preprocessor('presentation_eu', 'результаты_проблемы')
-def compress_results(text: str) -> str:
-    """Сжатие слайдов результатов."""
-    return _compress_chunk(text, max_lines=4)
-
-@register_preprocessor('presentation_eu', 'стандарты')
-def compress_standards(text: str) -> str:
-    """Сжатие слайдов стандартов."""
-    return _compress_chunk(text)
-
-@register_preprocessor('presentation_eu', 'последний')
-def compress_last(text: str) -> str:
-    """Сжатие последнего слайда."""
-    return _compress_chunk(text)
-
-preprocessors_presentation_eu_module = SimpleNamespace(_compress_chunk=_compress_chunk, compress_title=compress_title, compress_plan=compress_plan, compress_instruments=compress_instruments, compress_results=compress_results, compress_standards=compress_standards, compress_last=compress_last)
-
-# END_SOURCE_PREPROCESSORS_PRESENTATION_EU
-
-# START_SOURCE_PREPROCESSORS_PRIKAZ_COMP_PPU
-# PURPOSE: Inlined source from audit_engine/preprocessors/prikaz_comp_ppu.py.
-@register_preprocessor('prikaz_comp_ppu', 'текст_приказа')
-def preprocessors_prikaz_comp_ppu_normalize_text_for_rule3(text: str) -> str:
-    """
-    Извлекает чистый текст приказа для сравнения с шаблоном (правило #3).
-
-    Вход: полный текст страницы (шапка + заголовок + преамбула + пункты + подписант).
-    Выход: от преамбулы «С целью...»/«В целях...» до последнего нумерованного пункта.
-
-    Работает одинаково для таргета и шаблона — обе стороны получают
-    идентичную структуру без шапки и подписанта.
-    """
-    lines = text.strip().split('\n')
-    start_idx = None
-    for i, line in enumerate(lines):
-        s = line.strip()
-        if s.startswith('С целью') or s.startswith('В целях'):
-            start_idx = i
-            break
-        if s == 'ПРИКАЗЫВАЮ:':
-            start_idx = i
-            break
-    if start_idx is None:
-        start_idx = 0
-    end_idx = len(lines) - 1
-    for i in range(len(lines) - 1, -1, -1):
-        s = lines[i].strip()
-        if re.match('^\\d+\\.', s):
-            end_idx = i
-            break
-    body = '\n'.join(lines[start_idx:end_idx + 1])
-    body = re.sub('(возложить на\\s*).+\\.', '\\1[ДОЛЖНОСТЬ_ФИО].', body)
-    body = re.sub('(возложить на\\s*)<[^>]+>\\s*и\\s*<[^>]+>', '\\1[ДОЛЖНОСТЬ_ФИО].', body)
-    return body
-
-preprocessors_prikaz_comp_ppu_module = SimpleNamespace(normalize_text_for_rule3=preprocessors_prikaz_comp_ppu_normalize_text_for_rule3)
-
-# END_SOURCE_PREPROCESSORS_PRIKAZ_COMP_PPU
-
-# START_SOURCE_PREPROCESSORS_PRIKAZ_IC
-# PURPOSE: Inlined source from audit_engine/preprocessors/prikaz_ic.py.
-def preprocessors_prikaz_ic_normalize_text_for_rule3(text: str) -> str:
-    """
-    Нормализует текст приказа для сравнения с шаблоном.
-
-    Удаляет вариативные части (даты, ФИО, подписант),
-    оставляя только текстовую структуру.
-    """
-    text = re.sub('(приступить к заполнению разделов по своим показателям)[ \\t]+с[ \\t]*[^\\n]*', '\\1', text)
-    text = re.sub('(приступить к заполнению разделов по своим показателям)[ \\t]+с[ \\t]*\\[ДАТА\\]', '\\1', text)
-    text = re.sub('4\\.\\s*.+?\\s+организовать', '4. [ДОЛЖНОСТЬ] организовать', text)
-    text = re.sub('(в срок до)[ \\t]*[^\\n]+', '\\1', text)
-    text = re.sub('(в срок до)[ \\t]*\\[ДАТА\\]', '\\1', text)
-    lines = text.split('\n')
-    new_lines = []
-    for line in lines:
-        line_stripped = line.strip()
-        if not line_stripped:
-            new_lines.append(line)
-            continue
-        if line_stripped in ('[ПОДПИСАНТ]', 'Генеральный директор', 'И.О. Фамилия'):
-            continue
-        if re.search('\\s{5,}', line_stripped) and ('директор' in line_stripped.lower() or 'фамилия' in line_stripped.lower() or re.search('[А-Я]\\.[А-Я]\\.', line_stripped)):
-            continue
-        new_lines.append(line)
-    text = '\n'.join(new_lines)
-    lines = text.split('\n')
-    text = '\n'.join((line.lstrip() for line in lines))
-    return text
-
-def preprocessors_prikaz_ic_normalize_header(text: str) -> str:
-    """
-    Нормализует шапку приказа — заменяет юридический адрес на краткий формат города.
-
-    OCR иногда извлекает полный юрадрес: "109316, Москва г, Внутригородская..."
-    LLM цепляется за формат адреса вместо проверки наличия города.
-    Нормализуем: извлекаем город, заменяем всю строку адреса на "г. Город".
-    """
-    known_cities = ['Москва', 'Санкт-Петербург', 'Новосибирск', 'Екатеринбург', 'Казань', 'Нижний Новгород', 'Челябинск', 'Самара', 'Омск', 'Ростов-на-Дону', 'Уфа', 'Красноярск', 'Пермь', 'Воронеж', 'Волгоград', 'Краснодар', 'Тюмень', 'Тольятти', 'Барнаул']
-    lines = text.split('\n')
-    new_lines = []
-    for line in lines:
-        stripped = line.strip()
-        if re.match('^\\d{5,6}\\s*,', stripped):
-            for city in known_cities:
-                if city.lower() in stripped.lower():
-                    new_lines.append(f'г. {city}')
-                    break
-            else:
-                new_lines.append(line)
-        elif re.match('^(г\\.?\\s+)?(' + '|'.join(known_cities) + ')\\s+г\\.?$', stripped):
-            city_match = re.search('(' + '|'.join(known_cities) + ')', stripped)
-            if city_match:
-                new_lines.append(f'г. {city_match.group(1)}')
-            else:
-                new_lines.append(line)
-        else:
-            new_lines.append(line)
-    return '\n'.join(new_lines)
-
-def trim_appendix2_to_relevant_sections(text: str) -> str:
-    """
-    Сокращает чанк приложение_2_к_приказу — убирает основное тело Регламента,
-    оставляя заголовок (номер приказа, дата) и секцию «Приложение №1 к Регламенту».
-
-    Без этого LLM путает нумерацию основного тела (1.1, 2.1, 4.1) с нумерацией
-    Приложения к Регламенту (1.1.1, 2.1, 4.1), где находятся проверяемые поля.
-    """
-    lines = text.split('\n')
-    header_lines = []
-    appendix_lines = []
-    in_appendix = False
-    header_collected = False
-    for line in lines:
-        stripped = line.strip()
-        if not header_collected:
-            if re.match('^(РЕГЛАМЕНТ|1\\.\\s)', stripped):
-                header_collected = True
-            else:
-                header_lines.append(line)
-                continue
-        if not in_appendix:
-            if re.match('^Приложение\\s*№?\\s*1\\s*(к\\s+Регламенту|к\\s+регламенту)', stripped, re.IGNORECASE):
-                in_appendix = True
-                appendix_lines.append(line)
-        else:
-            appendix_lines.append(line)
-    if appendix_lines:
-        return '\n'.join(header_lines + [''] + appendix_lines)
-    return text
-
-preprocessors_prikaz_ic_module = SimpleNamespace(normalize_text_for_rule3=preprocessors_prikaz_ic_normalize_text_for_rule3, normalize_header=preprocessors_prikaz_ic_normalize_header, trim_appendix2_to_relevant_sections=trim_appendix2_to_relevant_sections)
-
-# END_SOURCE_PREPROCESSORS_PRIKAZ_IC
-
-# START_SOURCE_PREPROCESSORS_PRIKAZ_IC_POTOKA
-# PURPOSE: Inlined source from audit_engine/preprocessors/prikaz_ic_potoka.py.
-def preprocessors_prikaz_ic_potoka_normalize_text_for_rule3(text: str) -> str:
-    """
-    Нормализует текст приказа для сравнения с шаблоном.
-
-    Заменяет переменные части на токены, оставляя структуру для сравнения.
-    """
-    text = re.sub('[ \\t]+', ' ', text)
-    text = re.sub('\\n\\s*', '\n', text)
-    text = re.sub('\\d{1,2}\\.\\d{1,2}\\.\\d{4}', '[ДАТА]', text)
-    text = re.sub('_{2,}\\.\\s*_{2,}\\.\\s*202_?', '[ДАТА]', text)
-    text = re.sub('\\(Указать наименование должности\\)', '[ДОЛЖНОСТЬ_ФИО]', text)
-    text = re.sub('[А-ЯЁа-яё\\s]+[А-ЯЁ][а-яё]+\\s+[А-ЯЁ]\\.[А-ЯЁ]\\.\\s+организовать', '[ДОЛЖНОСТЬ_ФИО] организовать', text)
-    text = re.sub('\\[ДАТА\\]\\s*\\[ДОЛЖНОСТЬ_ФИО\\]', '[ДАТА]\\n[ДОЛЖНОСТЬ_ФИО]', text)
-    lines = text.split('\n')
-    for i in range(len(lines) - 1, -1, -1):
-        line = lines[i].strip()
-        if line and ('директор' in line.lower() or 'должность' in line.lower() or 'фамилия' in line.lower() or ('фио' in line.lower()) or re.search('[А-ЯЁ]\\.[А-ЯЁ]\\.', line)):
-            lines[i] = '[ПОДПИСАНТ]'
-            break
-    text = '\n'.join(lines)
-    return text
-
-@register_preprocessor('prikaz_ic_potoka', 'текст_приказа')
-def preprocess_potoka_tekst(text: str) -> str:
-    """Нормализация текста приказа ИЦ потока (бумажный)."""
-    return preprocessors_prikaz_ic_potoka_normalize_text_for_rule3(text)
-
-@register_preprocessor('prikaz_ic_potoka_el', 'текст_приказа')
-def preprocess_potoka_el_tekst(text: str) -> str:
-    """Нормализация текста приказа ИЦ потока (электронный)."""
-    return preprocessors_prikaz_ic_potoka_normalize_text_for_rule3(text)
-
-preprocessors_prikaz_ic_potoka_module = SimpleNamespace(normalize_text_for_rule3=preprocessors_prikaz_ic_potoka_normalize_text_for_rule3, preprocess_potoka_tekst=preprocess_potoka_tekst, preprocess_potoka_el_tekst=preprocess_potoka_el_tekst)
-
-# END_SOURCE_PREPROCESSORS_PRIKAZ_IC_POTOKA
-
-# START_SOURCE_PREPROCESSORS_PRIKAZ_PPU
-# PURPOSE: Inlined source from audit_engine/preprocessors/prikaz_ppu.py.
-@register_preprocessor('prikaz_ppu', 'заголовок_город')
-def normalize_title(text: str) -> str:
-    """
-    Нормализует чанк заголовок_город для сравнения с шаблоном (правило #1).
-
-    Vision извлекает элементы в разном порядке. Убираем вариативные части,
-    оставляя ТОЛЬКО текст заголовка приказа.
-    """
-    lines = text.strip().split('\n')
-    result = []
-    for line in lines:
-        stripped = line.strip()
-        if not stripped:
-            continue
-        if re.match('^П\\s*Р\\s*И\\s*К\\s*А\\s*З', stripped) or stripped.startswith('ПРИКАЗ'):
-            continue
-        if re.match('^г\\.\\s*', stripped):
-            continue
-        if re.match('^№\\s*', stripped):
-            continue
-        if re.match('^\\d{2}\\.\\d{2}\\.\\d{4}', stripped):
-            continue
-        if re.match('^[\\d"_<]', stripped) and (not re.match('^\\d+\\.', stripped)):
-            continue
-        if re.match('^(ООО|ОАО|ЗАО|ПАО|АО|ИП)\\s*[""«]', stripped):
-            continue
-        if stripped.startswith('<') and stripped.endswith('>'):
-            continue
-        if re.match('^[А-ЯЁ]\\.[А-ЯЁ]\\.\\s+[А-ЯЁ][а-яё]+$', stripped):
-            continue
-        result.append(stripped)
-    return '\n'.join(result)
-
-@register_preprocessor('prikaz_ppu', 'текст_приказа')
-def preprocessors_prikaz_ppu_normalize_text_for_rule3(text: str) -> str:
-    """
-    Нормализует текст приказа о ППУ для сравнения с шаблоном (правило #3).
-
-    Удаляет вариативные части (даты, ФИО, подписант),
-    оставляя только текстовую структуру.
-    """
-    text = re.sub('(возложить на\\s*).+\\.', '\\1[ДОЛЖНОСТЬ_ФИО].', text)
-    text = re.sub('(возложить на\\s*)<[^>]+>\\s*и\\s*<[^>]+>', '\\1[ДОЛЖНОСТЬ_ФИО].', text)
-    text = re.sub('(в срок до)[ \\t]*[^\\n]+', '\\1', text)
-    text = re.sub('\\d{2}\\.\\d{2}\\.\\d{4}(?:[ \\t]*г\\.?)?', '[ДАТА]', text)
-    lines = text.split('\n')
-    new_lines = []
-    for line in lines:
-        line_stripped = line.strip()
-        if not line_stripped:
-            new_lines.append(line)
-            continue
-        if line_stripped in ('[ПОДПИСАНТ]', 'Генеральный директор', 'И.О. Фамилия'):
-            continue
-        if re.match('^[А-ЯЁ]\\.[А-ЯЁ]\\.\\s+[А-ЯЁ][а-яё]+$', line_stripped):
-            continue
-        if re.search('\\s{5,}', line_stripped) and ('директор' in line_stripped.lower() or 'фамилия' in line_stripped.lower() or re.search('[А-Я]\\.[А-Я]\\.', line_stripped)):
-            continue
-        if line_stripped.startswith('<') and line_stripped.endswith('>'):
-            continue
-        if re.match('^(ООО|ОАО|ЗАО|ПАО|АО|ИП)\\s*[""«]', line_stripped):
-            continue
-        new_lines.append(line)
-    text = '\n'.join(new_lines)
-    return text
-
-preprocessors_prikaz_ppu_module = SimpleNamespace(normalize_title=normalize_title, normalize_text_for_rule3=preprocessors_prikaz_ppu_normalize_text_for_rule3)
-
-# END_SOURCE_PREPROCESSORS_PRIKAZ_PPU
-
-# START_SOURCE_PREPROCESSORS_PRIKAZ_VYHOD
-# PURPOSE: Inlined source from audit_engine/preprocessors/prikaz_vyhod.py.
-@register_preprocessor('prikaz_vyhod', 'текст_приказа')
-def preprocessors_prikaz_vyhod_normalize_text_for_rule3(text: str) -> str:
-    """
-    Нормализует текст приказа для сравнения с шаблоном (правило #3).
-
-    Заменяет:
-    - п.1: "Назначить организатором...площадке <должность ФИО>." → [ДОЛЖНОСТЬ_ФИО]
-    - п.2: "Назначить секретарем...площадке <должность ФИО>." → [ДОЛЖНОСТЬ_ФИО]
-
-    ВАЖНО: используем DOTALL + non-greedy (.+?) с остановкой на границе абзаца,
-    чтобы не съесть следующие пункты приказа (баг со старым жадным .+\\. + DOTALL).
-    """
-    text = re.sub('(1\\.\\s*Назначить организатором проведения обхода на\\s+(?:производственной\\s+)?площадке\\s+)(.+?)(?=\\s*\\n\\s*\\n|\\s*\\n\\s*\\d+\\.|\\s*$)', '\\1[ДОЛЖНОСТЬ_ФИО].', text, flags=re.DOTALL)
-    text = re.sub('(2\\.\\s*Назначить секретарем проведения обхода на\\s+(?:производственной\\s+)?площадке\\s+)(.+?)(?=\\s*\\n\\s*\\n|\\s*\\n\\s*\\d+\\.|\\s*$)', '\\1[ДОЛЖНОСТЬ_ФИО].', text, flags=re.DOTALL)
-    return text
-
-@register_preprocessor('prikaz_vyhod', 'заголовок_город')
-def preprocessors_prikaz_vyhod_normalize_header(text: str) -> str:
-    """
-    Нормализует заголовок для сравнения с шаблоном (правило #1).
-
-    «П Р И К А З» (разреженное написание) → «Приказ» (как в шаблоне).
-    gpt-4.1-mini игнорирует инструкцию в промпте, поэтому нормализуем до LLM.
-    """
-    text = re.sub('П\\s+Р\\s+И\\s+К\\s+А\\s+З', 'Приказ', text)
-    return text
-
-preprocessors_prikaz_vyhod_module = SimpleNamespace(normalize_text_for_rule3=preprocessors_prikaz_vyhod_normalize_text_for_rule3, normalize_header=preprocessors_prikaz_vyhod_normalize_header)
-
-# END_SOURCE_PREPROCESSORS_PRIKAZ_VYHOD
 # END_PREPROCESSORS
 
 # START_PARSERS
@@ -1198,7 +449,14 @@ from src.doc_type_parsers.kpsc import (
     parse_spaghetti_sheet,
 )
 from src.doc_type_parsers.drivers import parse_excel_to_json
-from src.llm import call_llm, parse_json_response, resolve_runtime_llm_model
+from src.llm import (
+    call_llm,
+    load_methodology_config,
+    load_multi_rule_config,
+    parse_json_response,
+    resolve_runtime_llm_model,
+    run_multi_rule_audit,
+)
 
 docx_parser_module = SimpleNamespace(
     logger=docx_parser_logger,
@@ -1455,11 +713,22 @@ def kpsc_validate_1_1_kpsc_text_build_prompt(extracted_data: dict, rule: dict) -
     return prompt
 
 def kpsc_validate_1_1_kpsc_text_call_llm(prompt: str, api_key: str) -> dict:
-    """Вызов OpenAI API"""
-    base_url = LLM_CONFIG.base_url
-    client = OpenAI(api_key=api_key, base_url=base_url)
-    response = client.chat.completions.create(model=os.environ.get('LLM_MODEL', LLM_CONFIG.default_model), messages=[{'role': 'system', 'content': 'Ты эксперт по валидации документов КПСЦ. Отвечаешь строго в формате JSON.'}, {'role': 'user', 'content': prompt}], temperature=0, response_format={'type': 'json_object'})
-    result_text = response.choices[0].message.content
+    """Вызов LLM через единый клиент `src.llm.client.call_llm`.
+
+    Использует `LLM_CONFIG` (Pydantic-конфиг) для URL и модели по умолчанию;
+    `response_format={'type': 'json_object'}` форсит строгий JSON.
+    """
+    del api_key  # src.llm.client сам формирует api_key для Spark-vLLM
+    result_text = call_llm(
+        messages=[
+            {'role': 'system', 'content': 'Ты эксперт по валидации документов КПСЦ. Отвечаешь строго в формате JSON.'},
+            {'role': 'user', 'content': prompt},
+        ],
+        model=LLM_CONFIG.default_model,
+        base_url=LLM_CONFIG.base_url,
+        temperature=0.0,
+        response_format={'type': 'json_object'},
+    )
     return json.loads(result_text)
 
 def kpsc_validate_1_1_kpsc_text_save_result(result: dict, output_file: Path):
@@ -1566,11 +835,22 @@ def kpsc_validate_1_2_company_name_build_prompt(extracted_data: dict, rule: dict
     return prompt
 
 def kpsc_validate_1_2_company_name_call_llm(prompt: str, api_key: str) -> dict:
-    """Вызов OpenAI API"""
-    base_url = LLM_CONFIG.base_url
-    client = OpenAI(api_key=api_key, base_url=base_url)
-    response = client.chat.completions.create(model=os.environ.get('LLM_MODEL', LLM_CONFIG.default_model), messages=[{'role': 'system', 'content': 'Ты эксперт по валидации документов КПСЦ. Отвечаешь строго в формате JSON.'}, {'role': 'user', 'content': prompt}], temperature=0, response_format={'type': 'json_object'})
-    result_text = response.choices[0].message.content
+    """Вызов LLM через единый клиент `src.llm.client.call_llm`.
+
+    Использует `LLM_CONFIG` (Pydantic-конфиг) для URL и модели по умолчанию;
+    `response_format={'type': 'json_object'}` форсит строгий JSON.
+    """
+    del api_key  # src.llm.client сам формирует api_key для Spark-vLLM
+    result_text = call_llm(
+        messages=[
+            {'role': 'system', 'content': 'Ты эксперт по валидации документов КПСЦ. Отвечаешь строго в формате JSON.'},
+            {'role': 'user', 'content': prompt},
+        ],
+        model=LLM_CONFIG.default_model,
+        base_url=LLM_CONFIG.base_url,
+        temperature=0.0,
+        response_format={'type': 'json_object'},
+    )
     return json.loads(result_text)
 
 def kpsc_validate_1_2_company_name_save_result(result: dict, output_file: Path):
@@ -1692,11 +972,22 @@ def kpsc_validate_1_3_flow_name_build_prompt(extracted_data: dict, rule: dict) -
     return prompt
 
 def kpsc_validate_1_3_flow_name_call_llm(prompt: str, api_key: str) -> dict:
-    """Вызов OpenAI API"""
-    base_url = LLM_CONFIG.base_url
-    client = OpenAI(api_key=api_key, base_url=base_url)
-    response = client.chat.completions.create(model=os.environ.get('LLM_MODEL', LLM_CONFIG.default_model), messages=[{'role': 'system', 'content': 'Ты эксперт по валидации документов КПСЦ. Отвечаешь строго в формате JSON.'}, {'role': 'user', 'content': prompt}], temperature=0, response_format={'type': 'json_object'})
-    result_text = response.choices[0].message.content
+    """Вызов LLM через единый клиент `src.llm.client.call_llm`.
+
+    Использует `LLM_CONFIG` (Pydantic-конфиг) для URL и модели по умолчанию;
+    `response_format={'type': 'json_object'}` форсит строгий JSON.
+    """
+    del api_key  # src.llm.client сам формирует api_key для Spark-vLLM
+    result_text = call_llm(
+        messages=[
+            {'role': 'system', 'content': 'Ты эксперт по валидации документов КПСЦ. Отвечаешь строго в формате JSON.'},
+            {'role': 'user', 'content': prompt},
+        ],
+        model=LLM_CONFIG.default_model,
+        base_url=LLM_CONFIG.base_url,
+        temperature=0.0,
+        response_format={'type': 'json_object'},
+    )
     return json.loads(result_text)
 
 def kpsc_validate_1_3_flow_name_save_result(result: dict, output_file: Path):
@@ -1805,11 +1096,22 @@ def kpsc_validate_1_4_responsible_build_prompt(extracted_data: dict, rule: dict)
     return prompt
 
 def kpsc_validate_1_4_responsible_call_llm(prompt: str, api_key: str) -> dict:
-    """Вызов OpenAI API"""
-    base_url = LLM_CONFIG.base_url
-    client = OpenAI(api_key=api_key, base_url=base_url)
-    response = client.chat.completions.create(model=os.environ.get('LLM_MODEL', LLM_CONFIG.default_model), messages=[{'role': 'system', 'content': 'Ты эксперт по валидации документов КПСЦ. Отвечаешь строго в формате JSON.'}, {'role': 'user', 'content': prompt}], temperature=0, response_format={'type': 'json_object'})
-    result_text = response.choices[0].message.content
+    """Вызов LLM через единый клиент `src.llm.client.call_llm`.
+
+    Использует `LLM_CONFIG` (Pydantic-конфиг) для URL и модели по умолчанию;
+    `response_format={'type': 'json_object'}` форсит строгий JSON.
+    """
+    del api_key  # src.llm.client сам формирует api_key для Spark-vLLM
+    result_text = call_llm(
+        messages=[
+            {'role': 'system', 'content': 'Ты эксперт по валидации документов КПСЦ. Отвечаешь строго в формате JSON.'},
+            {'role': 'user', 'content': prompt},
+        ],
+        model=LLM_CONFIG.default_model,
+        base_url=LLM_CONFIG.base_url,
+        temperature=0.0,
+        response_format={'type': 'json_object'},
+    )
     return json.loads(result_text)
 
 def kpsc_validate_1_4_responsible_save_result(result: dict, output_file: Path):
@@ -1922,11 +1224,22 @@ def kpsc_validate_1_5_date_developed_build_prompt(extracted_data: dict, rule: di
     return prompt
 
 def kpsc_validate_1_5_date_developed_call_llm(prompt: str, api_key: str) -> dict:
-    """Вызов OpenAI API"""
-    base_url = LLM_CONFIG.base_url
-    client = OpenAI(api_key=api_key, base_url=base_url)
-    response = client.chat.completions.create(model=os.environ.get('LLM_MODEL', LLM_CONFIG.default_model), messages=[{'role': 'system', 'content': 'Ты эксперт по валидации документов КПСЦ. Отвечаешь строго в формате JSON.'}, {'role': 'user', 'content': prompt}], temperature=0, response_format={'type': 'json_object'})
-    result_text = response.choices[0].message.content
+    """Вызов LLM через единый клиент `src.llm.client.call_llm`.
+
+    Использует `LLM_CONFIG` (Pydantic-конфиг) для URL и модели по умолчанию;
+    `response_format={'type': 'json_object'}` форсит строгий JSON.
+    """
+    del api_key  # src.llm.client сам формирует api_key для Spark-vLLM
+    result_text = call_llm(
+        messages=[
+            {'role': 'system', 'content': 'Ты эксперт по валидации документов КПСЦ. Отвечаешь строго в формате JSON.'},
+            {'role': 'user', 'content': prompt},
+        ],
+        model=LLM_CONFIG.default_model,
+        base_url=LLM_CONFIG.base_url,
+        temperature=0.0,
+        response_format={'type': 'json_object'},
+    )
     return json.loads(result_text)
 
 def kpsc_validate_1_5_date_developed_save_result(result: dict, output_file: Path):
@@ -2033,11 +1346,22 @@ def kpsc_validate_1_6_date_implementation_build_prompt(extracted_data: dict, rul
     return prompt
 
 def kpsc_validate_1_6_date_implementation_call_llm(prompt: str, api_key: str) -> dict:
-    """Вызов OpenAI API"""
-    base_url = LLM_CONFIG.base_url
-    client = OpenAI(api_key=api_key, base_url=base_url)
-    response = client.chat.completions.create(model=os.environ.get('LLM_MODEL', LLM_CONFIG.default_model), messages=[{'role': 'system', 'content': 'Ты эксперт по валидации документов КПСЦ. Отвечаешь строго в формате JSON.'}, {'role': 'user', 'content': prompt}], temperature=0, response_format={'type': 'json_object'})
-    result_text = response.choices[0].message.content
+    """Вызов LLM через единый клиент `src.llm.client.call_llm`.
+
+    Использует `LLM_CONFIG` (Pydantic-конфиг) для URL и модели по умолчанию;
+    `response_format={'type': 'json_object'}` форсит строгий JSON.
+    """
+    del api_key  # src.llm.client сам формирует api_key для Spark-vLLM
+    result_text = call_llm(
+        messages=[
+            {'role': 'system', 'content': 'Ты эксперт по валидации документов КПСЦ. Отвечаешь строго в формате JSON.'},
+            {'role': 'user', 'content': prompt},
+        ],
+        model=LLM_CONFIG.default_model,
+        base_url=LLM_CONFIG.base_url,
+        temperature=0.0,
+        response_format={'type': 'json_object'},
+    )
     return json.loads(result_text)
 
 def kpsc_validate_1_6_date_implementation_save_result(result: dict, output_file: Path):
@@ -2144,11 +1468,22 @@ def kpsc_validate_1_7_compiled_by_build_prompt(extracted_data: dict, rule: dict)
     return prompt
 
 def kpsc_validate_1_7_compiled_by_call_llm(prompt: str, api_key: str) -> dict:
-    """Вызов OpenAI API"""
-    base_url = LLM_CONFIG.base_url
-    client = OpenAI(api_key=api_key, base_url=base_url)
-    response = client.chat.completions.create(model=os.environ.get('LLM_MODEL', LLM_CONFIG.default_model), messages=[{'role': 'system', 'content': 'Ты эксперт по валидации документов КПСЦ. Отвечаешь строго в формате JSON.'}, {'role': 'user', 'content': prompt}], temperature=0, response_format={'type': 'json_object'})
-    result_text = response.choices[0].message.content
+    """Вызов LLM через единый клиент `src.llm.client.call_llm`.
+
+    Использует `LLM_CONFIG` (Pydantic-конфиг) для URL и модели по умолчанию;
+    `response_format={'type': 'json_object'}` форсит строгий JSON.
+    """
+    del api_key  # src.llm.client сам формирует api_key для Spark-vLLM
+    result_text = call_llm(
+        messages=[
+            {'role': 'system', 'content': 'Ты эксперт по валидации документов КПСЦ. Отвечаешь строго в формате JSON.'},
+            {'role': 'user', 'content': prompt},
+        ],
+        model=LLM_CONFIG.default_model,
+        base_url=LLM_CONFIG.base_url,
+        temperature=0.0,
+        response_format={'type': 'json_object'},
+    )
     return json.loads(result_text)
 
 def kpsc_validate_1_7_compiled_by_save_result(result: dict, output_file: Path):
@@ -2275,11 +1610,22 @@ def kpsc_validate_2_1_problems_count_build_prompt(extracted_data: dict, rule: di
     return prompt
 
 def kpsc_validate_2_1_problems_count_call_llm(prompt: str, api_key: str) -> dict:
-    """Вызов OpenAI API"""
-    base_url = LLM_CONFIG.base_url
-    client = OpenAI(api_key=api_key, base_url=base_url)
-    response = client.chat.completions.create(model=os.environ.get('LLM_MODEL', LLM_CONFIG.default_model), messages=[{'role': 'system', 'content': 'Ты эксперт по валидации документов КПСЦ. Отвечаешь строго в формате JSON.'}, {'role': 'user', 'content': prompt}], temperature=0, response_format={'type': 'json_object'})
-    result_text = response.choices[0].message.content
+    """Вызов LLM через единый клиент `src.llm.client.call_llm`.
+
+    Использует `LLM_CONFIG` (Pydantic-конфиг) для URL и модели по умолчанию;
+    `response_format={'type': 'json_object'}` форсит строгий JSON.
+    """
+    del api_key  # src.llm.client сам формирует api_key для Spark-vLLM
+    result_text = call_llm(
+        messages=[
+            {'role': 'system', 'content': 'Ты эксперт по валидации документов КПСЦ. Отвечаешь строго в формате JSON.'},
+            {'role': 'user', 'content': prompt},
+        ],
+        model=LLM_CONFIG.default_model,
+        base_url=LLM_CONFIG.base_url,
+        temperature=0.0,
+        response_format={'type': 'json_object'},
+    )
     return json.loads(result_text)
 
 def kpsc_validate_2_1_problems_count_save_result(result: dict, output_file: Path):
@@ -2414,11 +1760,22 @@ def kpsc_validate_2_2_problems_sequence_build_prompt(extracted_data: dict, rule:
     return prompt
 
 def kpsc_validate_2_2_problems_sequence_call_llm(prompt: str, api_key: str) -> dict:
-    """Вызов OpenAI API"""
-    base_url = LLM_CONFIG.base_url
-    client = OpenAI(api_key=api_key, base_url=base_url)
-    response = client.chat.completions.create(model=os.environ.get('LLM_MODEL', LLM_CONFIG.default_model), messages=[{'role': 'system', 'content': 'Ты эксперт по валидации документов КПСЦ. Отвечаешь строго в формате JSON.'}, {'role': 'user', 'content': prompt}], temperature=0, response_format={'type': 'json_object'})
-    result_text = response.choices[0].message.content
+    """Вызов LLM через единый клиент `src.llm.client.call_llm`.
+
+    Использует `LLM_CONFIG` (Pydantic-конфиг) для URL и модели по умолчанию;
+    `response_format={'type': 'json_object'}` форсит строгий JSON.
+    """
+    del api_key  # src.llm.client сам формирует api_key для Spark-vLLM
+    result_text = call_llm(
+        messages=[
+            {'role': 'system', 'content': 'Ты эксперт по валидации документов КПСЦ. Отвечаешь строго в формате JSON.'},
+            {'role': 'user', 'content': prompt},
+        ],
+        model=LLM_CONFIG.default_model,
+        base_url=LLM_CONFIG.base_url,
+        temperature=0.0,
+        response_format={'type': 'json_object'},
+    )
     return json.loads(result_text)
 
 def kpsc_validate_2_2_problems_sequence_save_result(result: dict, output_file: Path):
@@ -2549,11 +1906,22 @@ def kpsc_validate_2_3_problems_description_build_prompt(extracted_data: dict, ru
     return prompt
 
 def kpsc_validate_2_3_problems_description_call_llm(prompt: str, api_key: str) -> dict:
-    """Вызов OpenAI API"""
-    base_url = LLM_CONFIG.base_url
-    client = OpenAI(api_key=api_key, base_url=base_url)
-    response = client.chat.completions.create(model=os.environ.get('LLM_MODEL', LLM_CONFIG.default_model), messages=[{'role': 'system', 'content': 'Ты эксперт по валидации документов КПСЦ. Отвечаешь строго в формате JSON.'}, {'role': 'user', 'content': prompt}], temperature=0, response_format={'type': 'json_object'})
-    result_text = response.choices[0].message.content
+    """Вызов LLM через единый клиент `src.llm.client.call_llm`.
+
+    Использует `LLM_CONFIG` (Pydantic-конфиг) для URL и модели по умолчанию;
+    `response_format={'type': 'json_object'}` форсит строгий JSON.
+    """
+    del api_key  # src.llm.client сам формирует api_key для Spark-vLLM
+    result_text = call_llm(
+        messages=[
+            {'role': 'system', 'content': 'Ты эксперт по валидации документов КПСЦ. Отвечаешь строго в формате JSON.'},
+            {'role': 'user', 'content': prompt},
+        ],
+        model=LLM_CONFIG.default_model,
+        base_url=LLM_CONFIG.base_url,
+        temperature=0.0,
+        response_format={'type': 'json_object'},
+    )
     return json.loads(result_text)
 
 def kpsc_validate_2_3_problems_description_save_result(result: dict, output_file: Path):
@@ -2706,11 +2074,22 @@ def kpsc_validate_4_1_vpp_filled_build_prompt(extracted_data: dict, rule: dict) 
     return prompt
 
 def kpsc_validate_4_1_vpp_filled_call_llm(prompt: str, api_key: str) -> dict:
-    """Вызов OpenAI API"""
-    base_url = LLM_CONFIG.base_url
-    client = OpenAI(api_key=api_key, base_url=base_url)
-    response = client.chat.completions.create(model=os.environ.get('LLM_MODEL', LLM_CONFIG.default_model), messages=[{'role': 'system', 'content': 'Ты эксперт по валидации документов КПСЦ. Отвечаешь строго в формате JSON.'}, {'role': 'user', 'content': prompt}], temperature=0, response_format={'type': 'json_object'})
-    result_text = response.choices[0].message.content
+    """Вызов LLM через единый клиент `src.llm.client.call_llm`.
+
+    Использует `LLM_CONFIG` (Pydantic-конфиг) для URL и модели по умолчанию;
+    `response_format={'type': 'json_object'}` форсит строгий JSON.
+    """
+    del api_key  # src.llm.client сам формирует api_key для Spark-vLLM
+    result_text = call_llm(
+        messages=[
+            {'role': 'system', 'content': 'Ты эксперт по валидации документов КПСЦ. Отвечаешь строго в формате JSON.'},
+            {'role': 'user', 'content': prompt},
+        ],
+        model=LLM_CONFIG.default_model,
+        base_url=LLM_CONFIG.base_url,
+        temperature=0.0,
+        response_format={'type': 'json_object'},
+    )
     return json.loads(result_text)
 
 def kpsc_validate_4_1_vpp_filled_save_result(result: dict, output_file: Path):
@@ -2884,11 +2263,22 @@ def kpsc_validate_4_2_vpp_sum_build_prompt(extracted_data: dict, rule: dict) -> 
     return prompt
 
 def kpsc_validate_4_2_vpp_sum_call_llm(prompt: str, api_key: str) -> dict:
-    """Вызов OpenAI API"""
-    base_url = LLM_CONFIG.base_url
-    client = OpenAI(api_key=api_key, base_url=base_url)
-    response = client.chat.completions.create(model=os.environ.get('LLM_MODEL', LLM_CONFIG.default_model), messages=[{'role': 'system', 'content': 'Ты эксперт по валидации документов КПСЦ. Отвечаешь строго в формате JSON.'}, {'role': 'user', 'content': prompt}], temperature=0, response_format={'type': 'json_object'})
-    result_text = response.choices[0].message.content
+    """Вызов LLM через единый клиент `src.llm.client.call_llm`.
+
+    Использует `LLM_CONFIG` (Pydantic-конфиг) для URL и модели по умолчанию;
+    `response_format={'type': 'json_object'}` форсит строгий JSON.
+    """
+    del api_key  # src.llm.client сам формирует api_key для Spark-vLLM
+    result_text = call_llm(
+        messages=[
+            {'role': 'system', 'content': 'Ты эксперт по валидации документов КПСЦ. Отвечаешь строго в формате JSON.'},
+            {'role': 'user', 'content': prompt},
+        ],
+        model=LLM_CONFIG.default_model,
+        base_url=LLM_CONFIG.base_url,
+        temperature=0.0,
+        response_format={'type': 'json_object'},
+    )
     return json.loads(result_text)
 
 def kpsc_validate_4_2_vpp_sum_save_result(result: dict, output_file: Path):
@@ -3025,11 +2415,22 @@ def kpsc_validate_5_1_units_build_prompt(extracted_data: dict, rule: dict) -> st
     return prompt
 
 def kpsc_validate_5_1_units_call_llm(prompt: str, api_key: str) -> dict:
-    """Вызов OpenAI API"""
-    base_url = LLM_CONFIG.base_url
-    client = OpenAI(api_key=api_key, base_url=base_url)
-    response = client.chat.completions.create(model=os.environ.get('LLM_MODEL', LLM_CONFIG.default_model), messages=[{'role': 'system', 'content': 'Ты эксперт по валидации документов КПСЦ. Отвечаешь строго в формате JSON.'}, {'role': 'user', 'content': prompt}], temperature=0, response_format={'type': 'json_object'})
-    result_text = response.choices[0].message.content
+    """Вызов LLM через единый клиент `src.llm.client.call_llm`.
+
+    Использует `LLM_CONFIG` (Pydantic-конфиг) для URL и модели по умолчанию;
+    `response_format={'type': 'json_object'}` форсит строгий JSON.
+    """
+    del api_key  # src.llm.client сам формирует api_key для Spark-vLLM
+    result_text = call_llm(
+        messages=[
+            {'role': 'system', 'content': 'Ты эксперт по валидации документов КПСЦ. Отвечаешь строго в формате JSON.'},
+            {'role': 'user', 'content': prompt},
+        ],
+        model=LLM_CONFIG.default_model,
+        base_url=LLM_CONFIG.base_url,
+        temperature=0.0,
+        response_format={'type': 'json_object'},
+    )
     return json.loads(result_text)
 
 def kpsc_validate_5_1_units_save_result(result: dict, output_file: Path):
@@ -3155,11 +2556,22 @@ def kpsc_validate_6_1_transport_row_build_prompt(extracted_data: dict, rule: dic
     return prompt
 
 def kpsc_validate_6_1_transport_row_call_llm(prompt: str, api_key: str) -> dict:
-    """Вызов OpenAI API"""
-    base_url = LLM_CONFIG.base_url
-    client = OpenAI(api_key=api_key, base_url=base_url)
-    response = client.chat.completions.create(model=os.environ.get('LLM_MODEL', LLM_CONFIG.default_model), messages=[{'role': 'system', 'content': 'Ты эксперт по валидации документов КПСЦ. Отвечаешь строго в формате JSON.'}, {'role': 'user', 'content': prompt}], temperature=0, response_format={'type': 'json_object'})
-    result_text = response.choices[0].message.content
+    """Вызов LLM через единый клиент `src.llm.client.call_llm`.
+
+    Использует `LLM_CONFIG` (Pydantic-конфиг) для URL и модели по умолчанию;
+    `response_format={'type': 'json_object'}` форсит строгий JSON.
+    """
+    del api_key  # src.llm.client сам формирует api_key для Spark-vLLM
+    result_text = call_llm(
+        messages=[
+            {'role': 'system', 'content': 'Ты эксперт по валидации документов КПСЦ. Отвечаешь строго в формате JSON.'},
+            {'role': 'user', 'content': prompt},
+        ],
+        model=LLM_CONFIG.default_model,
+        base_url=LLM_CONFIG.base_url,
+        temperature=0.0,
+        response_format={'type': 'json_object'},
+    )
     return json.loads(result_text)
 
 def kpsc_validate_6_1_transport_row_save_result(result: dict, output_file: Path):
@@ -3285,11 +2697,22 @@ def kpsc_validate_7_1_sheet_kpsc_build_prompt(extracted_data: dict, rule: dict) 
     return prompt
 
 def kpsc_validate_7_1_sheet_kpsc_call_llm(prompt: str, api_key: str) -> dict:
-    """Вызов OpenAI API"""
-    base_url = LLM_CONFIG.base_url
-    client = OpenAI(api_key=api_key, base_url=base_url)
-    response = client.chat.completions.create(model=os.environ.get('LLM_MODEL', LLM_CONFIG.default_model), messages=[{'role': 'system', 'content': 'Ты эксперт по валидации документов КПСЦ. Отвечаешь строго в формате JSON.'}, {'role': 'user', 'content': prompt}], temperature=0, response_format={'type': 'json_object'})
-    result_text = response.choices[0].message.content
+    """Вызов LLM через единый клиент `src.llm.client.call_llm`.
+
+    Использует `LLM_CONFIG` (Pydantic-конфиг) для URL и модели по умолчанию;
+    `response_format={'type': 'json_object'}` форсит строгий JSON.
+    """
+    del api_key  # src.llm.client сам формирует api_key для Spark-vLLM
+    result_text = call_llm(
+        messages=[
+            {'role': 'system', 'content': 'Ты эксперт по валидации документов КПСЦ. Отвечаешь строго в формате JSON.'},
+            {'role': 'user', 'content': prompt},
+        ],
+        model=LLM_CONFIG.default_model,
+        base_url=LLM_CONFIG.base_url,
+        temperature=0.0,
+        response_format={'type': 'json_object'},
+    )
     return json.loads(result_text)
 
 def kpsc_validate_7_1_sheet_kpsc_save_result(result: dict, output_file: Path):
@@ -3403,11 +2826,22 @@ def kpsc_validate_7_2_sheet_legend_build_prompt(extracted_data: dict, rule: dict
     return prompt
 
 def kpsc_validate_7_2_sheet_legend_call_llm(prompt: str, api_key: str) -> dict:
-    """Вызов OpenAI API"""
-    base_url = LLM_CONFIG.base_url
-    client = OpenAI(api_key=api_key, base_url=base_url)
-    response = client.chat.completions.create(model=os.environ.get('LLM_MODEL', LLM_CONFIG.default_model), messages=[{'role': 'system', 'content': 'Ты эксперт по валидации документов КПСЦ. Отвечаешь строго в формате JSON.'}, {'role': 'user', 'content': prompt}], temperature=0, response_format={'type': 'json_object'})
-    result_text = response.choices[0].message.content
+    """Вызов LLM через единый клиент `src.llm.client.call_llm`.
+
+    Использует `LLM_CONFIG` (Pydantic-конфиг) для URL и модели по умолчанию;
+    `response_format={'type': 'json_object'}` форсит строгий JSON.
+    """
+    del api_key  # src.llm.client сам формирует api_key для Spark-vLLM
+    result_text = call_llm(
+        messages=[
+            {'role': 'system', 'content': 'Ты эксперт по валидации документов КПСЦ. Отвечаешь строго в формате JSON.'},
+            {'role': 'user', 'content': prompt},
+        ],
+        model=LLM_CONFIG.default_model,
+        base_url=LLM_CONFIG.base_url,
+        temperature=0.0,
+        response_format={'type': 'json_object'},
+    )
     return json.loads(result_text)
 
 def kpsc_validate_7_2_sheet_legend_save_result(result: dict, output_file: Path):
@@ -3521,11 +2955,22 @@ def kpsc_validate_7_3_sheet_pokazateli_build_prompt(extracted_data: dict, rule: 
     return prompt
 
 def kpsc_validate_7_3_sheet_pokazateli_call_llm(prompt: str, api_key: str) -> dict:
-    """Вызов OpenAI API"""
-    base_url = LLM_CONFIG.base_url
-    client = OpenAI(api_key=api_key, base_url=base_url)
-    response = client.chat.completions.create(model=os.environ.get('LLM_MODEL', LLM_CONFIG.default_model), messages=[{'role': 'system', 'content': 'Ты эксперт по валидации документов КПСЦ. Отвечаешь строго в формате JSON.'}, {'role': 'user', 'content': prompt}], temperature=0, response_format={'type': 'json_object'})
-    result_text = response.choices[0].message.content
+    """Вызов LLM через единый клиент `src.llm.client.call_llm`.
+
+    Использует `LLM_CONFIG` (Pydantic-конфиг) для URL и модели по умолчанию;
+    `response_format={'type': 'json_object'}` форсит строгий JSON.
+    """
+    del api_key  # src.llm.client сам формирует api_key для Spark-vLLM
+    result_text = call_llm(
+        messages=[
+            {'role': 'system', 'content': 'Ты эксперт по валидации документов КПСЦ. Отвечаешь строго в формате JSON.'},
+            {'role': 'user', 'content': prompt},
+        ],
+        model=LLM_CONFIG.default_model,
+        base_url=LLM_CONFIG.base_url,
+        temperature=0.0,
+        response_format={'type': 'json_object'},
+    )
     return json.loads(result_text)
 
 def kpsc_validate_7_3_sheet_pokazateli_save_result(result: dict, output_file: Path):
@@ -3638,11 +3083,22 @@ def kpsc_validate_7_4_sheet_ocifrovka_build_prompt(extracted_data: dict, rule: d
     return prompt
 
 def kpsc_validate_7_4_sheet_ocifrovka_call_llm(prompt: str, api_key: str) -> dict:
-    """Вызов OpenAI API"""
-    base_url = LLM_CONFIG.base_url
-    client = OpenAI(api_key=api_key, base_url=base_url)
-    response = client.chat.completions.create(model=os.environ.get('LLM_MODEL', LLM_CONFIG.default_model), messages=[{'role': 'system', 'content': 'Ты эксперт по валидации документов КПСЦ. Отвечаешь строго в формате JSON.'}, {'role': 'user', 'content': prompt}], temperature=0, response_format={'type': 'json_object'})
-    result_text = response.choices[0].message.content
+    """Вызов LLM через единый клиент `src.llm.client.call_llm`.
+
+    Использует `LLM_CONFIG` (Pydantic-конфиг) для URL и модели по умолчанию;
+    `response_format={'type': 'json_object'}` форсит строгий JSON.
+    """
+    del api_key  # src.llm.client сам формирует api_key для Spark-vLLM
+    result_text = call_llm(
+        messages=[
+            {'role': 'system', 'content': 'Ты эксперт по валидации документов КПСЦ. Отвечаешь строго в формате JSON.'},
+            {'role': 'user', 'content': prompt},
+        ],
+        model=LLM_CONFIG.default_model,
+        base_url=LLM_CONFIG.base_url,
+        temperature=0.0,
+        response_format={'type': 'json_object'},
+    )
     return json.loads(result_text)
 
 def kpsc_validate_7_4_sheet_ocifrovka_save_result(result: dict, output_file: Path):
@@ -3760,11 +3216,22 @@ def kpsc_validate_7_5_sheet_pa1_build_prompt(extracted_data: dict, rule: dict) -
     return prompt
 
 def kpsc_validate_7_5_sheet_pa1_call_llm(prompt: str, api_key: str) -> dict:
-    """Вызов OpenAI API"""
-    base_url = LLM_CONFIG.base_url
-    client = OpenAI(api_key=api_key, base_url=base_url)
-    response = client.chat.completions.create(model=os.environ.get('LLM_MODEL', LLM_CONFIG.default_model), messages=[{'role': 'system', 'content': 'Ты эксперт по валидации документов КПСЦ. Отвечаешь строго в формате JSON.'}, {'role': 'user', 'content': prompt}], temperature=0, response_format={'type': 'json_object'})
-    result_text = response.choices[0].message.content
+    """Вызов LLM через единый клиент `src.llm.client.call_llm`.
+
+    Использует `LLM_CONFIG` (Pydantic-конфиг) для URL и модели по умолчанию;
+    `response_format={'type': 'json_object'}` форсит строгий JSON.
+    """
+    del api_key  # src.llm.client сам формирует api_key для Spark-vLLM
+    result_text = call_llm(
+        messages=[
+            {'role': 'system', 'content': 'Ты эксперт по валидации документов КПСЦ. Отвечаешь строго в формате JSON.'},
+            {'role': 'user', 'content': prompt},
+        ],
+        model=LLM_CONFIG.default_model,
+        base_url=LLM_CONFIG.base_url,
+        temperature=0.0,
+        response_format={'type': 'json_object'},
+    )
     return json.loads(result_text)
 
 def kpsc_validate_7_5_sheet_pa1_save_result(result: dict, output_file: Path):
@@ -3877,11 +3344,22 @@ def kpsc_validate_7_6_sheet_spaghetti_build_prompt(extracted_data: dict, rule: d
     return prompt
 
 def kpsc_validate_7_6_sheet_spaghetti_call_llm(prompt: str, api_key: str) -> dict:
-    """Вызов OpenAI API"""
-    base_url = LLM_CONFIG.base_url
-    client = OpenAI(api_key=api_key, base_url=base_url)
-    response = client.chat.completions.create(model=os.environ.get('LLM_MODEL', LLM_CONFIG.default_model), messages=[{'role': 'system', 'content': 'Ты эксперт по валидации документов КПСЦ. Отвечаешь строго в формате JSON.'}, {'role': 'user', 'content': prompt}], temperature=0, response_format={'type': 'json_object'})
-    result_text = response.choices[0].message.content
+    """Вызов LLM через единый клиент `src.llm.client.call_llm`.
+
+    Использует `LLM_CONFIG` (Pydantic-конфиг) для URL и модели по умолчанию;
+    `response_format={'type': 'json_object'}` форсит строгий JSON.
+    """
+    del api_key  # src.llm.client сам формирует api_key для Spark-vLLM
+    result_text = call_llm(
+        messages=[
+            {'role': 'system', 'content': 'Ты эксперт по валидации документов КПСЦ. Отвечаешь строго в формате JSON.'},
+            {'role': 'user', 'content': prompt},
+        ],
+        model=LLM_CONFIG.default_model,
+        base_url=LLM_CONFIG.base_url,
+        temperature=0.0,
+        response_format={'type': 'json_object'},
+    )
     return json.loads(result_text)
 
 def kpsc_validate_7_6_sheet_spaghetti_save_result(result: dict, output_file: Path):
@@ -3994,11 +3472,22 @@ def kpsc_validate_7_7_sheet_spaghetti_problems_build_prompt(extracted_data: dict
     return prompt
 
 def kpsc_validate_7_7_sheet_spaghetti_problems_call_llm(prompt: str, api_key: str) -> dict:
-    """Вызов OpenAI API"""
-    base_url = LLM_CONFIG.base_url
-    client = OpenAI(api_key=api_key, base_url=base_url)
-    response = client.chat.completions.create(model=os.environ.get('LLM_MODEL', LLM_CONFIG.default_model), messages=[{'role': 'system', 'content': 'Ты эксперт по валидации документов КПСЦ. Отвечаешь строго в формате JSON.'}, {'role': 'user', 'content': prompt}], temperature=0, response_format={'type': 'json_object'})
-    result_text = response.choices[0].message.content
+    """Вызов LLM через единый клиент `src.llm.client.call_llm`.
+
+    Использует `LLM_CONFIG` (Pydantic-конфиг) для URL и модели по умолчанию;
+    `response_format={'type': 'json_object'}` форсит строгий JSON.
+    """
+    del api_key  # src.llm.client сам формирует api_key для Spark-vLLM
+    result_text = call_llm(
+        messages=[
+            {'role': 'system', 'content': 'Ты эксперт по валидации документов КПСЦ. Отвечаешь строго в формате JSON.'},
+            {'role': 'user', 'content': prompt},
+        ],
+        model=LLM_CONFIG.default_model,
+        base_url=LLM_CONFIG.base_url,
+        temperature=0.0,
+        response_format={'type': 'json_object'},
+    )
     return json.loads(result_text)
 
 def kpsc_validate_7_7_sheet_spaghetti_problems_save_result(result: dict, output_file: Path):
@@ -4111,11 +3600,22 @@ def kpsc_validate_7_8_sheet_takt_time_build_prompt(extracted_data: dict, rule: d
     return prompt
 
 def kpsc_validate_7_8_sheet_takt_time_call_llm(prompt: str, api_key: str) -> dict:
-    """Вызов OpenAI API"""
-    base_url = LLM_CONFIG.base_url
-    client = OpenAI(api_key=api_key, base_url=base_url)
-    response = client.chat.completions.create(model=os.environ.get('LLM_MODEL', LLM_CONFIG.default_model), messages=[{'role': 'system', 'content': 'Ты эксперт по валидации документов КПСЦ. Отвечаешь строго в формате JSON.'}, {'role': 'user', 'content': prompt}], temperature=0, response_format={'type': 'json_object'})
-    result_text = response.choices[0].message.content
+    """Вызов LLM через единый клиент `src.llm.client.call_llm`.
+
+    Использует `LLM_CONFIG` (Pydantic-конфиг) для URL и модели по умолчанию;
+    `response_format={'type': 'json_object'}` форсит строгий JSON.
+    """
+    del api_key  # src.llm.client сам формирует api_key для Spark-vLLM
+    result_text = call_llm(
+        messages=[
+            {'role': 'system', 'content': 'Ты эксперт по валидации документов КПСЦ. Отвечаешь строго в формате JSON.'},
+            {'role': 'user', 'content': prompt},
+        ],
+        model=LLM_CONFIG.default_model,
+        base_url=LLM_CONFIG.base_url,
+        temperature=0.0,
+        response_format={'type': 'json_object'},
+    )
     return json.loads(result_text)
 
 def kpsc_validate_7_8_sheet_takt_time_save_result(result: dict, output_file: Path):
@@ -4258,11 +3758,22 @@ def kpsc_validate_8_1_units_cross_check_build_prompt(extracted_data: dict, rule:
     return prompt
 
 def kpsc_validate_8_1_units_cross_check_call_llm(prompt: str, api_key: str) -> dict:
-    """Вызов OpenAI API"""
-    base_url = LLM_CONFIG.base_url
-    client = OpenAI(api_key=api_key, base_url=base_url)
-    response = client.chat.completions.create(model=os.environ.get('LLM_MODEL', LLM_CONFIG.default_model), messages=[{'role': 'system', 'content': 'Ты эксперт по валидации документов КПСЦ. Отвечаешь строго в формате JSON.'}, {'role': 'user', 'content': prompt}], temperature=0, response_format={'type': 'json_object'})
-    result_text = response.choices[0].message.content
+    """Вызов LLM через единый клиент `src.llm.client.call_llm`.
+
+    Использует `LLM_CONFIG` (Pydantic-конфиг) для URL и модели по умолчанию;
+    `response_format={'type': 'json_object'}` форсит строгий JSON.
+    """
+    del api_key  # src.llm.client сам формирует api_key для Spark-vLLM
+    result_text = call_llm(
+        messages=[
+            {'role': 'system', 'content': 'Ты эксперт по валидации документов КПСЦ. Отвечаешь строго в формате JSON.'},
+            {'role': 'user', 'content': prompt},
+        ],
+        model=LLM_CONFIG.default_model,
+        base_url=LLM_CONFIG.base_url,
+        temperature=0.0,
+        response_format={'type': 'json_object'},
+    )
     return json.loads(result_text)
 
 def kpsc_validate_8_1_units_cross_check_save_result(result: dict, output_file: Path):
@@ -4421,11 +3932,22 @@ def kpsc_validate_8_2_values_cross_check_build_prompt(extracted_data: dict, rule
     return prompt
 
 def kpsc_validate_8_2_values_cross_check_call_llm(prompt: str, api_key: str) -> dict:
-    """Вызов OpenAI API"""
-    base_url = LLM_CONFIG.base_url
-    client = OpenAI(api_key=api_key, base_url=base_url)
-    response = client.chat.completions.create(model=os.environ.get('LLM_MODEL', LLM_CONFIG.default_model), messages=[{'role': 'system', 'content': 'Ты эксперт по валидации документов КПСЦ. Отвечаешь строго в формате JSON.'}, {'role': 'user', 'content': prompt}], temperature=0, response_format={'type': 'json_object'})
-    result_text = response.choices[0].message.content
+    """Вызов LLM через единый клиент `src.llm.client.call_llm`.
+
+    Использует `LLM_CONFIG` (Pydantic-конфиг) для URL и модели по умолчанию;
+    `response_format={'type': 'json_object'}` форсит строгий JSON.
+    """
+    del api_key  # src.llm.client сам формирует api_key для Spark-vLLM
+    result_text = call_llm(
+        messages=[
+            {'role': 'system', 'content': 'Ты эксперт по валидации документов КПСЦ. Отвечаешь строго в формате JSON.'},
+            {'role': 'user', 'content': prompt},
+        ],
+        model=LLM_CONFIG.default_model,
+        base_url=LLM_CONFIG.base_url,
+        temperature=0.0,
+        response_format={'type': 'json_object'},
+    )
     return json.loads(result_text)
 
 def kpsc_validate_8_2_values_cross_check_save_result(result: dict, output_file: Path):
@@ -4572,11 +4094,22 @@ def kpsc_validate_8_3_indicators_cross_check_build_prompt(extracted_data: dict, 
     return prompt
 
 def kpsc_validate_8_3_indicators_cross_check_call_llm(prompt: str, api_key: str) -> dict:
-    """Вызов OpenAI API"""
-    base_url = LLM_CONFIG.base_url
-    client = OpenAI(api_key=api_key, base_url=base_url)
-    response = client.chat.completions.create(model=os.environ.get('LLM_MODEL', LLM_CONFIG.default_model), messages=[{'role': 'system', 'content': 'Ты эксперт по валидации документов КПСЦ. Отвечаешь строго в формате JSON.'}, {'role': 'user', 'content': prompt}], temperature=0, response_format={'type': 'json_object'})
-    result_text = response.choices[0].message.content
+    """Вызов LLM через единый клиент `src.llm.client.call_llm`.
+
+    Использует `LLM_CONFIG` (Pydantic-конфиг) для URL и модели по умолчанию;
+    `response_format={'type': 'json_object'}` форсит строгий JSON.
+    """
+    del api_key  # src.llm.client сам формирует api_key для Spark-vLLM
+    result_text = call_llm(
+        messages=[
+            {'role': 'system', 'content': 'Ты эксперт по валидации документов КПСЦ. Отвечаешь строго в формате JSON.'},
+            {'role': 'user', 'content': prompt},
+        ],
+        model=LLM_CONFIG.default_model,
+        base_url=LLM_CONFIG.base_url,
+        temperature=0.0,
+        response_format={'type': 'json_object'},
+    )
     return json.loads(result_text)
 
 def kpsc_validate_8_3_indicators_cross_check_save_result(result: dict, output_file: Path):
@@ -4921,12 +4454,20 @@ def kartochka_proekta_validate_3_flow_name_load_data(parser_outputs_dir: Path) -
         return json.load(f)
 
 def kartochka_proekta_validate_3_flow_name_check_semantic(project_name: str, rule: dict, api_key: str) -> dict:
-    """LLM-проверка осмысленности названия проекта/потока."""
-    base_url = LLM_CONFIG.base_url
-    client = OpenAI(api_key=api_key, base_url=base_url)
+    """LLM-проверка осмысленности названия проекта/потока (через единый клиент)."""
+    del api_key  # src.llm.client сам формирует api_key для Spark-vLLM
     prompt = f'Ты эксперт по проверке документов «Карточка проекта» в рамках бережливого производства.\n\nТРЕБОВАНИЕ:\n{rule['requirement_expert']}\n\nКРИТЕРИИ:\n- Что проверять: {rule['validation_criteria']['what_to_check']}\n- Условие успеха: {rule['validation_criteria']['success_condition']}\n- Условие ошибки: {rule['validation_criteria']['error_condition']}\n\nФАКТИЧЕСКИЕ ДАННЫЕ:\nНазвание проекта/потока: "{project_name}"\n\nЗАДАНИЕ:\nПроверь, является ли название проекта осмысленным текстом, описывающим реальный проект или поток.\nНе является осмысленным: placeholder ("Название проекта"), набор символов ("ааааа"), слишком общий текст ("тест").\nЯвляется осмысленным: конкретное описание проекта ("Оптимизация производства приборов учёта").\n\nФОРМАТ ОТВЕТА (строго JSON):\n{{\n  "rule_index": "{kartochka_proekta_validate_3_flow_name_RULE_INDEX}",\n  "rule_title": "{kartochka_proekta_validate_3_flow_name_RULE_TITLE}",\n  "status": "PASS или FAIL",\n  "discrepancy": "Описание проблемы если FAIL, иначе пустая строка"\n}}\n'
-    response = client.chat.completions.create(model=resolve_runtime_llm_model(os.environ.get('LLM_MODEL', 'gpt-4.1-mini')), messages=[{'role': 'system', 'content': 'Ты эксперт по валидации документов. Отвечаешь строго в формате JSON.'}, {'role': 'user', 'content': prompt}], temperature=0, response_format={'type': 'json_object'})
-    return json.loads(response.choices[0].message.content)
+    result_text = call_llm(
+        messages=[
+            {'role': 'system', 'content': 'Ты эксперт по валидации документов. Отвечаешь строго в формате JSON.'},
+            {'role': 'user', 'content': prompt},
+        ],
+        model=LLM_CONFIG.default_model,
+        base_url=LLM_CONFIG.base_url,
+        temperature=0.0,
+        response_format={'type': 'json_object'},
+    )
+    return json.loads(result_text)
 
 def kartochka_proekta_validate_3_flow_name_validate(data: dict, rule: dict, api_key: str) -> dict:
     """Проверка названия проекта/потока без сетевой зависимости."""
@@ -5130,12 +4671,20 @@ def kartochka_proekta_validate_6_justification_load_data(parser_outputs_dir: Pat
         return json.load(f)
 
 def kartochka_proekta_validate_6_justification_check_semantic(key_risk: str, justification: str, rule: dict, api_key: str) -> dict:
-    """LLM-проверка осмысленности обоснования и ключевого риска."""
-    base_url = LLM_CONFIG.base_url
-    client = OpenAI(api_key=api_key, base_url=base_url)
+    """LLM-проверка осмысленности обоснования и ключевого риска (через единый клиент)."""
+    del api_key  # src.llm.client сам формирует api_key для Spark-vLLM
     prompt = f'Ты эксперт по проверке документов «Карточка проекта» в рамках бережливого производства.\n\nТРЕБОВАНИЕ:\n{rule['requirement_expert']}\n\nКРИТЕРИИ:\n- Что проверять: {rule['validation_criteria']['what_to_check']}\n- Условие успеха: {rule['validation_criteria']['success_condition']}\n- Условие ошибки: {rule['validation_criteria']['error_condition']}\n\nФАКТИЧЕСКИЕ ДАННЫЕ:\nКлючевой риск (M11): "{key_risk}"\nОбоснование выбора потока (M13): "{justification}"\n\nЗАДАНИЕ:\nПроверь, содержат ли оба поля осмысленный текст:\n- Ключевой риск — должен описывать конкретный риск проекта (например: "Срыв сроков", "Потеря клиентов").\n  НЕ осмысленный: "-", "нет", "риск", набор символов.\n- Обоснование — должно содержать аргументацию выбора потока (например: "Наличие ожидания в потоке, несвоевременная подготовка").\n  НЕ осмысленный: "-", "обоснование", "тест", набор символов.\n\nФОРМАТ ОТВЕТА (строго JSON):\n{{\n  "rule_index": "{kartochka_proekta_validate_6_justification_RULE_INDEX}",\n  "rule_title": "{kartochka_proekta_validate_6_justification_RULE_TITLE}",\n  "status": "PASS или FAIL",\n  "discrepancy": "Описание проблемы если FAIL, иначе пустая строка"\n}}\n'
-    response = client.chat.completions.create(model=resolve_runtime_llm_model(os.environ.get('LLM_MODEL', 'gpt-4.1-mini')), messages=[{'role': 'system', 'content': 'Ты эксперт по валидации документов. Отвечаешь строго в формате JSON.'}, {'role': 'user', 'content': prompt}], temperature=0, response_format={'type': 'json_object'})
-    return json.loads(response.choices[0].message.content)
+    result_text = call_llm(
+        messages=[
+            {'role': 'system', 'content': 'Ты эксперт по валидации документов. Отвечаешь строго в формате JSON.'},
+            {'role': 'user', 'content': prompt},
+        ],
+        model=LLM_CONFIG.default_model,
+        base_url=LLM_CONFIG.base_url,
+        temperature=0.0,
+        response_format={'type': 'json_object'},
+    )
+    return json.loads(result_text)
 
 def kartochka_proekta_validate_6_justification_validate(data: dict, rule: dict, api_key: str) -> dict:
     """Проверка обоснования и ключевого риска: non-LLM + LLM."""
@@ -6339,11 +5888,7 @@ class PipelineLogger:
         """
         self.log_dir = log_dir
         self.log_dir.mkdir(parents=True, exist_ok=True)
-        self.prompts_dir = log_dir / 'prompts'
-        self.responses_dir = log_dir / 'responses'
         self.parsed_dir = log_dir / 'parsed_docs'
-        self.prompts_dir.mkdir(exist_ok=True)
-        self.responses_dir.mkdir(exist_ok=True)
         self.parsed_dir.mkdir(exist_ok=True)
         self.main_log = log_dir / 'pipeline.log'
         self._init_main_log(doc_type)
@@ -6370,56 +5915,12 @@ class PipelineLogger:
             json.dump(doc, f, ensure_ascii=False, indent=2)
         self.log(f'📄 Распарсенный документ сохранён: {filepath}')
 
-    def log_rule_prompt(self, rule_index: int, system_prompt: str, user_prompt: str):
-        """Сохраняет промпт для правила."""
-        filepath = self.prompts_dir / f'rule_{rule_index:02d}_prompt.txt'
-        with open(filepath, 'w', encoding='utf-8') as f:
-            f.write(f'{'=' * 80}\n')
-            f.write(f'RULE #{rule_index} - PROMPT\n')
-            f.write(f'{'=' * 80}\n\n')
-            f.write(f'--- SYSTEM PROMPT ---\n')
-            f.write(system_prompt)
-            f.write(f'\n\n--- USER PROMPT ---\n')
-            f.write(user_prompt)
-        self.log(f'📝 Промпт для правила #{rule_index} сохранён: {filepath}')
-
-    def log_rule_response(self, rule_index: int, raw_response: str, parsed_violations: List[Dict]):
-        """Сохраняет ответ LLM для правила."""
-        filepath = self.responses_dir / f'rule_{rule_index:02d}_response.txt'
-        with open(filepath, 'w', encoding='utf-8') as f:
-            f.write(f'{'=' * 80}\n')
-            f.write(f'RULE #{rule_index} - LLM RESPONSE\n')
-            f.write(f'{'=' * 80}\n\n')
-            f.write(f'--- RAW RESPONSE ---\n')
-            f.write(raw_response)
-            f.write(f'\n\n--- PARSED VIOLATIONS ---\n')
-            f.write(json.dumps(parsed_violations, ensure_ascii=False, indent=2))
-        self.log(f'✅ Ответ для правила #{rule_index} сохранён: {filepath}')
-
-    def log_non_llm_result(self, rule_index: int, violations: List[Dict]):
-        """Сохраняет результат non-LLM проверки."""
-        filepath = self.responses_dir / f'rule_{rule_index:02d}_non_llm.txt'
-        with open(filepath, 'w', encoding='utf-8') as f:
-            f.write(f'{'=' * 80}\n')
-            f.write(f'RULE #{rule_index} - NON-LLM CHECK\n')
-            f.write(f'{'=' * 80}\n\n')
-            f.write(f'--- RESULT ---\n')
-            f.write(json.dumps(violations, ensure_ascii=False, indent=2))
-        self.log(f'✅ Результат non-LLM правила #{rule_index} сохранён: {filepath}')
-
     def log_final_results(self, violations: List[Dict]):
         """Сохраняет финальные результаты."""
         filepath = self.log_dir / 'final_results.json'
         with open(filepath, 'w', encoding='utf-8') as f:
             json.dump(violations, f, ensure_ascii=False, indent=2)
         self.log(f'📊 Финальные результаты сохранены: {filepath}')
-
-    def log_error(self, rule_index: int, error: str):
-        """Логирует ошибку для правила."""
-        filepath = self.responses_dir / f'rule_{rule_index:02d}_error.txt'
-        with open(filepath, 'w', encoding='utf-8') as f:
-            f.write(f'ERROR for rule #{rule_index}:\n{error}')
-        self.log(f'❌ ОШИБКА для правила #{rule_index}: {error}')
 
 logger_module = SimpleNamespace(PipelineLogger=PipelineLogger)
 
@@ -6564,387 +6065,6 @@ excel_reporter_module = SimpleNamespace(_DISPLAY_HEADERS=_DISPLAY_HEADERS, _FONT
 # KEYWORDS: runtime, engine, multi-rule, drivers, kpsc, kartochka, plan-grafik.
 # LINKS: audit_engine/engine.py, audit_engine/*/__init__.py, audit_engine/multi_rule.py.
 # RATIONALE: The monolith should expose one runtime graph instead of scattered module entrypoints.
-
-# START_SOURCE_CONTEXT_BUILDER
-# PURPOSE: Inlined source from audit_engine/context_builder.py.
-def extract_matching_paragraphs(text: str, patterns: List[str], headers_only: bool=False) -> str:
-    """
-    Извлекает из текста только строки/пункты, соответствующие паттернам.
-
-    Используется для context_filter — сужение контекста перед отправкой в LLM.
-
-    Args:
-        text: исходный текст чанка
-        patterns: список regex-паттернов для фильтрации
-        headers_only: если True — только заголовки, иначе заголовок + тело до следующей секции
-    """
-    if not patterns:
-        return text
-    lines = text.split('\n')
-    result_lines = []
-    compiled_patterns = [re.compile(p) for p in patterns]
-    if headers_only:
-        for line in lines:
-            stripped = line.strip()
-            if any((p.match(stripped) for p in compiled_patterns)):
-                result_lines.append(stripped)
-    else:
-        capturing = False
-        new_section_pattern = re.compile('^(\\d+\\.|\\d+\\.\\d+\\.?)\\s')
-        for line in lines:
-            stripped = line.strip()
-            matches_our_pattern = any((p.match(stripped) for p in compiled_patterns))
-            if matches_our_pattern:
-                capturing = True
-                result_lines.append(line)
-            elif capturing:
-                if new_section_pattern.match(stripped) and (not matches_our_pattern):
-                    capturing = False
-                else:
-                    result_lines.append(line)
-    filtered_text = '\n'.join(result_lines).strip()
-    if not filtered_text:
-        return f'[Фильтр: не найдено пунктов по паттернам {patterns}]'
-    return filtered_text
-
-def build_context_for_rule(spec: RuleSpec, target_doc: Dict[str, Any], template_doc: Dict[str, Any], preprocessors: Optional[Dict[str, Callable[[str], str]]]=None) -> str:
-    """
-    Строит контекст для правила в зависимости от типа проверки.
-
-    Args:
-        spec: спецификация правила
-        target_doc: распарсенный целевой документ
-        template_doc: распарсенный шаблон
-        preprocessors: словарь {scope: preprocess_fn} для нормализации текста
-
-    Логика по compare:
-    - target_only: только TARGET_<scope>
-    - template: TARGET_<scope> + TEMPLATE_<scope> (с нормализацией)
-    - cross_check: несколько TARGET_<scope> для сравнения между собой
-    """
-    context_parts = []
-    scopes = [spec.scope] if isinstance(spec.scope, str) else spec.scope
-    preprocessors = preprocessors or {}
-
-    def apply_filter(content: str, scope: str) -> str:
-        """Применяет context_filter если задан для данного scope."""
-        if spec.context_filter and scope in spec.context_filter:
-            patterns = spec.context_filter[scope]
-            headers_only = spec.context_filter_mode == 'headers_only'
-            return extract_matching_paragraphs(content, patterns, headers_only)
-        return content
-
-    def apply_preprocessor(content: str, scope: str) -> str:
-        """Применяет препроцессор если зарегистрирован для scope."""
-        fn = preprocessors.get(scope)
-        if fn:
-            return fn(content)
-        return content
-
-    def apply_max_chars(content: str) -> str:
-        """Обрезает текст до max_chars если задано в правиле."""
-        if spec.max_chars and len(content) > spec.max_chars:
-            return content[:spec.max_chars] + '\n[...текст обрезан...]'
-        return content
-    if spec.compare == 'target_only':
-        for scope in scopes:
-            content = target_doc.get(scope, '')
-            content = apply_max_chars(str(content))
-            content = apply_filter(content, scope)
-            context_parts.append(f'[TARGET_{scope}]')
-            context_parts.append(content)
-            context_parts.append(f'[/TARGET_{scope}]')
-    elif spec.compare == 'template':
-        for scope in scopes:
-            target_content = apply_max_chars(str(target_doc.get(scope, '')))
-            template_content = str(template_doc.get(scope, ''))
-            target_content = apply_filter(target_content, scope)
-            template_content = apply_filter(template_content, scope)
-            target_content = apply_preprocessor(target_content, scope)
-            template_content = apply_preprocessor(template_content, scope)
-            context_parts.append(f'[TARGET_{scope}]')
-            context_parts.append(target_content)
-            context_parts.append(f'[/TARGET_{scope}]')
-            context_parts.append(f'[TEMPLATE_{scope}]')
-            context_parts.append(template_content)
-            context_parts.append(f'[/TEMPLATE_{scope}]')
-    elif spec.compare == 'cross_check':
-        for scope in scopes:
-            content = str(target_doc.get(scope, ''))
-            content = apply_max_chars(content)
-            content = apply_filter(content, scope)
-            context_parts.append(f'[TARGET_{scope}]')
-            context_parts.append(content)
-            context_parts.append(f'[/TARGET_{scope}]')
-    return '\n'.join(context_parts)
-
-def build_user_prompt(spec: RuleSpec, target_doc: Dict[str, Any], template_doc: Dict[str, Any], preprocessors: Optional[Dict[str, Callable[[str], str]]]=None) -> str:
-    """
-    Формирует полный user prompt для LLM.
-
-    Структура:
-        RULE_INDEX: <номер>
-        COMPARE: <тип>
-        SCOPE: <чанки>
-        RULE_TITLE: <заголовок>
-        RULE_INSTRUCTIONS:
-        - инструкция 1
-        - инструкция 2
-
-        CONTEXT:
-        [TARGET_scope] ... [/TARGET_scope]
-        [TEMPLATE_scope] ... [/TEMPLATE_scope]
-    """
-    scope_str = spec.scope if isinstance(spec.scope, str) else ', '.join(spec.scope)
-    instructions_text = '\n'.join((f'- {instr}' for instr in spec.instructions))
-    context = build_context_for_rule(spec, target_doc, template_doc, preprocessors)
-    prompt = f'RULE_INDEX: {spec.index}\nCOMPARE: {spec.compare}\nSCOPE: {scope_str}\nRULE_TITLE: {spec.title}\nRULE_INSTRUCTIONS:\n{instructions_text}\n\nCONTEXT:\n{context}\n'
-    return prompt
-
-context_builder_module = SimpleNamespace(extract_matching_paragraphs=extract_matching_paragraphs, build_context_for_rule=build_context_for_rule, build_user_prompt=build_user_prompt)
-
-# END_SOURCE_CONTEXT_BUILDER
-
-# START_SOURCE_MULTI_RULE
-# PURPOSE: Inlined source from audit_engine/multi_rule.py.
-multi_rule_logger = logging.getLogger(__name__)
-
-SYSTEM_PROMPT = 'Ты — строгий аудитор документов.\n\nВ одном запросе тебе даётся ВЕСЬ документ и СПИСОК ПРАВИЛ для проверки.\n\nДокумент логически разделён на именованные СЕКЦИИ. Для каждой секции даны границы (маркеры начала/конца) и описание. Секции НЕ размечены в тексте — ты должен определить их сам по маркерам.\n\nДля каждого правила указана ЦЕЛЕВАЯ СЕКЦИЯ (target_section). Анализируй ТОЛЬКО эту секцию документа, даже если похожий текст встречается в других местах. Если у правила несколько target_sections — проверяй их совокупно (достаточно выполнения в любой из них, если явно не сказано иное).\n\nФормат ответа — СТРОГО JSON-массив, ПО ОДНОМУ объекту на правило, в том же порядке, что и в списке правил. У каждого объекта ДВА обязательных поля: «reasoning» и «verdict».\n\nПример для ok:\n{\n  "rule_index": 1,\n  "reasoning": "Краткое обоснование в 1-3 предложения.",\n  "verdict": {\n    "status": "ok"\n  }\n}\n\nПример для fail:\n{\n  "rule_index": 3,\n  "reasoning": "Краткое обоснование: где и что не так.",\n  "verdict": {\n    "status": "fail",\n    "нарушения": [\n      {"Целевой документ": "<цитата>", "Различие": "<что не так>"}\n    ]\n  }\n}\n\nПоля:\n- «rule_index» — номер правила из списка (обязательно)\n- «reasoning» — КРАТКОЕ рассуждение (1-3 предложения): какую секцию смотрел, что нашёл/не нашёл, почему такой вердикт. Без пересказа содержимого документа и правила.\n- «verdict» — объект с финальным вердиктом (ТОЛЬКО структурированный, никаких рассуждений):\n    - «status»: «ok» / «fail» / «error»\n    - «нарушения»: массив {«Целевой документ», «Различие»}, только при «fail»\n    - «Целевой документ»: цитата из документа или «отсутствует»\n    - «Различие»: что не так или чего не хватает\n- «error» — status для случая, когда правило технически невозможно проверить (нет нужной секции в документе). Добавь поле «reason».\n\nВАЖНО:\n- Ответ — ТОЛЬКО JSON-массив, без markdown-ограждения и без пояснений до/после массива.\n- В поле «verdict» — СТРОГО структурированные данные. Никаких «проверю ещё раз», «пересмотрю». Все такие мысли — в «reasoning».\n- В «reasoning» НЕ включай JSON-объекты и не пытайся там формировать ответ — это свободный текст для размышлений.\n- Не пропускай правила — в массиве должно быть ровно столько объектов, сколько правил.\n- Не смешивай правила между собой.\n- Игнорируй OCR-артефакты (пробелы между буквами, склейку строк, дублирование) — оценивай смысл.\n- Уважай target_section правила: не ищи нарушения вне указанной секции.'
-
-def multi_rule_build_user_prompt(filename: str, doc_text: str, sections: dict, rules: list) -> str:
-    """Собирает user-prompt из FILENAME + DOCUMENT + SECTIONS + RULES."""
-    parts = ['## FILENAME', filename, '']
-    parts += ['## DOCUMENT', doc_text, '']
-    parts.append('## SECTIONS')
-    for name, meta in sections.items():
-        parts.append(f'- **{name}**: {meta['description']}')
-        parts.append(f'    start: {meta['start']}')
-        parts.append(f'    end: {meta['end']}')
-    parts.append('')
-    parts.append('## RULES')
-    for rule in rules:
-        parts.append(f'### RULE {rule['index']} — {rule['title']}')
-        if 'target_section' in rule:
-            parts.append(f'target_section: {rule['target_section']}')
-        elif 'target_sections' in rule:
-            parts.append(f'target_sections: {', '.join(rule['target_sections'])}')
-        parts.append(f'check: {rule['check']}')
-        if rule.get('exclusions'):
-            parts.append(f'exclusions: {rule['exclusions']}')
-        parts.append('')
-    return '\n'.join(parts)
-
-def _collect_doc_text(parsed: Dict[str, Any], include_scopes: Optional[List[str]]) -> str:
-    """
-    Собирает текст документа из parsed_docs для multi-rule.
-
-    - Если парсер отдал `raw_text` (новый формат docx/pptx сервисов) — используем его
-      целиком, игнорируя `include_scopes` и scope-ключи. Для парсера, который уже умеет
-      отдавать полный текст, нарезка по скоупам теряет смысл.
-    - Иначе (легаси-парсеры: Paddle, Vision, OCR и т.д.) — старое поведение: фильтр
-      по `include_scopes` либо все непустые скоупы, с дедупликацией по значению.
-    """
-    # Новый путь: полный текст документа без scope-зависимости.
-    raw_text = parsed.get('raw_text')
-    if isinstance(raw_text, str) and raw_text:
-        return raw_text
-
-    # Легаси-путь: сбор по scope-ключам для парсеров, не переведённых на raw_text.
-    if include_scopes:
-        text_keys = [k for k in include_scopes if k in parsed]
-    else:
-        text_keys = [k for k in parsed.keys() if k not in ('filename', 'path')]
-    unique_texts = list(dict.fromkeys((parsed[k] for k in text_keys if isinstance(parsed.get(k), str))))
-    return '\n\n'.join(unique_texts) if unique_texts else ''
-
-def _parse_response(response_text: str) -> List[Dict[str, Any]]:
-    """
-    Парсит JSON-массив вердиктов от LLM, снимая ```json обёртку если есть.
-
-    Fallback: если LLM вернул невалидный JSON, пытаемся извлечь отдельные
-    объекты верхнего уровня через regex — LLM иногда склеивает или ломает
-    структуру между элементами массива.
-    """
-    import re
-    clean = response_text.strip()
-    if clean.startswith('```'):
-        parts = clean.split('```', 2)
-        if len(parts) >= 2:
-            clean = parts[1]
-            if clean.lstrip().startswith('json'):
-                clean = clean.lstrip()[4:]
-    clean = clean.strip()
-    try:
-        parsed = json.loads(clean)
-        if isinstance(parsed, list):
-            return parsed
-        if isinstance(parsed, dict):
-            return [parsed]
-    except json.JSONDecodeError:
-        pass
-    verdicts = []
-    i = 0
-    while i < len(clean):
-        if clean[i] != '{':
-            i += 1
-            continue
-        depth = 0
-        start = i
-        in_str = False
-        escape = False
-        while i < len(clean):
-            ch = clean[i]
-            if escape:
-                escape = False
-            elif ch == '\\':
-                escape = True
-            elif ch == '"':
-                in_str = not in_str
-            elif not in_str:
-                if ch == '{':
-                    depth += 1
-                elif ch == '}':
-                    depth -= 1
-                    if depth == 0:
-                        i += 1
-                        break
-            i += 1
-        obj_text = clean[start:i]
-        try:
-            verdicts.append(json.loads(obj_text))
-        except json.JSONDecodeError:
-            multi_rule_logger.warning(f'Пропущен невалидный JSON-объект: {obj_text[:100]}...')
-    if verdicts:
-        return verdicts
-    rule_markers = [m.start() for m in re.finditer('"rule_index"\\s*:', clean)]
-    if len(rule_markers) >= 2:
-        boundaries = []
-        for marker_pos in rule_markers:
-            brace = clean.rfind('{', 0, marker_pos)
-            if brace >= 0:
-                boundaries.append(brace)
-        boundaries.append(len(clean))
-        for idx in range(len(boundaries) - 1):
-            start = boundaries[idx]
-            end = boundaries[idx + 1]
-            chunk = clean[start:end]
-            last_brace = chunk.rfind('}')
-            if last_brace < 0:
-                continue
-            candidate = chunk[:last_brace + 1].strip().rstrip(',').strip()
-            opens = candidate.count('{')
-            closes = candidate.count('}')
-            if closes > opens:
-                extra = closes - opens
-                for _ in range(extra):
-                    candidate = candidate.rstrip()
-                    if candidate.endswith('}'):
-                        candidate = candidate[:-1].rstrip()
-            elif closes < opens:
-                candidate += '}' * (opens - closes)
-            try:
-                verdicts.append(json.loads(candidate))
-            except json.JSONDecodeError:
-                multi_rule_logger.warning(f'Пропущен чанк: {candidate[:80]}...')
-    if not verdicts:
-        raise json.JSONDecodeError('Не удалось распарсить ни одного объекта', clean, 0)
-    return verdicts
-
-def _verdict_to_violations(verdicts: List[Dict[str, Any]], rules: List[Dict[str, Any]], layer: str='base') -> List[Dict[str, Any]]:
-    """
-    Конвертирует массив verdicts из multi-rule формата в формат legacy violations.
-
-    Args:
-        verdicts: ответ LLM
-        rules: список правил (для подстановки названий)
-        layer: "base" (менеджерский слой) или "methodology" (методический слой из МР/МУ)
-
-    Legacy format (как в старом engine.py):
-        [{"правило": "...", "Целевой документ": "...", "Различие": "...", "layer": "base"}]
-
-    Multi-rule format:
-        [{"rule_index": 1, "verdict": {"status": "fail", "нарушения": [...]}, "reasoning": "..."}]
-    """
-    rules_by_idx = {r['index']: r for r in rules}
-    violations = []
-    for v in verdicts:
-        idx = v.get('rule_index')
-        rule = rules_by_idx.get(idx, {})
-        rule_title = rule.get('title', f'Правило {idx}')
-        verdict_obj = v.get('verdict', {}) if isinstance(v.get('verdict'), dict) else {}
-        status = verdict_obj.get('status', '?')
-        if status == 'fail':
-            for violation in verdict_obj.get('нарушения', []):
-                violations.append({'правило': rule_title, 'rule_index': idx, 'layer': layer, 'Целевой документ': violation.get('Целевой документ', 'отсутствует'), 'Различие': violation.get('Различие', '?')})
-    return violations
-
-def run_multi_rule_audit(*, parsed: Dict[str, Any], sections: Dict[str, Dict[str, str]], rules: List[Dict[str, Any]], include_scopes: Optional[List[str]], filename: str, llm_base_url: str, llm_model: str='Qwen3.5-35B-A3B', session_dir: Optional[Path]=None, layer: str='base') -> Dict[str, Any]:
-    """
-    Запускает multi-rule audit: сборка промпта → LLM → парсинг вердикта.
-
-    Returns:
-        {"verdicts": [...], "violations": [...], "usage": {...}, "prompt_chars": int}
-
-    Side effects:
-        Если указан session_dir — сохраняет system_prompt.txt, user_prompt.txt,
-        response_raw.txt, response_parsed.json.
-    """
-    doc_text = _collect_doc_text(parsed, include_scopes)
-    user_prompt = multi_rule_build_user_prompt(filename, doc_text, sections, rules)
-    prefix = 'multi_rule' if layer == 'base' else f'multi_rule_{layer}'
-    if session_dir:
-        session_dir = Path(session_dir)
-        session_dir.mkdir(parents=True, exist_ok=True)
-        (session_dir / f'{prefix}_system_prompt.txt').write_text(SYSTEM_PROMPT, encoding='utf-8')
-        (session_dir / f'{prefix}_user_prompt.txt').write_text(user_prompt, encoding='utf-8')
-    client = OpenAI(base_url=llm_base_url, api_key='dummy')
-    response = client.chat.completions.create(model=llm_model, messages=[{'role': 'system', 'content': SYSTEM_PROMPT}, {'role': 'user', 'content': user_prompt}], temperature=0.7, top_p=0.8, presence_penalty=1.5, max_tokens=8192, seed=42, extra_body={'chat_template_kwargs': {'enable_thinking': False}, 'top_k': 20, 'min_p': 0.0, 'repetition_penalty': 1.0})
-    response_text = response.choices[0].message.content or ''
-    if session_dir:
-        (session_dir / f'{prefix}_response_raw.txt').write_text(response_text, encoding='utf-8')
-    verdicts = _parse_response(response_text)
-    if session_dir:
-        (session_dir / f'{prefix}_response_parsed.json').write_text(json.dumps(verdicts, ensure_ascii=False, indent=2), encoding='utf-8')
-    violations = _verdict_to_violations(verdicts, rules, layer=layer)
-    return {'verdicts': verdicts, 'violations': violations, 'usage': {'prompt_tokens': response.usage.prompt_tokens, 'completion_tokens': response.usage.completion_tokens, 'total_tokens': response.usage.total_tokens}, 'prompt_chars': len(user_prompt)}
-
-def load_multi_rule_config(doc_configs_dir: Path, doc_type: str) -> Optional[Dict[str, Any]]:
-    """
-    Загружает multi-rule конфиг (sections.json + rules_multi.json) для типа документа.
-
-    Returns:
-        {"sections": ..., "rules": ..., "include_scopes": ...} или None если multi-rule
-        не настроен для этого типа.
-    """
-    base = Path(doc_configs_dir) / doc_type
-    sections_path = base / 'sections.json'
-    rules_path = base / 'rules_multi.json'
-    if not sections_path.exists() or not rules_path.exists():
-        return None
-    sections_data = json.loads(sections_path.read_text(encoding='utf-8'))
-    rules_data = json.loads(rules_path.read_text(encoding='utf-8'))
-    return {'sections': sections_data['sections'], 'rules': rules_data['rules'], 'include_scopes': rules_data.get('include_scopes')}
-
-def load_methodology_config(doc_configs_dir: Path, doc_type: str) -> Optional[Dict[str, Any]]:
-    """
-    Загружает методический конфиг (rules_methodology.json) для типа документа.
-
-    Sections переиспользуются из sections.json (та же семантическая карта).
-
-    Returns:
-        {"rules": ..., "include_scopes": ..., "source": ...} или None если методический
-        слой не настроен для этого типа.
-    """
-    base = Path(doc_configs_dir) / doc_type
-    rules_path = base / 'rules_methodology.json'
-    if not rules_path.exists():
-        return None
-    rules_data = json.loads(rules_path.read_text(encoding='utf-8'))
-    return {'rules': rules_data['rules'], 'include_scopes': rules_data.get('include_scopes'), 'source': rules_data.get('source', '')}
-
-multi_rule_module = SimpleNamespace(logger=multi_rule_logger, SYSTEM_PROMPT=SYSTEM_PROMPT, build_user_prompt=multi_rule_build_user_prompt, _collect_doc_text=_collect_doc_text, _parse_response=_parse_response, _verdict_to_violations=_verdict_to_violations, run_multi_rule_audit=run_multi_rule_audit, load_multi_rule_config=load_multi_rule_config, load_methodology_config=load_methodology_config)
-
-# END_SOURCE_MULTI_RULE
 
 # START_SOURCE_DRIVERS_ANALYZER
 # PURPOSE: Inlined source from audit_engine/drivers/analyzer.py.
@@ -7720,32 +6840,18 @@ class AuditEngine:
         else:
             self.config_path = self.base_dir / 'doc_configs' / doc_type
         self.config: AuditConfig = load_audit_config(self.config_path)
-        self.system_prompt = self._load_system_prompt()
-        self.preprocessors = get_preprocessors(doc_type)
         self.logger: Optional[PipelineLogger] = None
 
-    def _load_system_prompt(self) -> str:
-        """Загружает системный промпт из файла."""
-        prompt_file = Path(__file__).parent / 'system_prompts' / self.config.system_prompt
-        if prompt_file.exists():
-            return prompt_file.read_text(encoding='utf-8')
-        default_file = Path(__file__).parent / 'system_prompts' / 'default.txt'
-        if default_file.exists():
-            return default_file.read_text(encoding='utf-8')
-        return 'Ты — строгий аудитор документов.'
-
-    def run(self, target_path: str, template_path: Optional[str]=None, model: Optional[str]=None, temperature: Optional[float]=None, rule_filter: Optional[int]=None, parse_only: bool=False, no_cache: bool=False, print_prompts: bool=False, session_dir: Optional[str]=None, chunk_filter: Optional[str]=None, out_xlsx: Optional[str]=None, secondary_path: Optional[str]=None, progress_callback: Optional[callable]=None) -> AuditResult:
+    def run(self, target_path: str, model: Optional[str]=None, temperature: Optional[float]=None, rule_filter: Optional[int]=None, parse_only: bool=False, print_prompts: bool=False, session_dir: Optional[str]=None, chunk_filter: Optional[str]=None, out_xlsx: Optional[str]=None, secondary_path: Optional[str]=None, progress_callback: Optional[callable]=None) -> AuditResult:
         """
         Запуск полного цикла аудита.
 
         Args:
             target_path: путь к целевому документу
-            template_path: путь к шаблону (если не указан — из конфига)
             model: модель LLM (переопределяет конфиг)
             temperature: температура (переопределяет конфиг)
             rule_filter: проверить только одно правило
             parse_only: режим только парсинга
-            no_cache: не использовать кэш шаблона
             print_prompts: режим отладки — выводить промпты без LLM
             session_dir: директория для логов
             chunk_filter: парсить только указанный чанк
@@ -7830,75 +6936,64 @@ class AuditEngine:
                 secondary_chunks = self._parse_secondary(secondary_path)
                 target_doc.update(secondary_chunks)
                 self.logger.log(f'   📊 Merged {len(secondary_chunks)} чанков из вторичного файла')
-        template_doc: Dict[str, Any] = {}
         if parse_only:
             self.logger.log(f'✅ Режим --parse-only: парсинг завершён')
             print(f'\n{'=' * 60}')
             print('TARGET:')
             print(json.dumps(target_doc, ensure_ascii=False, indent=2))
-            print(f'\n{'=' * 60}')
-            print('TEMPLATE:')
-            print(json.dumps(template_doc, ensure_ascii=False, indent=2))
             return AuditResult(doc_type=self.doc_type, session_dir=session_path, target_path=target_path, duration_sec=time.time() - start_time)
-        available_keys = set(target_doc.keys())
-        filtered_rules = []
-        for r in rules:
-            scopes = [r.scope] if isinstance(r.scope, str) else list(r.scope)
-            if all((s == 'filename' or s in available_keys for s in scopes)):
-                filtered_rules.append(r)
-            else:
-                missing = [s for s in scopes if s != 'filename' and s not in available_keys]
-                self.logger.log(f'   ⏭️ Пропуск правила #{r.index} ({r.title}): нет чанков {missing}')
-        if len(filtered_rules) < len(rules):
-            self.logger.log(f'   📋 Доступно {len(filtered_rules)} из {len(rules)} правил (остальные пропущены)')
-        rules = filtered_rules
-        rules_summary = [{'index': r.index, 'title': r.title, 'llm': r.llm, 'compare': r.compare} for r in rules]
-        with open(session_path / 'rules_summary.json', 'w', encoding='utf-8') as f:
-            json.dump(rules_summary, f, ensure_ascii=False, indent=2)
-        engine_mode = getattr(self.config, 'engine_mode', None) or 'legacy'
-        mr_config = None
-        if engine_mode == 'multi_rule':
-            doc_configs_dir = self.config.config_dir.parent
-            mr_config = load_multi_rule_config(doc_configs_dir, self.doc_type)
-            if mr_config is None:
-                self.logger.log(f'⚠️ engine_mode=multi_rule, но sections.json/rules_multi.json не найдены — fallback на legacy')
+        # Активный LLM-путь — multi_rule: парсер отдаёт raw_text, промпт собирается
+        # по sections.json + rules_multi.json / rules_methodology.json.
+        doc_configs_dir = self.config.config_dir.parent
+        mr_config = load_multi_rule_config(doc_configs_dir, self.doc_type)
         if mr_config is None:
-            needs_template = any((r.compare == 'template' for r in rules))
-            if needs_template:
-                _emit('parsing_template', {})
-                template_doc = self._get_template(template_path=template_path, no_cache=no_cache, chunks_to_parse=chunks_to_parse, session_dir=session_path)
-                _emit('parsing_template_done', {})
-            else:
-                self.logger.log('ℹ️ Template context не требуется: legacy-правила без compare=template')
-        if mr_config is not None:
-            self.logger.log(f'🔍 Запуск multi-rule аудита (базовый слой, {len(mr_config['rules'])} правил)...')
-            _emit('checking_rules', {'total': len(mr_config['rules'])})
-            mr_model = self.config.model if self.config.model and 'qwen' in self.config.model.lower() else 'Qwen3.5-35B-A3B'
-            mr_result = run_multi_rule_audit(parsed=target_doc, sections=mr_config['sections'], rules=mr_config['rules'], include_scopes=mr_config.get('include_scopes'), filename=target_doc.get('filename', Path(target_path).name), llm_base_url=self.config.llm_base_url, llm_model=mr_model, session_dir=session_path, layer='base')
-            violations = mr_result['violations']
-            self.logger.log(f'   Base usage: prompt={mr_result['usage']['prompt_tokens']} completion={mr_result['usage']['completion_tokens']} total={mr_result['usage']['total_tokens']}')
-            meth_config = load_methodology_config(doc_configs_dir, self.doc_type)
-            if meth_config is not None:
-                self.logger.log(f'🔍 Запуск методического слоя ({len(meth_config['rules'])} правил, источник: {meth_config.get('source', 'МР/МУ')[:80]})...')
-                meth_result = run_multi_rule_audit(parsed=target_doc, sections=mr_config['sections'], rules=meth_config['rules'], include_scopes=meth_config.get('include_scopes') or mr_config.get('include_scopes'), filename=target_doc.get('filename', Path(target_path).name), llm_base_url=self.config.llm_base_url, llm_model=mr_model, session_dir=session_path, layer='methodology')
-                violations.extend(meth_result['violations'])
-                self.logger.log(f'   Methodology usage: prompt={meth_result['usage']['prompt_tokens']} completion={meth_result['usage']['completion_tokens']} total={meth_result['usage']['total_tokens']}')
-                self.logger.log(f'   Methodology violations: {len(meth_result['violations'])}')
-            _all_multi_rules = [{**r, 'layer': 'base'} for r in mr_config['rules']]
-            if meth_config is not None:
-                _all_multi_rules.extend(({**r, 'layer': 'methodology'} for r in meth_config['rules']))
-            _emit('checking_rules_done', {'violations': len(violations)})
-        else:
-            _all_multi_rules = None
-            self.logger.log(f'🔍 Запуск проверок...')
-            violations = self._run_checks(rules=rules, target_doc=target_doc, template_doc=template_doc, model=model, temperature=temperature, print_prompts=print_prompts, progress_callback=progress_callback)
+            raise ValueError(
+                f"Для doc_type={self.doc_type} не найдены sections.json + rules_multi.json. "
+                f"Без них multi-rule аудит запустить нельзя; legacy single-rule путь удалён."
+            )
+        self.logger.log(f'🔍 Запуск multi-rule аудита (базовый слой, {len(mr_config['rules'])} правил)...')
+        _emit('checking_rules', {'total': len(mr_config['rules'])})
+        mr_result = run_multi_rule_audit(
+            parsed=target_doc,
+            sections=mr_config['sections'],
+            rules=mr_config['rules'],
+            include_scopes=mr_config.get('include_scopes'),
+            filename=target_doc.get('filename', Path(target_path).name),
+            llm_base_url=self.config.llm_base_url,
+            llm_model=self.config.model,
+            session_dir=session_path,
+            layer='base',
+        )
+        violations = mr_result['violations']
+        self.logger.log(f'   Base usage: prompt={mr_result['usage']['prompt_tokens']} completion={mr_result['usage']['completion_tokens']} total={mr_result['usage']['total_tokens']}')
+        meth_config = load_methodology_config(doc_configs_dir, self.doc_type)
+        if meth_config is not None:
+            self.logger.log(f'🔍 Запуск методического слоя ({len(meth_config['rules'])} правил, источник: {meth_config.get('source', 'МР/МУ')[:80]})...')
+            meth_result = run_multi_rule_audit(
+                parsed=target_doc,
+                sections=mr_config['sections'],
+                rules=meth_config['rules'],
+                include_scopes=meth_config.get('include_scopes') or mr_config.get('include_scopes'),
+                filename=target_doc.get('filename', Path(target_path).name),
+                llm_base_url=self.config.llm_base_url,
+                llm_model=self.config.model,
+                session_dir=session_path,
+                layer='methodology',
+            )
+            violations.extend(meth_result['violations'])
+            self.logger.log(f'   Methodology usage: prompt={meth_result['usage']['prompt_tokens']} completion={meth_result['usage']['completion_tokens']} total={meth_result['usage']['total_tokens']}')
+            self.logger.log(f'   Methodology violations: {len(meth_result['violations'])}')
+        _all_multi_rules = [{**r, 'layer': 'base'} for r in mr_config['rules']]
+        if meth_config is not None:
+            _all_multi_rules.extend(({**r, 'layer': 'methodology'} for r in meth_config['rules']))
+        _emit('checking_rules_done', {'violations': len(violations)})
         self.logger.log_final_results(violations)
         print(json.dumps(violations, ensure_ascii=False, indent=2))
         if out_xlsx:
             xlsx_path = out_xlsx
         else:
             xlsx_path = str(session_path / 'audit_result.xlsx')
-        save_to_excel(violations, xlsx_path, all_rules=rules if _all_multi_rules is None else None, multi_rules=_all_multi_rules)
+        save_to_excel(violations, xlsx_path, all_rules=None, multi_rules=_all_multi_rules)
         self.logger.log(f'📊 Excel сохранён: {xlsx_path}')
         duration = time.time() - start_time
         self.logger.log(f'{'=' * 60}')
@@ -7913,7 +7008,7 @@ class AuditEngine:
             for idx in sorted(by_rule.keys()):
                 self.logger.log(f'   - Правило #{idx}: {by_rule[idx]} нарушений')
         self.logger.log(f'✅ Аудит завершён за {duration:.1f} сек. Сессия: {session_path}')
-        return AuditResult(violations=violations, doc_type=self.doc_type, session_dir=session_path, duration_sec=duration, rules_checked=len(rules), target_path=target_path)
+        return AuditResult(violations=violations, doc_type=self.doc_type, session_dir=session_path, duration_sec=duration, rules_checked=len(_all_multi_rules), target_path=target_path)
 
     def _parse_document(self, file_path: str, chunks_to_parse: Optional[List[str]], vision_log_dir: Path) -> Dict[str, Any]:
         """
@@ -7958,67 +7053,6 @@ class AuditEngine:
         self.logger.log_parsed_doc(doc, Path(file_path).stem)
         return doc
 
-    def _get_template(self, template_path: Optional[str], no_cache: bool, chunks_to_parse: Optional[List[str]], session_dir: Path) -> Dict[str, Any]:
-        """
-        Получает шаблон: из кэша или через Vision-парсинг.
-
-        Кэширование по SHA256:
-        - Если template_cached.json существует и хэш совпадает — используем кэш
-        - Иначе парсим через Vision и сохраняем кэш
-        """
-        if template_path:
-            tpl_path = Path(template_path)
-        elif self.config.template_path:
-            tpl_path = self.config.template_path
-        else:
-            self.logger.log('⚠️ Шаблон не указан, пропускаем')
-            return {}
-        if not tpl_path.exists():
-            self.logger.log(f'❌ Шаблон не найден: {tpl_path}')
-            return {}
-        self.logger.log(f'📄 Шаблон: {tpl_path}')
-        file_hash = self._compute_file_hash(tpl_path)
-        cache_path = tpl_path.parent / 'template_cached.json'
-        # Имя парсера для шаблона резолвим из parser_by_ext по расширению файла шаблона.
-        tpl_ext = tpl_path.suffix.lower()
-        expected_parser = self.config.parser_by_ext.get(tpl_ext, '')
-        if not no_cache and cache_path.exists():
-            try:
-                with open(cache_path, 'r', encoding='utf-8') as f:
-                    cached = json.load(f)
-                cache_parser = cached.get('_parser', '')
-                if cached.get('_hash') == file_hash and cache_parser == expected_parser:
-                    self.logger.log(f'✅ Используем кэш шаблона: {cache_path}')
-                    cached.pop('_hash', None)
-                    cached.pop('_cached_at', None)
-                    cached.pop('_parser', None)
-                    return cached
-                elif cached.get('_hash') != file_hash:
-                    self.logger.log(f'⚠️ Кэш устарел (хэш изменился), перепарсинг...')
-                else:
-                    self.logger.log(f'⚠️ Кэш от другого парсера ({cache_parser}→{expected_parser}), перепарсинг...')
-            except (json.JSONDecodeError, KeyError):
-                self.logger.log(f'⚠️ Кэш повреждён, перепарсинг...')
-        self.logger.log(f'🔮 Vision-парсинг шаблона...')
-        template_doc = self._parse_document(str(tpl_path), chunks_to_parse, session_dir / 'vision_template')
-        cache_data = dict(template_doc)
-        cache_data['_hash'] = file_hash
-        cache_data['_parser'] = expected_parser
-        cache_data['_cached_at'] = datetime.now().isoformat()
-        with open(cache_path, 'w', encoding='utf-8') as f:
-            json.dump(cache_data, f, ensure_ascii=False, indent=2)
-        self.logger.log(f'💾 Кэш шаблона сохранён: {cache_path}')
-        return template_doc
-
-    @staticmethod
-    def _compute_file_hash(file_path: Path) -> str:
-        """Вычисляет SHA256 хэш файла."""
-        sha256 = hashlib.sha256()
-        with open(file_path, 'rb') as f:
-            for chunk in iter(lambda: f.read(8192), b''):
-                sha256.update(chunk)
-        return sha256.hexdigest()
-
     def _parse_secondary(self, file_path: str) -> Dict[str, Any]:
         """
         Парсит вторичный файл через зарегистрированный парсер.
@@ -8034,83 +7068,6 @@ class AuditEngine:
         prefixed[f'{spec.chunk_prefix}filename'] = Path(file_path).name
         self.logger.log_parsed_doc(prefixed, f'secondary_{spec.type}')
         return prefixed
-
-    def _run_checks(self, rules: List[RuleSpec], target_doc: Dict[str, Any], template_doc: Dict[str, Any], model: str, temperature: float, print_prompts: bool=False, progress_callback: Optional[callable]=None) -> List[Dict[str, Any]]:
-        """
-        Выполняет все проверки (non-LLM + LLM).
-
-        Non-LLM правила выполняются синхронно.
-        LLM правила выполняются параллельно через ThreadPoolExecutor.
-        """
-        all_violations: List[Dict[str, Any]] = []
-        rules_done = 0
-        total_rules = len(rules)
-        for spec in rules:
-            if not spec.llm:
-                self.logger.log(f'🔧 Запуск non-LLM правила #{spec.index}: {spec.title}')
-                check_fn = get_check(self.doc_type, spec.index)
-                if check_fn:
-                    try:
-                        violations = check_fn(target_doc, self.config)
-                    except Exception as e:
-                        self.logger.log(f'   ❌ Ошибка в non-LLM проверке #{spec.index}: {e}')
-                        violations = []
-                else:
-                    self.logger.log(f'   ⚠️ Нет зарегистрированной проверки для {self.doc_type}#{spec.index}')
-                    violations = []
-                all_violations.extend(violations)
-                self.logger.log_non_llm_result(spec.index, violations)
-                rules_done += 1
-                if progress_callback:
-                    progress_callback('rule_done', {'rule_index': spec.index, 'rule_title': spec.title, 'current': rules_done, 'total': total_rules, 'violations_count': len(violations)})
-                if print_prompts:
-                    print(f'\n{'=' * 60}')
-                    print(f'[NON-LLM] Правило #{spec.index}: {spec.title}')
-                    print(f'Результат: {violations}')
-        llm_rules = [r for r in rules if r.llm]
-        if print_prompts:
-            for spec in llm_rules:
-                user_prompt = build_user_prompt(spec, target_doc, template_doc, self.preprocessors)
-                print(f'\n{'=' * 60}')
-                print(f'[LLM] Правило #{spec.index}: {spec.title}')
-                print(f'{'=' * 60}')
-                print('\n--- SYSTEM PROMPT ---')
-                print(self.system_prompt)
-                print('\n--- USER PROMPT ---')
-                print(user_prompt)
-                self.logger.log_rule_prompt(spec.index, self.system_prompt, user_prompt)
-            return all_violations
-        max_workers = self.config.max_workers
-        self.logger.log(f'🚀 Запуск {len(llm_rules)} LLM-проверок (max_workers={max_workers})')
-        with ThreadPoolExecutor(max_workers=max_workers) as executor:
-            futures = {executor.submit(self._run_single_llm_check, spec, target_doc, template_doc, model, temperature): spec for spec in llm_rules}
-            for future in as_completed(futures):
-                spec = futures[future]
-                try:
-                    violations = future.result()
-                    all_violations.extend(violations)
-                    self.logger.log(f'✅ Правило #{spec.index} проверено, нарушений: {len(violations)}')
-                    rules_done += 1
-                    if progress_callback:
-                        progress_callback('rule_done', {'rule_index': spec.index, 'rule_title': spec.title, 'current': rules_done, 'total': total_rules, 'violations_count': len(violations)})
-                except Exception as e:
-                    error_msg = str(e)
-                    self.logger.log_error(spec.index, error_msg)
-                    print(f'[ERROR] Правило #{spec.index}: {e}', file=sys.stderr)
-        return sorted(all_violations, key=lambda x: x.get('rule_index', 0))
-
-    def _run_single_llm_check(self, spec: RuleSpec, target_doc: Dict[str, Any], template_doc: Dict[str, Any], model: str, temperature: float) -> List[Dict[str, Any]]:
-        """Проверка одного правила через LLM."""
-        user_prompt = build_user_prompt(spec, target_doc, template_doc, self.preprocessors)
-        messages = [{'role': 'system', 'content': self.system_prompt}, {'role': 'user', 'content': user_prompt}]
-        self.logger.log_rule_prompt(spec.index, self.system_prompt, user_prompt)
-        raw_response = call_llm(messages, model, temperature, base_url=self.config.llm_base_url, max_tokens=self.config.llm_max_tokens, reasoning_effort=self.config.reasoning_effort, seed=self.config.llm_seed)
-        violations = parse_json_response(raw_response, spec.index, spec.title)
-        for obj in violations:
-            obj.setdefault('rule_index', spec.index)
-            obj.setdefault('rule_title', spec.title)
-        self.logger.log_rule_response(spec.index, raw_response, violations)
-        return violations
 
     @staticmethod
     def list_doc_types(base_dir: Optional[str]=None) -> List[Dict[str, str]]:
@@ -8482,12 +7439,10 @@ def main():
     parser = argparse.ArgumentParser(description='Единый аудит документов — Vision Pipeline + LLM')
     parser.add_argument('--doc-type', default=None, help='Тип документа (имя папки в doc_configs/)')
     parser.add_argument('--target', default=None, help='Путь к целевому документу')
-    parser.add_argument('--template', default=None, help='Путь к шаблону (опционально, по умолчанию — из конфига)')
     parser.add_argument('--model', default=None, help='Модель OpenAI (переопределяет конфиг)')
     parser.add_argument('--temperature', type=float, default=None, help='Температура генерации')
     parser.add_argument('--rule-filter', default=None, help='Проверить только указанное правило (номер: 3 для Vision, 1.1 для КПСЦ)')
     parser.add_argument('--parse-only', action='store_true', help='Только Vision-парсинг, без проверки правил')
-    parser.add_argument('--no-cache', action='store_true', help='Не использовать кэш шаблона')
     parser.add_argument('--print-prompts', action='store_true', help='Режим отладки: только промпты без вызова LLM')
     parser.add_argument('--session-dir', default=None, help='Директория для логов сессии')
     parser.add_argument('--chunk-filter', default=None, help='Парсить только указанный чанк')
@@ -8519,7 +7474,7 @@ def main():
     else:
         rule_filter = int(args.rule_filter) if args.rule_filter is not None else None
         engine = AuditEngine(args.doc_type)
-        result = engine.run(target_path=args.target, template_path=args.template, model=args.model, temperature=args.temperature, rule_filter=rule_filter, parse_only=args.parse_only, no_cache=args.no_cache, print_prompts=args.print_prompts, session_dir=args.session_dir, chunk_filter=args.chunk_filter, out_xlsx=args.out_xlsx, secondary_path=args.secondary)
+        result = engine.run(target_path=args.target, model=args.model, temperature=args.temperature, rule_filter=rule_filter, parse_only=args.parse_only, print_prompts=args.print_prompts, session_dir=args.session_dir, chunk_filter=args.chunk_filter, out_xlsx=args.out_xlsx, secondary_path=args.secondary)
     sys.exit(1 if result.violations else 0)
 
 run_audit_module = SimpleNamespace(SPECIAL_ENGINES=run_audit_SPECIAL_ENGINES, _detect_engine=run_audit__detect_engine, main=main)
@@ -9046,23 +8001,11 @@ def _audit_engine_init(self, doc_type: str, base_dir: Optional[str] = None, conf
     self.base_dir = Path(base_dir) if base_dir else PROJECT_ROOT
     self.config_path = Path(config_dir) if config_dir else self.base_dir / "doc_configs" / doc_type
     self.config = load_audit_config(self.config_path)
-    # Парсер-конфиг — это singleton CONFIG из config/parsers.py (Pydantic-модель).
-    # Берём ссылки на нужные суб-конфиги, чтобы не тянуть в runtime сам CONFIG.
+    # Парсер-конфиг — это singleton PARSERS_CONFIG из config/parsers.py.
+    # Берём ссылки на нужные суб-конфиги, чтобы не тянуть в runtime сам объект.
     self.pdf_parser_config = PARSERS_CONFIG.pdf
     self.docx_header_ocr_config = PARSERS_CONFIG.docx_header_ocr
-    self.system_prompt = self._load_system_prompt()
-    self.preprocessors = get_preprocessors(doc_type)
     self.logger = None
-
-
-def _audit_engine_load_system_prompt(self) -> str:
-    prompt_file = SYSTEM_PROMPTS_DIR / self.config.system_prompt
-    if prompt_file.exists():
-        return prompt_file.read_text(encoding="utf-8")
-    default_file = SYSTEM_PROMPTS_DIR / "default.txt"
-    if default_file.exists():
-        return default_file.read_text(encoding="utf-8")
-    return "Ты — строгий аудитор документов."
 
 
 def _audit_engine_parse_secondary(self, file_path: str) -> Dict[str, Any]:
@@ -9094,7 +8037,6 @@ def _audit_engine_list_doc_types(base_dir: Optional[str] = None) -> List[Dict[st
 
 
 AuditEngine.__init__ = _audit_engine_init
-AuditEngine._load_system_prompt = _audit_engine_load_system_prompt
 AuditEngine._parse_secondary = _audit_engine_parse_secondary
 AuditEngine.list_doc_types = staticmethod(_audit_engine_list_doc_types)
 
@@ -9156,12 +8098,10 @@ def main() -> None:
     parser = argparse.ArgumentParser(description="Единый аудит документов — monolith backend")
     parser.add_argument("--doc-type", default=None, help="Тип документа (имя папки в doc_configs/)")
     parser.add_argument("--target", default=None, help="Путь к целевому документу")
-    parser.add_argument("--template", default=None, help="Путь к шаблону (опционально, по умолчанию — из конфига)")
     parser.add_argument("--model", default=None, help="Модель OpenAI (переопределяет конфиг)")
     parser.add_argument("--temperature", type=float, default=None, help="Температура генерации")
     parser.add_argument("--rule-filter", default=None, help="Проверить только указанное правило")
     parser.add_argument("--parse-only", action="store_true", help="Только парсинг, без проверок")
-    parser.add_argument("--no-cache", action="store_true", help="Не использовать кэш шаблона")
     parser.add_argument("--print-prompts", action="store_true", help="Печатать промпты без вызова LLM")
     parser.add_argument("--session-dir", default=None, help="Директория для логов сессии")
     parser.add_argument("--chunk-filter", default=None, help="Парсить только указанный чанк")
@@ -9197,12 +8137,10 @@ def main() -> None:
         engine = AuditEngine(args.doc_type)
         result = engine.run(
             target_path=args.target,
-            template_path=args.template,
             model=args.model,
             temperature=args.temperature,
             rule_filter=rule_filter,
             parse_only=args.parse_only,
-            no_cache=args.no_cache,
             print_prompts=args.print_prompts,
             session_dir=args.session_dir,
             chunk_filter=args.chunk_filter,

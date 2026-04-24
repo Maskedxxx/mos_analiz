@@ -15,15 +15,15 @@ from pathlib import Path
 
 import pytest
 
-from conftest import PROJECT_ROOT
+from conftest import LOCAL_SMOKE_FIXTURES, PROJECT_ROOT
 
 
 # По одному быстрому docx на каждый movement-engine type — для ускорения
 # Берём простые документы без тяжёлых приложений
 PIPELINE_FIXTURES = {
-    "akt_nachala":      "logs_result/akt_nachala/session_20260403_080809/original/0.1_Акт начала мероприятий _наименование предприятия_.docx",
-    "prikaz_ppu":       "logs_result/prikaz_ppu/session_20260404_171205/original/3.10._Приказ о ППУ СпецТехРесурс НТ.docx",
-    "cheklist_eu":      "logs_result/cheklist_eu/session_20260403_085256/original/2.5._Чек лист выбора ЭУ.docx",
+    "akt_nachala": str(LOCAL_SMOKE_FIXTURES["akt_nachala"].relative_to(PROJECT_ROOT)),
+    "prikaz_ppu": str(LOCAL_SMOKE_FIXTURES["prikaz_ppu"].relative_to(PROJECT_ROOT)),
+    "cheklist_eu": str(LOCAL_SMOKE_FIXTURES["cheklist_eu"].relative_to(PROJECT_ROOT)),
 }
 
 
@@ -56,7 +56,7 @@ def test_pipeline_end_to_end(doc_type, rel_path):
 
     os.environ["NO_PROXY"] = "172.16.10.35,localhost,127.0.0.1"
 
-    from audit_engine.engine import AuditEngine
+    from main import AuditEngine
 
     with tempfile.TemporaryDirectory() as tmpdir:
         engine = AuditEngine(doc_type)

@@ -1,5 +1,4 @@
 {
-  "engine_mode": "multi_rule",
   "include_scopes": [
     "шапка",
     "приложение_1_к_приказу"

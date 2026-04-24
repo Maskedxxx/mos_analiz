@@ -26,17 +26,17 @@ if _testclient_available():
 
 
 def test_api_import():
-    """api_server.py импортируется без падений."""
-    import api_server
-    assert hasattr(api_server, "app"), "FastAPI app отсутствует"
+    """main.py импортируется без падений и экспортирует app."""
+    import main
+    assert hasattr(main, "app"), "FastAPI app отсутствует"
 
 
 def test_api_health():
     """GET /api/health отвечает (status=ok или error — без 500)."""
     from fastapi.testclient import TestClient
-    import api_server
+    import main
 
-    client = TestClient(api_server.app)
+    client = TestClient(main.app)
     response = client.get("/api/health")
     assert response.status_code == 200, f"Health endpoint упал: {response.status_code}"
     data = response.json()
@@ -46,9 +46,9 @@ def test_api_health():
 def test_list_types_requires_auth():
     """GET /api/types требует basic auth — без auth 401."""
     from fastapi.testclient import TestClient
-    import api_server
+    import main
 
-    client = TestClient(api_server.app)
+    client = TestClient(main.app)
     response = client.get("/api/types")
     assert response.status_code == 401, "Защищённый эндпоинт должен отвергать unauth"
 
@@ -57,9 +57,9 @@ def test_list_types_with_auth():
     """POST /api/login → GET /api/types с cookie — 200, возвращает типы."""
     import os
     from fastapi.testclient import TestClient
-    import api_server
+    import main
 
-    client = TestClient(api_server.app)
+    client = TestClient(main.app)
     login = os.getenv("AUDIT_LOGIN", "admin")
     password = os.getenv("AUDIT_PASSWORD", "mos186124kva")
 

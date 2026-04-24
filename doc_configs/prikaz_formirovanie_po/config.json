@@ -2,7 +2,6 @@
   "doc_type": "prikaz_formirovanie_po",
   "doc_title": "3.5 Приказ о формировании ПО",
   "model": "Qwen3.5-35B-A3B",
-  "system_prompt": "default.txt",
   "filename_keywords": [
     "приказ",
     "ПО"
@@ -15,6 +14,5 @@
   },
   "llm_base_url": "http://172.16.10.35:11437/v1/",
   "llm_max_tokens": 4096,
-  "llm_seed": 42,
-  "engine_mode": "multi_rule"
+  "llm_seed": 42
 }

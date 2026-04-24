@@ -173,6 +173,7 @@ def call_llm(
     max_tokens: Optional[int] = None,
     reasoning_effort: Optional[str] = None,
     seed: Optional[int] = None,
+    response_format: Optional[Dict[str, str]] = None,
 ) -> str:
     """
     Назначение:
@@ -189,6 +190,8 @@ def call_llm(
         reasoning_effort: Для gpt-oss-моделей: `low`/`medium`/`high`. Прокидывается
             через `extra_body={"reasoning_effort": ...}`.
         seed: Фиксированный seed для воспроизводимости (важно для MoE-моделей).
+        response_format: Опциональный формат ответа (напр. `{"type": "json_object"}`).
+            Нужен валидаторам KPSC/kartochka, которые требуют строгий JSON-вывод.
 
     Выход:
         Текст ответа LLM (или пустая строка, если `message.content` отсутствует).
@@ -212,6 +215,8 @@ def call_llm(
         kwargs["seed"] = seed
     if reasoning_effort:
         kwargs["extra_body"] = {"reasoning_effort": reasoning_effort}
+    if response_format is not None:
+        kwargs["response_format"] = response_format
     response = client.chat.completions.create(**kwargs)
     return response.choices[0].message.content or ""
 # END_CALL_LLM
