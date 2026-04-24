@@ -15,7 +15,7 @@ import re
 import xml.etree.ElementTree as ET
 from collections import Counter, defaultdict
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, TypedDict
 from xml.etree import ElementTree
 
 import openpyxl
@@ -26,6 +26,170 @@ from openpyxl.chart._chart import ChartBase
 from openpyxl.utils import column_index_from_string, get_column_letter, range_boundaries
 from openpyxl.worksheet.worksheet import Worksheet
 # END_IMPORTS
+
+
+# START_CONTRACTS
+# PURPOSE: TypedDict-контракты возвращаемых значений 9 KPSC-парсеров. Показывают структуру верхнего уровня; детали вложенных объектов описаны в docstring соответствующего парсера.
+# INPUTS: —
+# OUTPUTS: Контракты для IDE-автодополнения, mypy и документации.
+# KEYWORDS: typeddict, contract, kpsc.
+class KpscBounds(TypedDict):
+    """
+    Границы распарсенной таблицы на листе. Возвращается большинством KPSC-парсеров.
+
+    Поля:
+        top_row, bottom_row: Номера верхней и нижней строк таблицы (1-based).
+        left_col, right_col: Индексы левой и правой колонок (1-based).
+        left_letter, right_letter: Excel-буквы этих колонок.
+        height, width: Размеры таблицы в строках и колонках.
+    """
+
+    top_row: int
+    bottom_row: int
+    left_col: int
+    right_col: int
+    left_letter: str
+    right_letter: str
+    height: int
+    width: int
+
+
+class KpscHeaderDocument(TypedDict):
+    """
+    Результат `parse_kpsc_header` — шапка листа «КПСЦ».
+
+    Поля:
+        meta: `{workbook, sheet, region}` — имя книги, лист, область сканирования.
+        fields: Список обнаруженных полей шапки — `{label, value, row, col, ...}`.
+    """
+
+    meta: Dict[str, Any]
+    fields: List[Dict[str, Any]]
+
+
+class KpscTable1Document(TypedDict):
+    """
+    Результат `parse_kpsc_table1` — основная таблица КПСЦ.
+
+    Поля:
+        meta: `{workbook, sheet, section_title_cell}`.
+        bounds: `KpscBounds` — границы таблицы.
+        rows: Список строк таблицы — каждая `{row_num, cells: {col_letter: value, ...}}`.
+    """
+
+    meta: Dict[str, Any]
+    bounds: KpscBounds
+    rows: List[Dict[str, Any]]
+
+
+class LegendDocument(TypedDict):
+    """
+    Результат `parse_legend` — лист «Условные обозначения».
+
+    Поля:
+        meta: `{workbook, sheet}`.
+        pictures: Список картинок-обозначений — `{index, bbox, image_ref}`.
+        entries: Список пар «картинка ↔ текст описания».
+    """
+
+    meta: Dict[str, Any]
+    pictures: List[Dict[str, Any]]
+    entries: List[Dict[str, Any]]
+
+
+class LossDigitizationDocument(TypedDict):
+    """
+    Результат `parse_loss_digitization` — лист «Оцифровка потерь».
+
+    Поля:
+        meta: `{workbook, sheet, header_row}`.
+        bounds: `KpscBounds`.
+        rows: Список строк таблицы потерь — `{row_num, cells, merged: {...}}`.
+    """
+
+    meta: Dict[str, Any]
+    bounds: KpscBounds
+    rows: List[Dict[str, Any]]
+
+
+class Pa1ChartDocument(TypedDict):
+    """
+    Результат `parse_pa1_chart` — графики на листе «ПА1».
+
+    Поля:
+        meta: `{workbook, sheet}`.
+        charts: Список графиков — `{title, categories, series: [...], source_ranges: [...]}`.
+        text_boxes: Список текстовых блоков рядом с графиками — `{anchor, text}`.
+    """
+
+    meta: Dict[str, Any]
+    charts: List[Dict[str, Any]]
+    text_boxes: List[Dict[str, Any]]
+
+
+class Pa1TableDocument(TypedDict):
+    """
+    Результат `parse_pa1_table` — таблица на листе «ПА1».
+
+    Поля:
+        meta: `{workbook, sheet, header_row}`.
+        bounds: `KpscBounds`.
+        rows: Список строк таблицы — каждая `{row_num, cells}`.
+    """
+
+    meta: Dict[str, Any]
+    bounds: KpscBounds
+    rows: List[Dict[str, Any]]
+
+
+class PokazateliDocument(TypedDict):
+    """
+    Результат `parse_pokazateli` — лист «Показатели».
+
+    Поля:
+        meta: `{workbook, sheet, title_row}`.
+        bounds: Упрощённая версия границ — только `{top_row, bottom_row, left_col, right_col}`
+            (без letter/height/width, в отличие от `KpscBounds`).
+        rows: Список показателей — `{row_num, cells}`.
+    """
+
+    meta: Dict[str, Any]
+    bounds: Dict[str, int]
+    rows: List[Dict[str, Any]]
+
+
+class SpaghettiProblemsDocument(TypedDict):
+    """
+    Результат `parse_spaghetti_problems` — лист со списком проблем по маршрутам.
+
+    Поля:
+        meta: `{workbook, sheet, header_row}`.
+        bounds: `KpscBounds`.
+        rows: Список строк проблем — `{row_num, cells}`.
+    """
+
+    meta: Dict[str, Any]
+    bounds: KpscBounds
+    rows: List[Dict[str, Any]]
+
+
+class SpaghettiSheetDocument(TypedDict):
+    """
+    Результат `parse_spaghetti_sheet` — лист «Спагетти» с маршрутом и таблицей шагов.
+
+    Поля:
+        meta: `{workbook, sheet, header_row}`.
+        bounds: `KpscBounds`.
+        pre_table_cells: Ячейки над таблицей (до header_row) — `{cell_ref, value}`.
+        rows: Список строк таблицы шагов — `{row_num, cells}`.
+    """
+
+    meta: Dict[str, Any]
+    bounds: KpscBounds
+    pre_table_cells: List[Dict[str, Any]]
+    rows: List[Dict[str, Any]]
+# END_CONTRACTS
+
 
 # START_SHEET_FINDER
 # PURPOSE: Нечёткий поиск листа xlsx по ключевым словам. Нужен всем парсерам KPSC — в разных файлах названия листов отличаются по кейсу/транслитерации (латиница⇄кириллица).
@@ -273,7 +437,7 @@ def kpsc_parse_kpsc_header_build_payload(xlsx: Path, sheet_name: Optional[str]=N
         fields['takt_time'] = kpsc_parse_kpsc_header__find_takt_time_in_pokazateli(wb)
     return {'meta': {'workbook': str(xlsx), 'sheet': actual_sheet, 'region': f'A1:{get_column_letter(max_col)}{kpsc_parse_kpsc_header_HEADER_SCAN_MAX_ROW}'}, 'fields': fields}
 
-def parse_kpsc_header(xlsx_path: Path, output_dir: Path) -> dict:
+def parse_kpsc_header(xlsx_path: Path, output_dir: Path) -> KpscHeaderDocument:
     """Парсит верхний блок КПСЦ и сохраняет результат в output_dir/kpsc_header_v2.json."""
     output_dir.mkdir(parents=True, exist_ok=True)
     payload = kpsc_parse_kpsc_header_build_payload(xlsx_path)
@@ -429,7 +593,7 @@ def kpsc_parse_kpsc_table1_build_payload(xlsx_path: Path, sheet_name: Optional[s
     payload = {'meta': {'workbook': str(xlsx_path), 'sheet': actual_sheet, 'section_title_cell': f'{get_column_letter(anchor_col)}{anchor_row}'}, 'bounds': {'top_row': header_row, 'bottom_row': bottom_row, 'left_col': left_col, 'right_col': right_col, 'left_letter': get_column_letter(left_col), 'right_letter': get_column_letter(right_col), 'height': bottom_row - header_row + 1, 'width': right_col - left_col + 1}, 'rows': table_rows}
     return payload
 
-def parse_kpsc_table1(xlsx_path: Path, output_dir: Path) -> dict:
+def parse_kpsc_table1(xlsx_path: Path, output_dir: Path) -> KpscTable1Document:
     """Парсит таблицу '1. Определение показателей потока' и сохраняет в kpsc_table1_v2.json."""
     output_dir.mkdir(parents=True, exist_ok=True)
     payload = kpsc_parse_kpsc_table1_build_payload(xlsx_path)
@@ -531,7 +695,7 @@ def kpsc_parse_legend_build_payload(xlsx: Path, sheet_name: Optional[str]=None):
     entries = kpsc_parse_legend_match_pics(texts, pics)
     return {'meta': {'workbook': str(xlsx), 'sheet': actual_sheet}, 'pictures': pics, 'entries': entries}
 
-def parse_legend(xlsx_path: Path, output_dir: Path) -> dict:
+def parse_legend(xlsx_path: Path, output_dir: Path) -> LegendDocument:
     """Парсит лист 'Условные обозначения' и сохраняет в legend_v2.json."""
     output_dir.mkdir(parents=True, exist_ok=True)
     payload = kpsc_parse_legend_build_payload(xlsx_path)
@@ -639,7 +803,7 @@ def kpsc_parse_loss_digitization_build_payload(xlsx_path: Path, sheet_name: Opti
     rows = kpsc_parse_loss_digitization_extract_table(ws, header_row, bottom_row, left_col, right_col)
     return {'meta': {'workbook': str(xlsx_path), 'sheet': actual_sheet, 'header_row': header_row}, 'bounds': {'top_row': header_row, 'bottom_row': bottom_row, 'left_col': left_col, 'right_col': right_col, 'left_letter': get_column_letter(left_col), 'right_letter': get_column_letter(right_col), 'height': bottom_row - header_row + 1, 'width': right_col - left_col + 1}, 'rows': rows}
 
-def parse_loss_digitization(xlsx_path: Path, output_dir: Path) -> dict:
+def parse_loss_digitization(xlsx_path: Path, output_dir: Path) -> LossDigitizationDocument:
     """Парсит лист 'Оцифровка потерь КПСЦ' и сохраняет в ocifrovka_poteri_v2.json."""
     output_dir.mkdir(parents=True, exist_ok=True)
     payload = kpsc_parse_loss_digitization_build_payload(xlsx_path)
@@ -790,7 +954,7 @@ def kpsc_parse_pa1_chart_build_payload(xlsx_path: Path, sheet_name: Optional[str
         pass
     return {'meta': {'workbook': str(xlsx_path), 'sheet': sheet_name}, 'charts': charts_payload, 'text_boxes': text_boxes}
 
-def parse_pa1_chart(xlsx_path: Path, output_dir: Path) -> dict:
+def parse_pa1_chart(xlsx_path: Path, output_dir: Path) -> Pa1ChartDocument:
     """Парсит диаграммы на листе 'ПА-1' и сохраняет в pa1_chart_v3.json."""
     output_dir.mkdir(parents=True, exist_ok=True)
     payload = kpsc_parse_pa1_chart_build_payload(xlsx_path)
@@ -897,7 +1061,7 @@ def kpsc_parse_pa1_table_build_payload(xlsx_path: Path, sheet_name: Optional[str
     rows = kpsc_parse_pa1_table_extract_table(ws, header_row, bottom_row, left_col, right_col)
     return {'meta': {'workbook': str(xlsx_path), 'sheet': actual_sheet, 'header_row': header_row}, 'bounds': {'top_row': header_row, 'bottom_row': bottom_row, 'left_col': left_col, 'right_col': right_col, 'left_letter': get_column_letter(left_col), 'right_letter': get_column_letter(right_col), 'height': bottom_row - header_row + 1, 'width': right_col - left_col + 1}, 'rows': rows}
 
-def parse_pa1_table(xlsx_path: Path, output_dir: Path) -> dict:
+def parse_pa1_table(xlsx_path: Path, output_dir: Path) -> Pa1TableDocument:
     """Парсит стартовую таблицу на листе 'ПА-1' и сохраняет в pa1_table_v1.json."""
     output_dir.mkdir(parents=True, exist_ok=True)
     payload = kpsc_parse_pa1_table_build_payload(xlsx_path)
@@ -1019,7 +1183,7 @@ def kpsc_parse_pokazateli_build_payload(xlsx: Path, sheet_name: Optional[str]=No
     table_rows = kpsc_parse_pokazateli_extract_table(ws, header_row, bottom_row, left_col, right_col)
     return {'meta': {'workbook': str(xlsx), 'sheet': actual_sheet, 'title_row': title_row}, 'bounds': {'top_row': header_row, 'bottom_row': bottom_row, 'left_col': left_col, 'right_col': right_col}, 'rows': table_rows}
 
-def parse_pokazateli(xlsx_path: Path, output_dir: Path) -> dict:
+def parse_pokazateli(xlsx_path: Path, output_dir: Path) -> PokazateliDocument:
     """Парсит 'Текущие показатели потока' и сохраняет в pokazateli_v3.json."""
     output_dir.mkdir(parents=True, exist_ok=True)
     payload = kpsc_parse_pokazateli_build_payload(xlsx_path)
@@ -1120,7 +1284,7 @@ def kpsc_parse_spaghetti_problems_build_payload(xlsx_path: Path, sheet_name: Opt
     rows = kpsc_parse_spaghetti_problems_extract_table(ws, header_row, bottom_row, left_col, right_col)
     return {'meta': {'workbook': str(xlsx_path), 'sheet': actual_sheet, 'header_row': header_row}, 'bounds': {'top_row': header_row, 'bottom_row': bottom_row, 'left_col': left_col, 'right_col': right_col, 'left_letter': get_column_letter(left_col), 'right_letter': get_column_letter(right_col), 'height': bottom_row - header_row + 1, 'width': right_col - left_col + 1}, 'rows': rows}
 
-def parse_spaghetti_problems(xlsx_path: Path, output_dir: Path) -> dict:
+def parse_spaghetti_problems(xlsx_path: Path, output_dir: Path) -> SpaghettiProblemsDocument:
     """Парсит лист 'Перечень проблем по спагетти' и сохраняет в spaghetti_problems_v1.json."""
     output_dir.mkdir(parents=True, exist_ok=True)
     payload = kpsc_parse_spaghetti_problems_build_payload(xlsx_path)
@@ -1240,7 +1404,7 @@ def kpsc_parse_spaghetti_sheet_build_payload(xlsx_path: Path, sheet_name: Option
     table_rows = kpsc_parse_spaghetti_sheet_extract_table(ws, header_row, bottom_row, left_col, right_col)
     return {'meta': {'workbook': str(xlsx_path), 'sheet': actual_sheet, 'header_row': header_row}, 'bounds': {'top_row': header_row, 'bottom_row': bottom_row, 'left_col': left_col, 'right_col': right_col, 'left_letter': get_column_letter(left_col), 'right_letter': get_column_letter(right_col), 'height': bottom_row - header_row + 1, 'width': right_col - left_col + 1}, 'pre_table_cells': pre_table, 'rows': table_rows}
 
-def parse_spaghetti_sheet(xlsx_path: Path, output_dir: Path) -> dict:
+def parse_spaghetti_sheet(xlsx_path: Path, output_dir: Path) -> SpaghettiSheetDocument:
     """Парсит лист 'Диаграмма Спагетти' и сохраняет в spaghetti_sheet_v2.json."""
     output_dir.mkdir(parents=True, exist_ok=True)
     payload = kpsc_parse_spaghetti_sheet_build_payload(xlsx_path)

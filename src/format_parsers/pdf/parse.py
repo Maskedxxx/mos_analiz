@@ -28,7 +28,7 @@ from src.format_parsers.pdf._clients import (
     RemoteLayoutDetector,
     VLMClient,
 )
-from src.format_parsers.pdf._config import PdfParserConfig
+from config.parsers import PdfParserConfig
 from src.format_parsers.pdf._parsing import (
     is_table_format,
     merge_text_and_tables,

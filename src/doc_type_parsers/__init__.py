@@ -10,6 +10,7 @@
 from __future__ import annotations
 
 # START_REEXPORTS
+from src.doc_type_parsers.drivers import parse_excel_to_json
 from src.doc_type_parsers.grafik_obhod import GrafikObhodDocument, parse_grafik_obhod
 from src.doc_type_parsers.kartochka_proekta import (
     parse_dropdown,
@@ -50,5 +51,7 @@ __all__ = [
     "parse_pokazateli",
     "parse_spaghetti_problems",
     "parse_spaghetti_sheet",
+    # drivers
+    "parse_excel_to_json",
 ]
 # END_REEXPORTS

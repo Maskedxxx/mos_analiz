@@ -1,22 +1,22 @@
 # START_MODULE_CONTRACT
-# PURPOSE: Публичный API пакета PDF-парсера. Внутренности (конфиг, клиенты, парсинг, оркестратор) — package-private и наружу не светятся.
-# INPUTS: Импорт-время — подмодули пакета.
-# OUTPUTS: Конфиги, клиенты и функции чистой логики. `parse_pdf` появится на B2.4.
+# PURPOSE: Публичный API пакета PDF-парсера. Внутренности (клиенты, парсинг, оркестратор) — package-private. Конфиг-классы импортируются из `config.parsers` (единый источник правды).
+# INPUTS: Импорт-время — подмодули пакета + config.parsers.
+# OUTPUTS: `parse_pdf`, клиенты, чистая логика, типы-контракты конфига.
 # KEYWORDS: package, pdf-parser, public-api, paddle-internal.
-# LINKS: src/format_parsers/pdf/_config.py, src/format_parsers/pdf/_clients.py, src/format_parsers/pdf/_parsing.py, config/parsers.json.
+# LINKS: config/parsers.py, src/format_parsers/pdf/_clients.py, src/format_parsers/pdf/_parsing.py, src/format_parsers/pdf/parse.py.
 # RATIONALE: Снаружи пакет воспринимается как «PDF-парсер» независимо от внутренней реализации (сейчас Paddle).
 # END_MODULE_CONTRACT
 
 from __future__ import annotations
 
 # START_REEXPORTS
-from src.format_parsers.pdf._config import (
+# Типы конфига — из единого config.parsers (там же дефолтные значения).
+from config.parsers import (
     PdfExtractorConfig,
     PdfLayoutConfig,
     PdfParserConfig,
     PdfParsingConfig,
     PdfVlmConfig,
-    load_pdf_parser_config,
 )
 from src.format_parsers.pdf._clients import (
     LayoutDetector,
@@ -44,7 +44,6 @@ __all__ = [
     "PdfParserConfig",
     "PdfParsingConfig",
     "PdfVlmConfig",
-    "load_pdf_parser_config",
     # Клиенты (IO)
     "LayoutDetector",
     "RemoteLayoutDetector",

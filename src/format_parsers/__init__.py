@@ -12,6 +12,7 @@ from __future__ import annotations
 # START_REEXPORTS
 # Публичная поверхность пакета для текущих потребителей (main.py bridge, тесты).
 from src.format_parsers._types import ParsedDocument
+from config.parsers import DocxHeaderOcrConfig
 from src.format_parsers.docx import (
     docx_parser__table_to_html,
     docx_parser_logger,
@@ -29,6 +30,7 @@ from src.format_parsers.pptx import (
 
 __all__ = [
     "ParsedDocument",
+    "DocxHeaderOcrConfig",
     "parse_docx",
     "parse_pptx",
     "docx_parser_logger",

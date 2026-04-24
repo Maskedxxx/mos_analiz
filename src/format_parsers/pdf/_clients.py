@@ -489,7 +489,12 @@ class VLMClient:
         except Exception as e:
             raise ConnectionError(f"Не удалось подключиться к VLM ({self.base_url}): {e}")
 
-    async def recognize(self, image: Image.Image, prompt: str) -> Dict[str, Any]:
+    async def recognize(
+        self,
+        image: Image.Image,
+        prompt: str,
+        max_tokens: Optional[int] = None,
+    ) -> Dict[str, Any]:
         """
         Назначение:
             Отправляет изображение + текстовый промпт в VLM и возвращает распознанный текст.
@@ -497,6 +502,9 @@ class VLMClient:
         Вход:
             image: PIL Image (обычно — crop региона).
             prompt: Текстовый промпт (например, `OCR:`, `Table Recognition:`).
+            max_tokens: Если задан — переопределяет `self.max_tokens` для этого вызова.
+                Нужно, когда у одного клиента несколько use-case'ов с разным масштабом
+                ответа (например, docx header OCR — 256 токенов, pdf full-page OCR — 2000).
 
         Выход:
             Dict `{text, tokens, time_sec}`.
@@ -516,7 +524,7 @@ class VLMClient:
         response = await self.client.chat.completions.create(
             model=self.model_name,
             messages=[{"role": "user", "content": content}],
-            max_tokens=self.max_tokens,
+            max_tokens=max_tokens if max_tokens is not None else self.max_tokens,
             temperature=self.temperature,
         )
         elapsed = time.time() - t0
@@ -525,6 +533,33 @@ class VLMClient:
         if elapsed > 0:
             vlm_client_logger.info(f"VLM ответ: {tokens} tok за {elapsed:.1f}s ({tokens / elapsed:.0f} tok/s)")
         return {"text": text.strip(), "tokens": tokens, "time_sec": round(elapsed, 2)}
+
+    def recognize_sync(
+        self,
+        image: Image.Image,
+        prompt: str,
+        max_tokens: Optional[int] = None,
+    ) -> str:
+        """
+        Назначение:
+            Синхронная обёртка над `recognize` для кода, не поднимающего event loop
+            (например, docx-парсер делает 1–6 OCR-вызовов на шапку документа).
+
+        Вход:
+            image: PIL Image.
+            prompt: Текстовый промпт.
+            max_tokens: Опциональный override лимита токенов для этого вызова.
+
+        Выход:
+            Текст распознавания (strip).
+
+        Логика:
+            Оборачивает `asyncio.run(self.recognize(...))` и возвращает только поле `text`.
+            Блокирует поток на время одного запроса — это приемлемо для точечных sync-вызовов.
+            Для батч-работы используйте `recognize_batch`.
+        """
+        result = asyncio.run(self.recognize(image, prompt, max_tokens=max_tokens))
+        return result["text"]
 
     async def recognize_batch(self, items: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
         """

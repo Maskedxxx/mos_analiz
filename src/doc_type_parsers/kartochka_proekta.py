@@ -14,10 +14,69 @@ import json
 import re
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, TypedDict
 
 import openpyxl
 # END_IMPORTS
+
+
+# START_CONTRACTS
+# PURPOSE: TypedDict-контракты возвращаемых значений трёх парсеров. Показывают структуру верхнего уровня; вложенные объекты оставлены как `Dict[str, Any]` — подробности видны в docstring каждого парсера.
+# INPUTS: —
+# OUTPUTS: Контракты для IDE-автодополнения, mypy и документации.
+# KEYWORDS: typeddict, contract, kartochka-proekta.
+class DropdownDocument(TypedDict):
+    """
+    Результат `parse_dropdown` — справочник допустимых единиц измерения.
+
+    Поля:
+        categories: Имя категории (из заголовка колонки A1/B1/C1/D1) → список единиц из
+            соответствующей колонки начиная со строки 2.
+    """
+
+    categories: Dict[str, List[str]]
+
+
+class KartochkaMainDocument(TypedDict):
+    """
+    Результат `parse_kartochka_main` — основной лист «Карточка проекта».
+
+    Поля:
+        meta: `{workbook, sheet, max_row}` — имя книги, имя листа, кол-во строк.
+        header: `{org_name, project_name, signee_position, signee_name, signee_date,
+            has_utverzhday}` — шапка документа.
+        section1: `{clients, perimeter, owner, boundaries, leader, team}` — секция 1.
+        section2: `{key_risk, justification}` — секция 2.
+        indicator_dates: `{base_date, target_date, ideal_date}` — даты замеров показателей.
+        indicators: Список показателей, каждый — `{number, name, unit, base_value,
+            target_value, ideal_value}`.
+        events: Список событий, каждое — `{name, start_date, end_date}`.
+    """
+
+    meta: Dict[str, Any]
+    header: Dict[str, Any]
+    section1: Dict[str, Any]
+    section2: Dict[str, Any]
+    indicator_dates: Dict[str, Any]
+    indicators: List[Dict[str, Any]]
+    events: List[Dict[str, Any]]
+
+
+class MetodikaDocument(TypedDict):
+    """
+    Результат `parse_metodika` — лист «Методика расчёта».
+
+    Поля:
+        meta: `{sheet}` — имя найденного листа; `None` если лист не найден.
+        header: `{org_name, project_name}` — может быть пустым dict, если лист не найден.
+        indicators: Список показателей, каждый — `{name, unit, calc_method, data_source,
+            row_start}`.
+    """
+
+    meta: Dict[str, Any]
+    header: Dict[str, Any]
+    indicators: List[Dict[str, Any]]
+# END_CONTRACTS
 
 
 # START_SHARED_HELPERS
@@ -150,7 +209,7 @@ def _is_field_label(text: str, label: str) -> bool:
 # INPUTS: Путь к xlsx, путь к output_dir.
 # OUTPUTS: Dict `{categories: {header: [unit, ...], ...}}`. Сохраняет также `dropdown_units.json` в output_dir.
 # KEYWORDS: dropdown, units, categories.
-def parse_dropdown(xlsx_path: Path, output_dir: Path) -> Dict[str, Any]:
+def parse_dropdown(xlsx_path: Path, output_dir: Path) -> DropdownDocument:
     """
     Назначение:
         Парсит лист с выпадающим списком единиц измерения.
@@ -208,7 +267,7 @@ def parse_dropdown(xlsx_path: Path, output_dir: Path) -> Dict[str, Any]:
 # INPUTS: Путь к xlsx, путь к output_dir.
 # OUTPUTS: Структурированный Dict с meta/header/section1/section2/indicators/indicator_dates/events.
 # KEYWORDS: kartochka-main, header, indicators, events.
-def parse_kartochka_main(xlsx_path: Path, output_dir: Path) -> Dict[str, Any]:
+def parse_kartochka_main(xlsx_path: Path, output_dir: Path) -> KartochkaMainDocument:
     """
     Назначение:
         Парсит основной лист карточки проекта в структурированный словарь.
@@ -341,7 +400,7 @@ def parse_kartochka_main(xlsx_path: Path, output_dir: Path) -> Dict[str, Any]:
 # INPUTS: Путь к xlsx, путь к output_dir.
 # OUTPUTS: Dict с `meta`, `header`, `indicators`.
 # KEYWORDS: metodika, indicators, calc-method.
-def parse_metodika(xlsx_path: Path, output_dir: Path) -> Dict[str, Any]:
+def parse_metodika(xlsx_path: Path, output_dir: Path) -> MetodikaDocument:
     """
     Назначение:
         Парсит лист «Методика расчёта» в структуру с показателями и их метаданными.
