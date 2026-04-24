@@ -19,7 +19,7 @@
     {
       "index": 1,
       "title": "Проверка имени файла документа.",
-      "scope": "имя_файла",
+      "scope": "filename",
       "compare": "target_only",
       "llm": false,
       "content": [

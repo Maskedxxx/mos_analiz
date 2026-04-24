@@ -10,7 +10,7 @@
 from dataclasses import dataclass
 from typing import List, Optional
 
-from audit_engine.non_llm_checks.filename import check_filename_universal
+from main import check_filename_universal
 
 
 @dataclass
@@ -28,21 +28,21 @@ class TestFilenameKeywords:
     def test_keywords_all_present(self):
         """Все ключевые слова есть в имени → PASS."""
         config = MockConfig(filename_keywords=["приказ", "ппу"])
-        target = {"имя_файла": "ПРИКАЗ о конкурсах ППУ ООО Содекс.docx"}
+        target = {"filename": "ПРИКАЗ о конкурсах ППУ ООО Содекс.docx"}
         result = check_filename_universal(target, config)
         assert result == [], f"Ожидался PASS, но получен FAIL: {result}"
 
     def test_keywords_case_insensitive(self):
         """Проверка регистронезависимости."""
         config = MockConfig(filename_keywords=["приказ", "ппу"])
-        target = {"имя_файла": "3_ПРИКАЗ_о_конкурсах_ППУ_ООО_Бизнес_отель.docx"}
+        target = {"filename": "3_ПРИКАЗ_о_конкурсах_ППУ_ООО_Бизнес_отель.docx"}
         result = check_filename_universal(target, config)
         assert result == []
 
     def test_keywords_missing_one(self):
         """Одно ключевое слово отсутствует → FAIL."""
         config = MockConfig(filename_keywords=["приказ", "ппу"])
-        target = {"имя_файла": "Положение о ППУ.docx"}
+        target = {"filename": "Положение о ППУ.docx"}
         result = check_filename_universal(target, config)
         assert len(result) == 1
         assert "приказ" in result[0]["Различие"].lower()
@@ -50,21 +50,21 @@ class TestFilenameKeywords:
     def test_keywords_missing_all(self):
         """Все ключевые слова отсутствуют → FAIL."""
         config = MockConfig(filename_keywords=["положение", "ппу"])
-        target = {"имя_файла": "Документ.docx"}
+        target = {"filename": "Документ.docx"}
         result = check_filename_universal(target, config)
         assert len(result) == 1
 
     def test_keywords_single_word(self):
         """Одно ключевое слово — достаточно."""
         config = MockConfig(filename_keywords=["ппу"])
-        target = {"имя_файла": "ПРД-РТ-11-002_ППУ.docx"}
+        target = {"filename": "ПРД-РТ-11-002_ППУ.docx"}
         result = check_filename_universal(target, config)
         assert result == []
 
     def test_keywords_with_underscores(self):
         """Подчёркивания в имени файла не мешают."""
         config = MockConfig(filename_keywords=["положение", "ппу"])
-        target = {"имя_файла": "2_Положение_о_ППУ_ООО_Бизнес_отель.docx"}
+        target = {"filename": "2_Положение_о_ППУ_ООО_Бизнес_отель.docx"}
         result = check_filename_universal(target, config)
         assert result == []
 
@@ -81,7 +81,7 @@ class TestFilenameKeywords:
             "ПРИКАЗ о конкурсах ППУ ООО Содекс.docx",
         ]
         for fname in filenames:
-            target = {"имя_файла": fname}
+            target = {"filename": fname}
             result = check_filename_universal(target, config)
             assert result == [], f"FAIL для файла: {fname}"
 
@@ -94,7 +94,7 @@ class TestFilenameKeywords:
             "ПРИКАЗ о ППУ ООО Содекс.docx",
         ]
         for fname in filenames:
-            target = {"имя_файла": fname}
+            target = {"filename": fname}
             result = check_filename_universal(target, config)
             assert result == [], f"FAIL для файла: {fname}"
 
@@ -108,7 +108,7 @@ class TestFilenameKeywords:
             "Положение о ППУ ООО Содекс.docx",
         ]
         for fname in filenames:
-            target = {"имя_файла": fname}
+            target = {"filename": fname}
             result = check_filename_universal(target, config)
             assert result == [], f"FAIL для файла: {fname}"
 
@@ -121,7 +121,7 @@ class TestFilenameKeywords:
             "Положение о конкурсах проектов и ППУ ООО СОДЕКС.docx",
         ]
         for fname in filenames:
-            target = {"имя_файла": fname}
+            target = {"filename": fname}
             result = check_filename_universal(target, config)
             assert result == [], f"FAIL для файла: {fname}"
 
@@ -134,21 +134,21 @@ class TestFilenamePattern:
     def test_pattern_present(self):
         """Паттерн есть в имени → PASS."""
         config = MockConfig(filename_pattern="1.5 Приказ о создании ИЦ с прилож")
-        target = {"имя_файла": "1.5 Приказ о создании ИЦ с прилож.docx"}
+        target = {"filename": "1.5 Приказ о создании ИЦ с прилож.docx"}
         result = check_filename_universal(target, config)
         assert result == []
 
     def test_pattern_missing(self):
         """Паттерн отсутствует → FAIL."""
         config = MockConfig(filename_pattern="1.5 Приказ о создании ИЦ с прилож")
-        target = {"имя_файла": "Приказ_о_создании_ИЦ.docx"}
+        target = {"filename": "Приказ_о_создании_ИЦ.docx"}
         result = check_filename_universal(target, config)
         assert len(result) == 1
 
     def test_pattern_empty(self):
         """Пустой паттерн → PASS (нет проверки)."""
         config = MockConfig(filename_pattern="")
-        target = {"имя_файла": "anything.docx"}
+        target = {"filename": "anything.docx"}
         result = check_filename_universal(target, config)
         assert result == []
 
@@ -164,7 +164,7 @@ class TestKeywordsPriority:
             filename_pattern="order_comp_ppu",  # не совпадёт
             filename_keywords=["приказ", "ппу"]  # совпадёт
         )
-        target = {"имя_файла": "ПРИКАЗ о конкурсах ППУ.docx"}
+        target = {"filename": "ПРИКАЗ о конкурсах ППУ.docx"}
         result = check_filename_universal(target, config)
         assert result == [], "keywords должны иметь приоритет над pattern"
 
@@ -174,6 +174,6 @@ class TestKeywordsPriority:
             filename_pattern="1.5 Приказ",
             filename_keywords=None
         )
-        target = {"имя_файла": "1.5 Приказ о создании ИЦ.docx"}
+        target = {"filename": "1.5 Приказ о создании ИЦ.docx"}
         result = check_filename_universal(target, config)
         assert result == []
