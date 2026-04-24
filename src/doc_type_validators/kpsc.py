@@ -37,6 +37,93 @@ SYSTEM_PROMPT = "Ты эксперт по валидации документо�
 
 # START_COMMON_HELPERS
 # PURPOSE: load_rule/call_llm/save_result — одинаковы у всех 25 валидаторов, лежат здесь в одной копии. В SimpleNamespace каждого правила эти же функции переиспользуются.
+def _read_json_file(json_file: Path) -> Any:
+    """
+    Назначение:
+        Читает JSON-файл в UTF-8 для валидаторов КПСЦ.
+
+    Вход:
+        json_file: Путь к JSON-файлу.
+
+    Выход:
+        Распарсенное содержимое JSON-файла.
+    """
+    with open(json_file, "r", encoding="utf-8") as f:
+        return json.load(f)
+
+
+def _load_required_json(parser_outputs_dir: Path, filename: str) -> Any:
+    """
+    Назначение:
+        Читает обязательный JSON-файл из директории результатов парсера.
+
+    Вход:
+        parser_outputs_dir: Директория с JSON-ами парсера КПСЦ.
+        filename: Имя JSON-файла.
+
+    Выход:
+        Распарсенное содержимое JSON-файла.
+    """
+    return _read_json_file(parser_outputs_dir / filename)
+
+
+def _load_optional_json(parser_outputs_dir: Path, filename: str, *, exists_key: str = "file_exists") -> dict:
+    """
+    Назначение:
+        Читает опциональный JSON-файл и возвращает стандартный статус наличия.
+
+    Вход:
+        parser_outputs_dir: Директория с JSON-ами парсера КПСЦ.
+        filename: Имя JSON-файла.
+        exists_key: Имя ключа со статусом наличия файла.
+
+    Выход:
+        dict вида `{exists_key: bool, data: ...}`.
+    """
+    json_file = parser_outputs_dir / filename
+    if not json_file.exists():
+        return {exists_key: False, "data": None}
+    return {exists_key: True, "data": _read_json_file(json_file)}
+
+
+def _load_required_jsons(parser_outputs_dir: Path, filenames_by_key: dict) -> dict:
+    """
+    Назначение:
+        Читает несколько обязательных JSON-файлов в словарь по заданным ключам.
+
+    Вход:
+        parser_outputs_dir: Директория с JSON-ами парсера КПСЦ.
+        filenames_by_key: Маппинг `{ключ_данных: имя_json_файла}`.
+
+    Выход:
+        dict `{ключ_данных: распарсенный_json}`.
+    """
+    return {key: _load_required_json(parser_outputs_dir, filename) for key, filename in filenames_by_key.items()}
+
+
+def _load_existing_jsons(parser_outputs_dir: Path, filenames_by_key: dict) -> tuple[dict, dict]:
+    """
+    Назначение:
+        Читает набор JSON-файлов, если они существуют, и отдельно возвращает
+        статус наличия каждого файла.
+
+    Вход:
+        parser_outputs_dir: Директория с JSON-ами парсера КПСЦ.
+        filenames_by_key: Маппинг `{ключ_данных: имя_json_файла}`.
+
+    Выход:
+        tuple `(files_exist, data_content)`.
+    """
+    files_exist = {}
+    data_content = {}
+    for key, filename in filenames_by_key.items():
+        json_file = parser_outputs_dir / filename
+        files_exist[filename] = json_file.exists()
+        if json_file.exists():
+            data_content[key] = _read_json_file(json_file)
+    return files_exist, data_content
+
+
 def _load_rule(rule_index: str) -> dict:
     """
     Назначение:
@@ -55,8 +142,7 @@ def _load_rule(rule_index: str) -> dict:
            legacy-путь для standalone-запуска, сейчас не используется рантаймом.
     """
     rules_file = Path(os.environ.get("VALIDATION_RULES_PATH", str(Path(__file__).parent.parent / "validation_rules.json")))
-    with open(rules_file, "r", encoding="utf-8") as f:
-        data = json.load(f)
+    data = _read_json_file(rules_file)
     for rule in data["rules"]:
         if rule["rule_index"] == rule_index:
             return rule
@@ -105,6 +191,64 @@ def _save_result(result: dict, output_file: Path) -> None:
     with open(output_file, "w", encoding="utf-8") as f:
         json.dump(result, f, ensure_ascii=False, indent=2)
     print(f"✓ Результат сохранен: {output_file}")
+
+
+def _build_validator_prompt(rule: dict, fact_block: str, task_note: str = "") -> str:
+    """
+    Назначение:
+        Формирует общий текст LLM-подсказки для КПСЦ-валидатора.
+
+    Вход:
+        rule: Правило из validation_rules.json.
+        fact_block: Уникальный для правила блок фактических данных.
+        task_note: Дополнительная инструкция внутри блока `ЗАДАНИЕ`.
+
+    Выход:
+        Готовая текстовая подсказка для LLM в том же формате, который
+        использовали отдельные build_prompt-функции.
+    """
+    task_text = "Проверь соответствие фактических данных требованию эксперта и критериям проверки."
+    if task_note:
+        task_text = f"{task_text}\n{task_note}"
+    prompt = f'\nТы эксперт по проверке документов КПСЦ (Карта Потока Создания Ценности).\n\nТРЕБОВАНИЕ ЭКСПЕРТА:\n{rule['requirement_expert']}\n\nТЕХНИЧЕСКОЕ ОПИСАНИЕ:\n{rule['technical_description']}\n\nКРИТЕРИИ ПРОВЕРКИ:\n- Что проверять: {rule['validation_criteria']['what_to_check']}\n- Условие успеха: {rule['validation_criteria']['success_condition']}\n- Условие ошибки: {rule['validation_criteria']['error_condition']}\n\nФАКТИЧЕСКИЕ ДАННЫЕ:\n{fact_block}\n\nЗАДАНИЕ:\n{task_text}\n\nФОРМАТ ОТВЕТА (строго JSON):\n{{\n  "rule_index": "{rule['rule_index']}",\n  "rule_title": "{rule['rule_title']}",\n  "target_document": "{TARGET_DOC}",\n  "status": "PASS или FAIL",\n  "discrepancy": "Описание проблемы если FAIL, иначе пустая строка"\n}}\n\nВерни только JSON, без дополнительного текста.\n'
+    return prompt
+
+
+def _make_validator_module(
+    *,
+    rule_index: str,
+    rule_title: str,
+    load_data,
+    extract_relevant_data,
+    build_prompt,
+) -> SimpleNamespace:
+    """
+    Назначение:
+        Собирает SimpleNamespace-обёртку валидатора КПСЦ с единым набором
+        общих функций и уникальными шагами конкретного правила.
+
+    Вход:
+        rule_index: Индекс правила из validation_rules.json.
+        rule_title: Название правила для совместимости с legacy-модулями.
+        load_data: Функция загрузки JSON-данных парсера.
+        extract_relevant_data: Функция извлечения релевантных полей.
+        build_prompt: Функция формирования текстовой подсказки для LLM.
+
+    Выход:
+        SimpleNamespace с тем же интерфейсом, который ожидает
+        run_kpsc_validator_module.
+    """
+    return SimpleNamespace(
+        RULE_INDEX=rule_index,
+        RULE_TITLE=rule_title,
+        TARGET_DOC=TARGET_DOC,
+        load_rule=_load_rule,
+        load_data=load_data,
+        extract_relevant_data=extract_relevant_data,
+        build_prompt=build_prompt,
+        call_llm=_call_validator_llm,
+        save_result=_save_result,
+    )
 # END_COMMON_HELPERS
 
 
@@ -113,9 +257,7 @@ def _save_result(result: dict, output_file: Path) -> None:
 # ==============================================================================
 def _rule_1_1_load_data(parser_outputs_dir: Path) -> dict:
     """Загрузка необходимых JSON данных"""
-    header_file = parser_outputs_dir / 'kpsc_header_v2.json'
-    with open(header_file, 'r', encoding='utf-8') as f:
-        return json.load(f)
+    return _load_required_json(parser_outputs_dir, 'kpsc_header_v2.json')
 
 def _rule_1_1_extract_relevant_data(data: dict) -> dict:
     """Извлечение данных для проверки"""
@@ -123,19 +265,15 @@ def _rule_1_1_extract_relevant_data(data: dict) -> dict:
 
 def _rule_1_1_build_prompt(extracted_data: dict, rule: dict) -> str:
     """Формирование промпта для LLM с динамической подстановкой правила"""
-    prompt = f'\nТы эксперт по проверке документов КПСЦ (Карта Потока Создания Ценности).\n\nТРЕБОВАНИЕ ЭКСПЕРТА:\n{rule['requirement_expert']}\n\nТЕХНИЧЕСКОЕ ОПИСАНИЕ:\n{rule['technical_description']}\n\nКРИТЕРИИ ПРОВЕРКИ:\n- Что проверять: {rule['validation_criteria']['what_to_check']}\n- Условие успеха: {rule['validation_criteria']['success_condition']}\n- Условие ошибки: {rule['validation_criteria']['error_condition']}\n\nФАКТИЧЕСКИЕ ДАННЫЕ:\nЗаголовок документа: "{extracted_data['title']}"\n\nЗАДАНИЕ:\nПроверь соответствие фактических данных требованию эксперта и критериям проверки.\n\nФОРМАТ ОТВЕТА (строго JSON):\n{{\n  "rule_index": "{rule['rule_index']}",\n  "rule_title": "{rule['rule_title']}",\n  "target_document": "{TARGET_DOC}",\n  "status": "PASS или FAIL",\n  "discrepancy": "Описание проблемы если FAIL, иначе пустая строка"\n}}\n\nВерни только JSON, без дополнительного текста.\n'
-    return prompt
+    fact_block = f'Заголовок документа: "{extracted_data['title']}"'
+    return _build_validator_prompt(rule, fact_block)
 
-RULE_1_1 = SimpleNamespace(
-    RULE_INDEX='1.1',
-    RULE_TITLE="Наличие текста 'КПСЦ' в заголовке",
-    TARGET_DOC=TARGET_DOC,
-    load_rule=_load_rule,
+RULE_1_1 = _make_validator_module(
+    rule_index='1.1',
+    rule_title="Наличие текста 'КПСЦ' в заголовке",
     load_data=_rule_1_1_load_data,
     extract_relevant_data=_rule_1_1_extract_relevant_data,
     build_prompt=_rule_1_1_build_prompt,
-    call_llm=_call_validator_llm,
-    save_result=_save_result,
 )
 
 
@@ -144,9 +282,7 @@ RULE_1_1 = SimpleNamespace(
 # ==============================================================================
 def _rule_1_2_load_data(parser_outputs_dir: Path) -> dict:
     """Загрузка необходимых JSON данных"""
-    header_file = parser_outputs_dir / 'kpsc_header_v2.json'
-    with open(header_file, 'r', encoding='utf-8') as f:
-        return json.load(f)
+    return _load_required_json(parser_outputs_dir, 'kpsc_header_v2.json')
 
 def _rule_1_2_extract_relevant_data(data: dict) -> dict:
     """Извлечение данных для проверки"""
@@ -154,19 +290,15 @@ def _rule_1_2_extract_relevant_data(data: dict) -> dict:
 
 def _rule_1_2_build_prompt(extracted_data: dict, rule: dict) -> str:
     """Формирование промпта для LLM с динамической подстановкой правила"""
-    prompt = f'\nТы эксперт по проверке документов КПСЦ (Карта Потока Создания Ценности).\n\nТРЕБОВАНИЕ ЭКСПЕРТА:\n{rule['requirement_expert']}\n\nТЕХНИЧЕСКОЕ ОПИСАНИЕ:\n{rule['technical_description']}\n\nКРИТЕРИИ ПРОВЕРКИ:\n- Что проверять: {rule['validation_criteria']['what_to_check']}\n- Условие успеха: {rule['validation_criteria']['success_condition']}\n- Условие ошибки: {rule['validation_criteria']['error_condition']}\n\nФАКТИЧЕСКИЕ ДАННЫЕ:\nЗаголовок документа: "{extracted_data['title']}"\nНазвание организации: "{extracted_data.get('organization', '')}"\n\nЗАДАНИЕ:\nПроверь соответствие фактических данных требованию эксперта и критериям проверки.\n\nФОРМАТ ОТВЕТА (строго JSON):\n{{\n  "rule_index": "{rule['rule_index']}",\n  "rule_title": "{rule['rule_title']}",\n  "target_document": "{TARGET_DOC}",\n  "status": "PASS или FAIL",\n  "discrepancy": "Описание проблемы если FAIL, иначе пустая строка"\n}}\n\nВерни только JSON, без дополнительного текста.\n'
-    return prompt
+    fact_block = f'Заголовок документа: "{extracted_data['title']}"\nНазвание организации: "{extracted_data.get('organization', '')}"'
+    return _build_validator_prompt(rule, fact_block)
 
-RULE_1_2 = SimpleNamespace(
-    RULE_INDEX='1.2',
-    RULE_TITLE='Наличие названия предприятия в формате ООО "наименование"',
-    TARGET_DOC=TARGET_DOC,
-    load_rule=_load_rule,
+RULE_1_2 = _make_validator_module(
+    rule_index='1.2',
+    rule_title='Наличие названия предприятия в формате ООО "наименование"',
     load_data=_rule_1_2_load_data,
     extract_relevant_data=_rule_1_2_extract_relevant_data,
     build_prompt=_rule_1_2_build_prompt,
-    call_llm=_call_validator_llm,
-    save_result=_save_result,
 )
 
 
@@ -175,9 +307,7 @@ RULE_1_2 = SimpleNamespace(
 # ==============================================================================
 def _rule_1_3_load_data(parser_outputs_dir: Path) -> dict:
     """Загрузка необходимых JSON данных"""
-    header_file = parser_outputs_dir / 'kpsc_header_v2.json'
-    with open(header_file, 'r', encoding='utf-8') as f:
-        return json.load(f)
+    return _load_required_json(parser_outputs_dir, 'kpsc_header_v2.json')
 
 def _rule_1_3_extract_relevant_data(data: dict) -> dict:
     """Извлечение данных для проверки"""
@@ -185,19 +315,15 @@ def _rule_1_3_extract_relevant_data(data: dict) -> dict:
 
 def _rule_1_3_build_prompt(extracted_data: dict, rule: dict) -> str:
     """Формирование промпта для LLM с динамической подстановкой правила"""
-    prompt = f'\nТы эксперт по проверке документов КПСЦ (Карта Потока Создания Ценности).\n\nТРЕБОВАНИЕ ЭКСПЕРТА:\n{rule['requirement_expert']}\n\nТЕХНИЧЕСКОЕ ОПИСАНИЕ:\n{rule['technical_description']}\n\nКРИТЕРИИ ПРОВЕРКИ:\n- Что проверять: {rule['validation_criteria']['what_to_check']}\n- Условие успеха: {rule['validation_criteria']['success_condition']}\n- Условие ошибки: {rule['validation_criteria']['error_condition']}\n\nФАКТИЧЕСКИЕ ДАННЫЕ:\nНазвание потока (flow_name): "{extracted_data['flow_name']}"\n\nЗАДАНИЕ:\nПроверь соответствие фактических данных требованию эксперта и критериям проверки.\n\nФОРМАТ ОТВЕТА (строго JSON):\n{{\n  "rule_index": "{rule['rule_index']}",\n  "rule_title": "{rule['rule_title']}",\n  "target_document": "{TARGET_DOC}",\n  "status": "PASS или FAIL",\n  "discrepancy": "Описание проблемы если FAIL, иначе пустая строка"\n}}\n\nВерни только JSON, без дополнительного текста.\n'
-    return prompt
+    fact_block = f'Название потока (flow_name): "{extracted_data['flow_name']}"'
+    return _build_validator_prompt(rule, fact_block)
 
-RULE_1_3 = SimpleNamespace(
-    RULE_INDEX='1.3',
-    RULE_TITLE='Наличие названия потока в формате "имя потока"',
-    TARGET_DOC=TARGET_DOC,
-    load_rule=_load_rule,
+RULE_1_3 = _make_validator_module(
+    rule_index='1.3',
+    rule_title='Наличие названия потока в формате "имя потока"',
     load_data=_rule_1_3_load_data,
     extract_relevant_data=_rule_1_3_extract_relevant_data,
     build_prompt=_rule_1_3_build_prompt,
-    call_llm=_call_validator_llm,
-    save_result=_save_result,
 )
 
 
@@ -206,9 +332,7 @@ RULE_1_3 = SimpleNamespace(
 # ==============================================================================
 def _rule_1_4_load_data(parser_outputs_dir: Path) -> dict:
     """Загрузка необходимых JSON данных"""
-    header_file = parser_outputs_dir / 'kpsc_header_v2.json'
-    with open(header_file, 'r', encoding='utf-8') as f:
-        return json.load(f)
+    return _load_required_json(parser_outputs_dir, 'kpsc_header_v2.json')
 
 def _rule_1_4_extract_relevant_data(data: dict) -> dict:
     """Извлечение данных для проверки"""
@@ -218,19 +342,15 @@ def _rule_1_4_extract_relevant_data(data: dict) -> dict:
 
 def _rule_1_4_build_prompt(extracted_data: dict, rule: dict) -> str:
     """Формирование промпта для LLM с динамической подстановкой правила"""
-    prompt = f'\nТы эксперт по проверке документов КПСЦ (Карта Потока Создания Ценности).\n\nТРЕБОВАНИЕ ЭКСПЕРТА:\n{rule['requirement_expert']}\n\nТЕХНИЧЕСКОЕ ОПИСАНИЕ:\n{rule['technical_description']}\n\nКРИТЕРИИ ПРОВЕРКИ:\n- Что проверять: {rule['validation_criteria']['what_to_check']}\n- Условие успеха: {rule['validation_criteria']['success_condition']}\n- Условие ошибки: {rule['validation_criteria']['error_condition']}\n\nФАКТИЧЕСКИЕ ДАННЫЕ:\nОтветственный за поток (responsible): "{extracted_data['responsible']}"\n\nЗАДАНИЕ:\nПроверь соответствие фактических данных требованию эксперта и критериям проверки.\n\nФОРМАТ ОТВЕТА (строго JSON):\n{{\n  "rule_index": "{rule['rule_index']}",\n  "rule_title": "{rule['rule_title']}",\n  "target_document": "{TARGET_DOC}",\n  "status": "PASS или FAIL",\n  "discrepancy": "Описание проблемы если FAIL, иначе пустая строка"\n}}\n\nВерни только JSON, без дополнительного текста.\n'
-    return prompt
+    fact_block = f'Ответственный за поток (responsible): "{extracted_data['responsible']}"'
+    return _build_validator_prompt(rule, fact_block)
 
-RULE_1_4 = SimpleNamespace(
-    RULE_INDEX='1.4',
-    RULE_TITLE='Заполнение поля "Ответственный за поток" (ФИО)',
-    TARGET_DOC=TARGET_DOC,
-    load_rule=_load_rule,
+RULE_1_4 = _make_validator_module(
+    rule_index='1.4',
+    rule_title='Заполнение поля "Ответственный за поток" (ФИО)',
     load_data=_rule_1_4_load_data,
     extract_relevant_data=_rule_1_4_extract_relevant_data,
     build_prompt=_rule_1_4_build_prompt,
-    call_llm=_call_validator_llm,
-    save_result=_save_result,
 )
 
 
@@ -239,9 +359,7 @@ RULE_1_4 = SimpleNamespace(
 # ==============================================================================
 def _rule_1_5_load_data(parser_outputs_dir: Path) -> dict:
     """Загрузка необходимых JSON данных"""
-    header_file = parser_outputs_dir / 'kpsc_header_v2.json'
-    with open(header_file, 'r', encoding='utf-8') as f:
-        return json.load(f)
+    return _load_required_json(parser_outputs_dir, 'kpsc_header_v2.json')
 
 def _rule_1_5_extract_relevant_data(data: dict) -> dict:
     """Извлечение данных для проверки"""
@@ -249,19 +367,15 @@ def _rule_1_5_extract_relevant_data(data: dict) -> dict:
 
 def _rule_1_5_build_prompt(extracted_data: dict, rule: dict) -> str:
     """Формирование промпта для LLM с динамической подстановкой правила"""
-    prompt = f'\nТы эксперт по проверке документов КПСЦ (Карта Потока Создания Ценности).\n\nТРЕБОВАНИЕ ЭКСПЕРТА:\n{rule['requirement_expert']}\n\nТЕХНИЧЕСКОЕ ОПИСАНИЕ:\n{rule['technical_description']}\n\nКРИТЕРИИ ПРОВЕРКИ:\n- Что проверять: {rule['validation_criteria']['what_to_check']}\n- Условие успеха: {rule['validation_criteria']['success_condition']}\n- Условие ошибки: {rule['validation_criteria']['error_condition']}\n\nФАКТИЧЕСКИЕ ДАННЫЕ:\nДата разработки (date_developed): "{extracted_data['date_developed']}"\n\nЗАДАНИЕ:\nПроверь соответствие фактических данных требованию эксперта и критериям проверки.\n\nФОРМАТ ОТВЕТА (строго JSON):\n{{\n  "rule_index": "{rule['rule_index']}",\n  "rule_title": "{rule['rule_title']}",\n  "target_document": "{TARGET_DOC}",\n  "status": "PASS или FAIL",\n  "discrepancy": "Описание проблемы если FAIL, иначе пустая строка"\n}}\n\nВерни только JSON, без дополнительного текста.\n'
-    return prompt
+    fact_block = f'Дата разработки (date_developed): "{extracted_data['date_developed']}"'
+    return _build_validator_prompt(rule, fact_block)
 
-RULE_1_5 = SimpleNamespace(
-    RULE_INDEX='1.5',
-    RULE_TITLE='Заполнение даты разработки',
-    TARGET_DOC=TARGET_DOC,
-    load_rule=_load_rule,
+RULE_1_5 = _make_validator_module(
+    rule_index='1.5',
+    rule_title='Заполнение даты разработки',
     load_data=_rule_1_5_load_data,
     extract_relevant_data=_rule_1_5_extract_relevant_data,
     build_prompt=_rule_1_5_build_prompt,
-    call_llm=_call_validator_llm,
-    save_result=_save_result,
 )
 
 
@@ -270,9 +384,7 @@ RULE_1_5 = SimpleNamespace(
 # ==============================================================================
 def _rule_1_6_load_data(parser_outputs_dir: Path) -> dict:
     """Загрузка необходимых JSON данных"""
-    header_file = parser_outputs_dir / 'kpsc_header_v2.json'
-    with open(header_file, 'r', encoding='utf-8') as f:
-        return json.load(f)
+    return _load_required_json(parser_outputs_dir, 'kpsc_header_v2.json')
 
 def _rule_1_6_extract_relevant_data(data: dict) -> dict:
     """Извлечение данных для проверки"""
@@ -280,19 +392,15 @@ def _rule_1_6_extract_relevant_data(data: dict) -> dict:
 
 def _rule_1_6_build_prompt(extracted_data: dict, rule: dict) -> str:
     """Формирование промпта для LLM с динамической подстановкой правила"""
-    prompt = f'\nТы эксперт по проверке документов КПСЦ (Карта Потока Создания Ценности).\n\nТРЕБОВАНИЕ ЭКСПЕРТА:\n{rule['requirement_expert']}\n\nТЕХНИЧЕСКОЕ ОПИСАНИЕ:\n{rule['technical_description']}\n\nКРИТЕРИИ ПРОВЕРКИ:\n- Что проверять: {rule['validation_criteria']['what_to_check']}\n- Условие успеха: {rule['validation_criteria']['success_condition']}\n- Условие ошибки: {rule['validation_criteria']['error_condition']}\n\nФАКТИЧЕСКИЕ ДАННЫЕ:\nДата реализации (date_implementation): "{extracted_data['date_implementation']}"\n\nЗАДАНИЕ:\nПроверь соответствие фактических данных требованию эксперта и критериям проверки.\n\nФОРМАТ ОТВЕТА (строго JSON):\n{{\n  "rule_index": "{rule['rule_index']}",\n  "rule_title": "{rule['rule_title']}",\n  "target_document": "{TARGET_DOC}",\n  "status": "PASS или FAIL",\n  "discrepancy": "Описание проблемы если FAIL, иначе пустая строка"\n}}\n\nВерни только JSON, без дополнительного текста.\n'
-    return prompt
+    fact_block = f'Дата реализации (date_implementation): "{extracted_data['date_implementation']}"'
+    return _build_validator_prompt(rule, fact_block)
 
-RULE_1_6 = SimpleNamespace(
-    RULE_INDEX='1.6',
-    RULE_TITLE='Заполнение даты реализации',
-    TARGET_DOC=TARGET_DOC,
-    load_rule=_load_rule,
+RULE_1_6 = _make_validator_module(
+    rule_index='1.6',
+    rule_title='Заполнение даты реализации',
     load_data=_rule_1_6_load_data,
     extract_relevant_data=_rule_1_6_extract_relevant_data,
     build_prompt=_rule_1_6_build_prompt,
-    call_llm=_call_validator_llm,
-    save_result=_save_result,
 )
 
 
@@ -301,9 +409,7 @@ RULE_1_6 = SimpleNamespace(
 # ==============================================================================
 def _rule_1_7_load_data(parser_outputs_dir: Path) -> dict:
     """Загрузка необходимых JSON данных"""
-    header_file = parser_outputs_dir / 'kpsc_header_v2.json'
-    with open(header_file, 'r', encoding='utf-8') as f:
-        return json.load(f)
+    return _load_required_json(parser_outputs_dir, 'kpsc_header_v2.json')
 
 def _rule_1_7_extract_relevant_data(data: dict) -> dict:
     """Извлечение данных для проверки"""
@@ -311,19 +417,15 @@ def _rule_1_7_extract_relevant_data(data: dict) -> dict:
 
 def _rule_1_7_build_prompt(extracted_data: dict, rule: dict) -> str:
     """Формирование промпта для LLM с динамической подстановкой правила"""
-    prompt = f'\nТы эксперт по проверке документов КПСЦ (Карта Потока Создания Ценности).\n\nТРЕБОВАНИЕ ЭКСПЕРТА:\n{rule['requirement_expert']}\n\nТЕХНИЧЕСКОЕ ОПИСАНИЕ:\n{rule['technical_description']}\n\nКРИТЕРИИ ПРОВЕРКИ:\n- Что проверять: {rule['validation_criteria']['what_to_check']}\n- Условие успеха: {rule['validation_criteria']['success_condition']}\n- Условие ошибки: {rule['validation_criteria']['error_condition']}\n\nФАКТИЧЕСКИЕ ДАННЫЕ:\nКто составил (compiled_by): "{extracted_data['compiled_by']}"\n\nЗАДАНИЕ:\nПроверь соответствие фактических данных требованию эксперта и критериям проверки.\n\nФОРМАТ ОТВЕТА (строго JSON):\n{{\n  "rule_index": "{rule['rule_index']}",\n  "rule_title": "{rule['rule_title']}",\n  "target_document": "{TARGET_DOC}",\n  "status": "PASS или FAIL",\n  "discrepancy": "Описание проблемы если FAIL, иначе пустая строка"\n}}\n\nВерни только JSON, без дополнительного текста.\n'
-    return prompt
+    fact_block = f'Кто составил (compiled_by): "{extracted_data['compiled_by']}"'
+    return _build_validator_prompt(rule, fact_block)
 
-RULE_1_7 = SimpleNamespace(
-    RULE_INDEX='1.7',
-    RULE_TITLE='Заполнение поля "Кто составил" (ФИО)',
-    TARGET_DOC=TARGET_DOC,
-    load_rule=_load_rule,
+RULE_1_7 = _make_validator_module(
+    rule_index='1.7',
+    rule_title='Заполнение поля "Кто составил" (ФИО)',
     load_data=_rule_1_7_load_data,
     extract_relevant_data=_rule_1_7_extract_relevant_data,
     build_prompt=_rule_1_7_build_prompt,
-    call_llm=_call_validator_llm,
-    save_result=_save_result,
 )
 
 
@@ -332,11 +434,7 @@ RULE_1_7 = SimpleNamespace(
 # ==============================================================================
 def _rule_2_1_load_data(parser_outputs_dir: Path) -> dict:
     """Загрузка необходимых JSON данных"""
-    ocifrovka_file = parser_outputs_dir / 'ocifrovka_poteri_v2.json'
-    if not ocifrovka_file.exists():
-        return {'file_exists': False, 'data': None}
-    with open(ocifrovka_file, 'r', encoding='utf-8') as f:
-        return {'file_exists': True, 'data': json.load(f)}
+    return _load_optional_json(parser_outputs_dir, 'ocifrovka_poteri_v2.json')
 
 def _rule_2_1_extract_relevant_data(data: dict) -> dict:
     """Извлечение данных для проверки"""
@@ -362,19 +460,19 @@ def _rule_2_1_extract_relevant_data(data: dict) -> dict:
 
 def _rule_2_1_build_prompt(extracted_data: dict, rule: dict) -> str:
     """Формирование промпта для LLM с динамической подстановкой правила"""
-    prompt = f'\nТы эксперт по проверке документов КПСЦ (Карта Потока Создания Ценности).\n\nТРЕБОВАНИЕ ЭКСПЕРТА:\n{rule['requirement_expert']}\n\nТЕХНИЧЕСКОЕ ОПИСАНИЕ:\n{rule['technical_description']}\n\nКРИТЕРИИ ПРОВЕРКИ:\n- Что проверять: {rule['validation_criteria']['what_to_check']}\n- Условие успеха: {rule['validation_criteria']['success_condition']}\n- Условие ошибки: {rule['validation_criteria']['error_condition']}\n\nФАКТИЧЕСКИЕ ДАННЫЕ:\nФайл существует: {extracted_data['file_exists']}\nКоличество проблем: {extracted_data['problems_count']}\nНомера проблем: {extracted_data['problem_numbers']}\nДиапазон: с {extracted_data.get('min_number', 0)} по {extracted_data.get('max_number', 0)}\n\nЗАДАНИЕ:\nПроверь соответствие фактических данных требованию эксперта и критериям проверки.\nЭто информационная проверка - нужно подтвердить, что найдены проблемы и извлечены номера.\n\nФОРМАТ ОТВЕТА (строго JSON):\n{{\n  "rule_index": "{rule['rule_index']}",\n  "rule_title": "{rule['rule_title']}",\n  "target_document": "{TARGET_DOC}",\n  "status": "PASS или FAIL",\n  "discrepancy": "Описание проблемы если FAIL, иначе пустая строка"\n}}\n\nВерни только JSON, без дополнительного текста.\n'
-    return prompt
+    fact_block = f'Файл существует: {extracted_data['file_exists']}\nКоличество проблем: {extracted_data['problems_count']}\nНомера проблем: {extracted_data['problem_numbers']}\nДиапазон: с {extracted_data.get('min_number', 0)} по {extracted_data.get('max_number', 0)}'
+    return _build_validator_prompt(
+        rule,
+        fact_block,
+        "Это информационная проверка - нужно подтвердить, что найдены проблемы и извлечены номера.",
+    )
 
-RULE_2_1 = SimpleNamespace(
-    RULE_INDEX='2.1',
-    RULE_TITLE='Количество проблем в таблице "Оцифровка потерь"',
-    TARGET_DOC=TARGET_DOC,
-    load_rule=_load_rule,
+RULE_2_1 = _make_validator_module(
+    rule_index='2.1',
+    rule_title='Количество проблем в таблице "Оцифровка потерь"',
     load_data=_rule_2_1_load_data,
     extract_relevant_data=_rule_2_1_extract_relevant_data,
     build_prompt=_rule_2_1_build_prompt,
-    call_llm=_call_validator_llm,
-    save_result=_save_result,
 )
 
 
@@ -383,11 +481,7 @@ RULE_2_1 = SimpleNamespace(
 # ==============================================================================
 def _rule_2_2_load_data(parser_outputs_dir: Path) -> dict:
     """Загрузка необходимых JSON данных"""
-    ocifrovka_file = parser_outputs_dir / 'ocifrovka_poteri_v2.json'
-    if not ocifrovka_file.exists():
-        return {'file_exists': False, 'data': None}
-    with open(ocifrovka_file, 'r', encoding='utf-8') as f:
-        return {'file_exists': True, 'data': json.load(f)}
+    return _load_optional_json(parser_outputs_dir, 'ocifrovka_poteri_v2.json')
 
 def _rule_2_2_extract_relevant_data(data: dict) -> dict:
     """Извлечение данных для проверки"""
@@ -421,19 +515,15 @@ def _rule_2_2_extract_relevant_data(data: dict) -> dict:
 
 def _rule_2_2_build_prompt(extracted_data: dict, rule: dict) -> str:
     """Формирование промпта для LLM с динамической подстановкой правила"""
-    prompt = f'\nТы эксперт по проверке документов КПСЦ (Карта Потока Создания Ценности).\n\nТРЕБОВАНИЕ ЭКСПЕРТА:\n{rule['requirement_expert']}\n\nТЕХНИЧЕСКОЕ ОПИСАНИЕ:\n{rule['technical_description']}\n\nКРИТЕРИИ ПРОВЕРКИ:\n- Что проверять: {rule['validation_criteria']['what_to_check']}\n- Условие успеха: {rule['validation_criteria']['success_condition']}\n- Условие ошибки: {rule['validation_criteria']['error_condition']}\n\nФАКТИЧЕСКИЕ ДАННЫЕ:\nНайденные номера проблем: {extracted_data['problem_numbers']}\nПропущенные номера: {extracted_data['missing_numbers']}\nЕсть пропуски: {extracted_data['has_missing']}\n\nЗАДАНИЕ:\nПроверь соответствие фактических данных требованию эксперта и критериям проверки.\n\nФОРМАТ ОТВЕТА (строго JSON):\n{{\n  "rule_index": "{rule['rule_index']}",\n  "rule_title": "{rule['rule_title']}",\n  "target_document": "{TARGET_DOC}",\n  "status": "PASS или FAIL",\n  "discrepancy": "Описание проблемы если FAIL, иначе пустая строка"\n}}\n\nВерни только JSON, без дополнительного текста.\n'
-    return prompt
+    fact_block = f'Найденные номера проблем: {extracted_data['problem_numbers']}\nПропущенные номера: {extracted_data['missing_numbers']}\nЕсть пропуски: {extracted_data['has_missing']}'
+    return _build_validator_prompt(rule, fact_block)
 
-RULE_2_2 = SimpleNamespace(
-    RULE_INDEX='2.2',
-    RULE_TITLE='Последовательность номеров проблем (пропуски в нумерации)',
-    TARGET_DOC=TARGET_DOC,
-    load_rule=_load_rule,
+RULE_2_2 = _make_validator_module(
+    rule_index='2.2',
+    rule_title='Последовательность номеров проблем (пропуски в нумерации)',
     load_data=_rule_2_2_load_data,
     extract_relevant_data=_rule_2_2_extract_relevant_data,
     build_prompt=_rule_2_2_build_prompt,
-    call_llm=_call_validator_llm,
-    save_result=_save_result,
 )
 
 
@@ -442,11 +532,7 @@ RULE_2_2 = SimpleNamespace(
 # ==============================================================================
 def _rule_2_3_load_data(parser_outputs_dir: Path) -> dict:
     """Загрузка необходимых JSON данных"""
-    ocifrovka_file = parser_outputs_dir / 'ocifrovka_poteri_v2.json'
-    if not ocifrovka_file.exists():
-        return {'file_exists': False, 'data': None}
-    with open(ocifrovka_file, 'r', encoding='utf-8') as f:
-        return {'file_exists': True, 'data': json.load(f)}
+    return _load_optional_json(parser_outputs_dir, 'ocifrovka_poteri_v2.json')
 
 def _rule_2_3_extract_relevant_data(data: dict) -> dict:
     """Извлечение данных для проверки"""
@@ -476,19 +562,15 @@ def _rule_2_3_extract_relevant_data(data: dict) -> dict:
 
 def _rule_2_3_build_prompt(extracted_data: dict, rule: dict) -> str:
     """Формирование промпта для LLM с динамической подстановкой правила"""
-    prompt = f'\nТы эксперт по проверке документов КПСЦ (Карта Потока Создания Ценности).\n\nТРЕБОВАНИЕ ЭКСПЕРТА:\n{rule['requirement_expert']}\n\nТЕХНИЧЕСКОЕ ОПИСАНИЕ:\n{rule['technical_description']}\n\nКРИТЕРИИ ПРОВЕРКИ:\n- Что проверять: {rule['validation_criteria']['what_to_check']}\n- Условие успеха: {rule['validation_criteria']['success_condition']}\n- Условие ошибки: {rule['validation_criteria']['error_condition']}\n\nФАКТИЧЕСКИЕ ДАННЫЕ:\nПроблемы без описания: {extracted_data['problems_without_description']}\nЕсть проблемы без описания: {extracted_data['has_missing_descriptions']}\nКоличество проблем без описания: {extracted_data['missing_count']}\n\nЗАДАНИЕ:\nПроверь соответствие фактических данных требованию эксперта и критериям проверки.\n\nФОРМАТ ОТВЕТА (строго JSON):\n{{\n  "rule_index": "{rule['rule_index']}",\n  "rule_title": "{rule['rule_title']}",\n  "target_document": "{TARGET_DOC}",\n  "status": "PASS или FAIL",\n  "discrepancy": "Описание проблемы если FAIL, иначе пустая строка"\n}}\n\nВерни только JSON, без дополнительного текста.\n'
-    return prompt
+    fact_block = f'Проблемы без описания: {extracted_data['problems_without_description']}\nЕсть проблемы без описания: {extracted_data['has_missing_descriptions']}\nКоличество проблем без описания: {extracted_data['missing_count']}'
+    return _build_validator_prompt(rule, fact_block)
 
-RULE_2_3 = SimpleNamespace(
-    RULE_INDEX='2.3',
-    RULE_TITLE='Наличие описания для каждого номера проблемы',
-    TARGET_DOC=TARGET_DOC,
-    load_rule=_load_rule,
+RULE_2_3 = _make_validator_module(
+    rule_index='2.3',
+    rule_title='Наличие описания для каждого номера проблемы',
     load_data=_rule_2_3_load_data,
     extract_relevant_data=_rule_2_3_extract_relevant_data,
     build_prompt=_rule_2_3_build_prompt,
-    call_llm=_call_validator_llm,
-    save_result=_save_result,
 )
 
 
@@ -497,11 +579,7 @@ RULE_2_3 = SimpleNamespace(
 # ==============================================================================
 def _rule_4_1_load_data(parser_outputs_dir: Path) -> dict:
     """Загрузка необходимых JSON данных"""
-    table1_file = parser_outputs_dir / 'kpsc_table1_v2.json'
-    if not table1_file.exists():
-        return {'file_exists': False, 'data': None}
-    with open(table1_file, 'r', encoding='utf-8') as f:
-        return {'file_exists': True, 'data': json.load(f)}
+    return _load_optional_json(parser_outputs_dir, 'kpsc_table1_v2.json')
 
 def _rule_4_1_extract_relevant_data(data: dict) -> dict:
     """Извлечение данных для проверки"""
@@ -553,19 +631,15 @@ def _rule_4_1_extract_relevant_data(data: dict) -> dict:
 
 def _rule_4_1_build_prompt(extracted_data: dict, rule: dict) -> str:
     """Формирование промпта для LLM с динамической подстановкой правила"""
-    prompt = f'\nТы эксперт по проверке документов КПСЦ (Карта Потока Создания Ценности).\n\nТРЕБОВАНИЕ ЭКСПЕРТА:\n{rule['requirement_expert']}\n\nТЕХНИЧЕСКОЕ ОПИСАНИЕ:\n{rule['technical_description']}\n\nКРИТЕРИИ ПРОВЕРКИ:\n- Что проверять: {rule['validation_criteria']['what_to_check']}\n- Условие успеха: {rule['validation_criteria']['success_condition']}\n- Условие ошибки: {rule['validation_criteria']['error_condition']}\n\nФАКТИЧЕСКИЕ ДАННЫЕ:\nПустые ячейки в строке ВПП:\n{json.dumps(extracted_data.get('empty_cells', []), ensure_ascii=False, indent=2)}\n\nЕсть пустые ячейки: {extracted_data.get('has_empty', False)}\nКоличество пустых: {extracted_data.get('empty_count', 0)}\n\nЗАДАНИЕ:\nПроверь соответствие фактических данных требованию эксперта и критериям проверки.\n\nФОРМАТ ОТВЕТА (строго JSON):\n{{\n  "rule_index": "{rule['rule_index']}",\n  "rule_title": "{rule['rule_title']}",\n  "target_document": "{TARGET_DOC}",\n  "status": "PASS или FAIL",\n  "discrepancy": "Описание проблемы если FAIL, иначе пустая строка"\n}}\n\nВерни только JSON, без дополнительного текста.\n'
-    return prompt
+    fact_block = f'Пустые ячейки в строке ВПП:\n{json.dumps(extracted_data.get('empty_cells', []), ensure_ascii=False, indent=2)}\n\nЕсть пустые ячейки: {extracted_data.get('has_empty', False)}\nКоличество пустых: {extracted_data.get('empty_count', 0)}'
+    return _build_validator_prompt(rule, fact_block)
 
-RULE_4_1 = SimpleNamespace(
-    RULE_INDEX='4.1',
-    RULE_TITLE='Все ячейки строки ВПП заполнены',
-    TARGET_DOC=TARGET_DOC,
-    load_rule=_load_rule,
+RULE_4_1 = _make_validator_module(
+    rule_index='4.1',
+    rule_title='Все ячейки строки ВПП заполнены',
     load_data=_rule_4_1_load_data,
     extract_relevant_data=_rule_4_1_extract_relevant_data,
     build_prompt=_rule_4_1_build_prompt,
-    call_llm=_call_validator_llm,
-    save_result=_save_result,
 )
 
 
@@ -574,11 +648,7 @@ RULE_4_1 = SimpleNamespace(
 # ==============================================================================
 def _rule_4_2_load_data(parser_outputs_dir: Path) -> dict:
     """Загрузка необходимых JSON данных"""
-    table1_file = parser_outputs_dir / 'kpsc_table1_v2.json'
-    if not table1_file.exists():
-        return {'file_exists': False, 'data': None}
-    with open(table1_file, 'r', encoding='utf-8') as f:
-        return {'file_exists': True, 'data': json.load(f)}
+    return _load_optional_json(parser_outputs_dir, 'kpsc_table1_v2.json')
 
 def _rule_4_2_extract_relevant_data(data: dict) -> dict:
     """Извлечение данных для проверки"""
@@ -651,19 +721,15 @@ def _rule_4_2_extract_relevant_data(data: dict) -> dict:
 
 def _rule_4_2_build_prompt(extracted_data: dict, rule: dict) -> str:
     """Формирование промпта для LLM с динамической подстановкой правила"""
-    prompt = f'\nТы эксперт по проверке документов КПСЦ (Карта Потока Создания Ценности).\n\nТРЕБОВАНИЕ ЭКСПЕРТА:\n{rule['requirement_expert']}\n\nТЕХНИЧЕСКОЕ ОПИСАНИЕ:\n{rule['technical_description']}\n\nКРИТЕРИИ ПРОВЕРКИ:\n- Что проверять: {rule['validation_criteria']['what_to_check']}\n- Условие успеха: {rule['validation_criteria']['success_condition']}\n- Условие ошибки: {rule['validation_criteria']['error_condition']}\n\nФАКТИЧЕСКИЕ ДАННЫЕ:\nЗначения ВПП по операциям:\n{json.dumps(extracted_data.get('vpp_values', []), ensure_ascii=False, indent=2)}\n\nВычисленная сумма: {extracted_data.get('calculated_sum', 0)}\nЗначение ИТОГО: {extracted_data.get('itogo_value', 0)}\nРасхождение: {extracted_data.get('difference', 0)}\nСуммы совпадают (±0.01): {extracted_data.get('matches', False)}\n\nЗАДАНИЕ:\nПроверь соответствие фактических данных требованию эксперта и критериям проверки.\n\nФОРМАТ ОТВЕТА (строго JSON):\n{{\n  "rule_index": "{rule['rule_index']}",\n  "rule_title": "{rule['rule_title']}",\n  "target_document": "{TARGET_DOC}",\n  "status": "PASS или FAIL",\n  "discrepancy": "Описание проблемы если FAIL, иначе пустая строка"\n}}\n\nВерни только JSON, без дополнительного текста.\n'
-    return prompt
+    fact_block = f'Значения ВПП по операциям:\n{json.dumps(extracted_data.get('vpp_values', []), ensure_ascii=False, indent=2)}\n\nВычисленная сумма: {extracted_data.get('calculated_sum', 0)}\nЗначение ИТОГО: {extracted_data.get('itogo_value', 0)}\nРасхождение: {extracted_data.get('difference', 0)}\nСуммы совпадают (±0.01): {extracted_data.get('matches', False)}'
+    return _build_validator_prompt(rule, fact_block)
 
-RULE_4_2 = SimpleNamespace(
-    RULE_INDEX='4.2',
-    RULE_TITLE='Сумма значений строки ВПП совпадает с итоговым значением',
-    TARGET_DOC=TARGET_DOC,
-    load_rule=_load_rule,
+RULE_4_2 = _make_validator_module(
+    rule_index='4.2',
+    rule_title='Сумма значений строки ВПП совпадает с итоговым значением',
     load_data=_rule_4_2_load_data,
     extract_relevant_data=_rule_4_2_extract_relevant_data,
     build_prompt=_rule_4_2_build_prompt,
-    call_llm=_call_validator_llm,
-    save_result=_save_result,
 )
 
 
@@ -672,11 +738,7 @@ RULE_4_2 = SimpleNamespace(
 # ==============================================================================
 def _rule_5_1_load_data(parser_outputs_dir: Path) -> dict:
     """Загрузка необходимых JSON данных"""
-    table1_file = parser_outputs_dir / 'kpsc_table1_v2.json'
-    if not table1_file.exists():
-        return {'file_exists': False, 'data': None}
-    with open(table1_file, 'r', encoding='utf-8') as f:
-        return {'file_exists': True, 'data': json.load(f)}
+    return _load_optional_json(parser_outputs_dir, 'kpsc_table1_v2.json')
 
 def _rule_5_1_extract_relevant_data(data: dict) -> dict:
     """Извлечение данных для проверки"""
@@ -712,19 +774,15 @@ def _rule_5_1_extract_relevant_data(data: dict) -> dict:
 
 def _rule_5_1_build_prompt(extracted_data: dict, rule: dict) -> str:
     """Формирование промпта для LLM с динамической подстановкой правила"""
-    prompt = f'\nТы эксперт по проверке документов КПСЦ (Карта Потока Создания Ценности).\n\nТРЕБОВАНИЕ ЭКСПЕРТА:\n{rule['requirement_expert']}\n\nТЕХНИЧЕСКОЕ ОПИСАНИЕ:\n{rule['technical_description']}\n\nКРИТЕРИИ ПРОВЕРКИ:\n- Что проверять: {rule['validation_criteria']['what_to_check']}\n- Условие успеха: {rule['validation_criteria']['success_condition']}\n- Условие ошибки: {rule['validation_criteria']['error_condition']}\n\nФАКТИЧЕСКИЕ ДАННЫЕ:\nСтроки с пустыми единицами измерения: {extracted_data['empty_units']}\nЕсть пустые ячейки: {extracted_data['has_empty_units']}\nКоличество пустых: {extracted_data['empty_count']}\n\nЗАДАНИЕ:\nПроверь соответствие фактических данных требованию эксперта и критериям проверки.\n\nФОРМАТ ОТВЕТА (строго JSON):\n{{\n  "rule_index": "{rule['rule_index']}",\n  "rule_title": "{rule['rule_title']}",\n  "target_document": "{TARGET_DOC}",\n  "status": "PASS или FAIL",\n  "discrepancy": "Описание проблемы если FAIL, иначе пустая строка"\n}}\n\nВерни только JSON, без дополнительного текста.\n'
-    return prompt
+    fact_block = f'Строки с пустыми единицами измерения: {extracted_data['empty_units']}\nЕсть пустые ячейки: {extracted_data['has_empty_units']}\nКоличество пустых: {extracted_data['empty_count']}'
+    return _build_validator_prompt(rule, fact_block)
 
-RULE_5_1 = SimpleNamespace(
-    RULE_INDEX='5.1',
-    RULE_TITLE='Заполнение всех ячеек в столбце "Единицы измерения"',
-    TARGET_DOC=TARGET_DOC,
-    load_rule=_load_rule,
+RULE_5_1 = _make_validator_module(
+    rule_index='5.1',
+    rule_title='Заполнение всех ячеек в столбце "Единицы измерения"',
     load_data=_rule_5_1_load_data,
     extract_relevant_data=_rule_5_1_extract_relevant_data,
     build_prompt=_rule_5_1_build_prompt,
-    call_llm=_call_validator_llm,
-    save_result=_save_result,
 )
 
 
@@ -733,11 +791,7 @@ RULE_5_1 = SimpleNamespace(
 # ==============================================================================
 def _rule_6_1_load_data(parser_outputs_dir: Path) -> dict:
     """Загрузка необходимых JSON данных"""
-    table1_file = parser_outputs_dir / 'kpsc_table1_v2.json'
-    if not table1_file.exists():
-        return {'file_exists': False, 'data': None}
-    with open(table1_file, 'r', encoding='utf-8') as f:
-        return {'file_exists': True, 'data': json.load(f)}
+    return _load_optional_json(parser_outputs_dir, 'kpsc_table1_v2.json')
 
 def _rule_6_1_extract_relevant_data(data: dict) -> dict:
     """Извлечение данных для проверки"""
@@ -762,19 +816,15 @@ def _rule_6_1_extract_relevant_data(data: dict) -> dict:
 
 def _rule_6_1_build_prompt(extracted_data: dict, rule: dict) -> str:
     """Формирование промпта для LLM с динамической подстановкой правила"""
-    prompt = f'\nТы эксперт по проверке документов КПСЦ (Карта Потока Создания Ценности).\n\nТРЕБОВАНИЕ ЭКСПЕРТА:\n{rule['requirement_expert']}\n\nТЕХНИЧЕСКОЕ ОПИСАНИЕ:\n{rule['technical_description']}\n\nКРИТЕРИИ ПРОВЕРКИ:\n- Что проверять: {rule['validation_criteria']['what_to_check']}\n- Условие успеха: {rule['validation_criteria']['success_condition']}\n- Условие ошибки: {rule['validation_criteria']['error_condition']}\n\nФАКТИЧЕСКИЕ ДАННЫЕ:\nСтрока "Перемещения" найдена: {extracted_data['has_transport_row']}\nИндекс строки: {extracted_data.get('transport_row_index', 'не найдена')}\n\nЗАДАНИЕ:\nПроверь соответствие фактических данных требованию эксперта и критериям проверки.\n\nФОРМАТ ОТВЕТА (строго JSON):\n{{\n  "rule_index": "{rule['rule_index']}",\n  "rule_title": "{rule['rule_title']}",\n  "target_document": "{TARGET_DOC}",\n  "status": "PASS или FAIL",\n  "discrepancy": "Описание проблемы если FAIL, иначе пустая строка"\n}}\n\nВерни только JSON, без дополнительного текста.\n'
-    return prompt
+    fact_block = f'Строка "Перемещения" найдена: {extracted_data['has_transport_row']}\nИндекс строки: {extracted_data.get('transport_row_index', 'не найдена')}'
+    return _build_validator_prompt(rule, fact_block)
 
-RULE_6_1 = SimpleNamespace(
-    RULE_INDEX='6.1',
-    RULE_TITLE='Наличие строки "Перемещения" в блоке "Расчет ВПП"',
-    TARGET_DOC=TARGET_DOC,
-    load_rule=_load_rule,
+RULE_6_1 = _make_validator_module(
+    rule_index='6.1',
+    rule_title='Наличие строки "Перемещения" в блоке "Расчет ВПП"',
     load_data=_rule_6_1_load_data,
     extract_relevant_data=_rule_6_1_extract_relevant_data,
     build_prompt=_rule_6_1_build_prompt,
-    call_llm=_call_validator_llm,
-    save_result=_save_result,
 )
 
 
@@ -783,16 +833,13 @@ RULE_6_1 = SimpleNamespace(
 # ==============================================================================
 def _rule_7_1_load_data(parser_outputs_dir: Path) -> dict:
     """Загрузка необходимых JSON данных"""
-    header_file = parser_outputs_dir / 'kpsc_header_v2.json'
-    table1_file = parser_outputs_dir / 'kpsc_table1_v2.json'
-    files_exist = {'kpsc_header_v2.json': header_file.exists(), 'kpsc_table1_v2.json': table1_file.exists()}
-    data_content = {}
-    if header_file.exists():
-        with open(header_file, 'r', encoding='utf-8') as f:
-            data_content['header'] = json.load(f)
-    if table1_file.exists():
-        with open(table1_file, 'r', encoding='utf-8') as f:
-            data_content['table1'] = json.load(f)
+    files_exist, data_content = _load_existing_jsons(
+        parser_outputs_dir,
+        {
+            'header': 'kpsc_header_v2.json',
+            'table1': 'kpsc_table1_v2.json',
+        },
+    )
     return {'files_exist': files_exist, 'data_content': data_content}
 
 def _rule_7_1_extract_relevant_data(data: dict) -> dict:
@@ -812,19 +859,15 @@ def _rule_7_1_extract_relevant_data(data: dict) -> dict:
 
 def _rule_7_1_build_prompt(extracted_data: dict, rule: dict) -> str:
     """Формирование промпта для LLM с динамической подстановкой правила"""
-    prompt = f'\nТы эксперт по проверке документов КПСЦ (Карта Потока Создания Ценности).\n\nТРЕБОВАНИЕ ЭКСПЕРТА:\n{rule['requirement_expert']}\n\nТЕХНИЧЕСКОЕ ОПИСАНИЕ:\n{rule['technical_description']}\n\nКРИТЕРИИ ПРОВЕРКИ:\n- Что проверять: {rule['validation_criteria']['what_to_check']}\n- Условие успеха: {rule['validation_criteria']['success_condition']}\n- Условие ошибки: {rule['validation_criteria']['error_condition']}\n\nФАКТИЧЕСКИЕ ДАННЫЕ:\nСтатус файлов парсинга: {extracted_data['files_status']}\nКоличество найденных файлов: {extracted_data['files_count']}\nЕсть ли данные в файлах: {extracted_data['has_data']}\n\nЗАДАНИЕ:\nПроверь соответствие фактических данных требованию эксперта и критериям проверки.\n\nФОРМАТ ОТВЕТА (строго JSON):\n{{\n  "rule_index": "{rule['rule_index']}",\n  "rule_title": "{rule['rule_title']}",\n  "target_document": "{TARGET_DOC}",\n  "status": "PASS или FAIL",\n  "discrepancy": "Описание проблемы если FAIL, иначе пустая строка"\n}}\n\nВерни только JSON, без дополнительного текста.\n'
-    return prompt
+    fact_block = f'Статус файлов парсинга: {extracted_data['files_status']}\nКоличество найденных файлов: {extracted_data['files_count']}\nЕсть ли данные в файлах: {extracted_data['has_data']}'
+    return _build_validator_prompt(rule, fact_block)
 
-RULE_7_1 = SimpleNamespace(
-    RULE_INDEX='7.1',
-    RULE_TITLE='Наличие и заполнение листа "КПСЦ"',
-    TARGET_DOC=TARGET_DOC,
-    load_rule=_load_rule,
+RULE_7_1 = _make_validator_module(
+    rule_index='7.1',
+    rule_title='Наличие и заполнение листа "КПСЦ"',
     load_data=_rule_7_1_load_data,
     extract_relevant_data=_rule_7_1_extract_relevant_data,
     build_prompt=_rule_7_1_build_prompt,
-    call_llm=_call_validator_llm,
-    save_result=_save_result,
 )
 
 
@@ -833,12 +876,7 @@ RULE_7_1 = SimpleNamespace(
 # ==============================================================================
 def _rule_7_2_load_data(parser_outputs_dir: Path) -> dict:
     """Загрузка необходимых JSON данных"""
-    legend_file = parser_outputs_dir / 'legend_v2.json'
-    if not legend_file.exists():
-        return {'file_exists': False, 'data': None}
-    with open(legend_file, 'r', encoding='utf-8') as f:
-        data = json.load(f)
-    return {'file_exists': True, 'data': data}
+    return _load_optional_json(parser_outputs_dir, 'legend_v2.json')
 
 def _rule_7_2_extract_relevant_data(data: dict) -> dict:
     """Извлечение данных для проверки"""
@@ -850,19 +888,15 @@ def _rule_7_2_extract_relevant_data(data: dict) -> dict:
 
 def _rule_7_2_build_prompt(extracted_data: dict, rule: dict) -> str:
     """Формирование промпта для LLM с динамической подстановкой правила"""
-    prompt = f'\nТы эксперт по проверке документов КПСЦ (Карта Потока Создания Ценности).\n\nТРЕБОВАНИЕ ЭКСПЕРТА:\n{rule['requirement_expert']}\n\nТЕХНИЧЕСКОЕ ОПИСАНИЕ:\n{rule['technical_description']}\n\nКРИТЕРИИ ПРОВЕРКИ:\n- Что проверять: {rule['validation_criteria']['what_to_check']}\n- Условие успеха: {rule['validation_criteria']['success_condition']}\n- Условие ошибки: {rule['validation_criteria']['error_condition']}\n\nФАКТИЧЕСКИЕ ДАННЫЕ:\nФайл существует: {extracted_data['file_exists']}\nЕсть записи (entries): {extracted_data['has_entries']}\nКоличество записей: {extracted_data['entries_count']}\nЕсть заполненный текст: {extracted_data.get('has_text', False)}\n\nЗАДАНИЕ:\nПроверь соответствие фактических данных требованию эксперта и критериям проверки.\n\nФОРМАТ ОТВЕТА (строго JSON):\n{{\n  "rule_index": "{rule['rule_index']}",\n  "rule_title": "{rule['rule_title']}",\n  "target_document": "{TARGET_DOC}",\n  "status": "PASS или FAIL",\n  "discrepancy": "Описание проблемы если FAIL, иначе пустая строка"\n}}\n\nВерни только JSON, без дополнительного текста.\n'
-    return prompt
+    fact_block = f'Файл существует: {extracted_data['file_exists']}\nЕсть записи (entries): {extracted_data['has_entries']}\nКоличество записей: {extracted_data['entries_count']}\nЕсть заполненный текст: {extracted_data.get('has_text', False)}'
+    return _build_validator_prompt(rule, fact_block)
 
-RULE_7_2 = SimpleNamespace(
-    RULE_INDEX='7.2',
-    RULE_TITLE='Наличие и заполнение листа "Условные обозначения"',
-    TARGET_DOC=TARGET_DOC,
-    load_rule=_load_rule,
+RULE_7_2 = _make_validator_module(
+    rule_index='7.2',
+    rule_title='Наличие и заполнение листа "Условные обозначения"',
     load_data=_rule_7_2_load_data,
     extract_relevant_data=_rule_7_2_extract_relevant_data,
     build_prompt=_rule_7_2_build_prompt,
-    call_llm=_call_validator_llm,
-    save_result=_save_result,
 )
 
 
@@ -871,12 +905,7 @@ RULE_7_2 = SimpleNamespace(
 # ==============================================================================
 def _rule_7_3_load_data(parser_outputs_dir: Path) -> dict:
     """Загрузка необходимых JSON данных"""
-    pokazateli_file = parser_outputs_dir / 'pokazateli_v3.json'
-    if not pokazateli_file.exists():
-        return {'file_exists': False, 'data': None}
-    with open(pokazateli_file, 'r', encoding='utf-8') as f:
-        data = json.load(f)
-    return {'file_exists': True, 'data': data}
+    return _load_optional_json(parser_outputs_dir, 'pokazateli_v3.json')
 
 def _rule_7_3_extract_relevant_data(data: dict) -> dict:
     """Извлечение данных для проверки"""
@@ -888,19 +917,15 @@ def _rule_7_3_extract_relevant_data(data: dict) -> dict:
 
 def _rule_7_3_build_prompt(extracted_data: dict, rule: dict) -> str:
     """Формирование промпта для LLM с динамической подстановкой правила"""
-    prompt = f'\nТы эксперт по проверке документов КПСЦ (Карта Потока Создания Ценности).\n\nТРЕБОВАНИЕ ЭКСПЕРТА:\n{rule['requirement_expert']}\n\nТЕХНИЧЕСКОЕ ОПИСАНИЕ:\n{rule['technical_description']}\n\nКРИТЕРИИ ПРОВЕРКИ:\n- Что проверять: {rule['validation_criteria']['what_to_check']}\n- Условие успеха: {rule['validation_criteria']['success_condition']}\n- Условие ошибки: {rule['validation_criteria']['error_condition']}\n\nФАКТИЧЕСКИЕ ДАННЫЕ:\nФайл существует: {extracted_data['file_exists']}\nЕсть строки (rows): {extracted_data['has_rows']}\nКоличество строк: {extracted_data['rows_count']}\nЕсть данные в ячейках: {extracted_data.get('has_data', False)}\n\nЗАДАНИЕ:\nПроверь соответствие фактических данных требованию эксперта и критериям проверки.\n\nФОРМАТ ОТВЕТА (строго JSON):\n{{\n  "rule_index": "{rule['rule_index']}",\n  "rule_title": "{rule['rule_title']}",\n  "target_document": "{TARGET_DOC}",\n  "status": "PASS или FAIL",\n  "discrepancy": "Описание проблемы если FAIL, иначе пустая строка"\n}}\n\nВерни только JSON, без дополнительного текста.\n'
-    return prompt
+    fact_block = f'Файл существует: {extracted_data['file_exists']}\nЕсть строки (rows): {extracted_data['has_rows']}\nКоличество строк: {extracted_data['rows_count']}\nЕсть данные в ячейках: {extracted_data.get('has_data', False)}'
+    return _build_validator_prompt(rule, fact_block)
 
-RULE_7_3 = SimpleNamespace(
-    RULE_INDEX='7.3',
-    RULE_TITLE='Наличие и заполнение листа "Показатели"',
-    TARGET_DOC=TARGET_DOC,
-    load_rule=_load_rule,
+RULE_7_3 = _make_validator_module(
+    rule_index='7.3',
+    rule_title='Наличие и заполнение листа "Показатели"',
     load_data=_rule_7_3_load_data,
     extract_relevant_data=_rule_7_3_extract_relevant_data,
     build_prompt=_rule_7_3_build_prompt,
-    call_llm=_call_validator_llm,
-    save_result=_save_result,
 )
 
 
@@ -909,12 +934,7 @@ RULE_7_3 = SimpleNamespace(
 # ==============================================================================
 def _rule_7_4_load_data(parser_outputs_dir: Path) -> dict:
     """Загрузка необходимых JSON данных"""
-    ocifrovka_file = parser_outputs_dir / 'ocifrovka_poteri_v2.json'
-    if not ocifrovka_file.exists():
-        return {'file_exists': False, 'data': None}
-    with open(ocifrovka_file, 'r', encoding='utf-8') as f:
-        data = json.load(f)
-    return {'file_exists': True, 'data': data}
+    return _load_optional_json(parser_outputs_dir, 'ocifrovka_poteri_v2.json')
 
 def _rule_7_4_extract_relevant_data(data: dict) -> dict:
     """Извлечение данных для проверки"""
@@ -925,19 +945,15 @@ def _rule_7_4_extract_relevant_data(data: dict) -> dict:
 
 def _rule_7_4_build_prompt(extracted_data: dict, rule: dict) -> str:
     """Формирование промпта для LLM с динамической подстановкой правила"""
-    prompt = f'\nТы эксперт по проверке документов КПСЦ (Карта Потока Создания Ценности).\n\nТРЕБОВАНИЕ ЭКСПЕРТА:\n{rule['requirement_expert']}\n\nТЕХНИЧЕСКОЕ ОПИСАНИЕ:\n{rule['technical_description']}\n\nКРИТЕРИИ ПРОВЕРКИ:\n- Что проверять: {rule['validation_criteria']['what_to_check']}\n- Условие успеха: {rule['validation_criteria']['success_condition']}\n- Условие ошибки: {rule['validation_criteria']['error_condition']}\n\nФАКТИЧЕСКИЕ ДАННЫЕ:\nФайл существует: {extracted_data['file_exists']}\nЕсть строки (минимум 2): {extracted_data['has_rows']}\nКоличество строк: {extracted_data['rows_count']}\n\nЗАДАНИЕ:\nПроверь соответствие фактических данных требованию эксперта и критериям проверки.\n\nФОРМАТ ОТВЕТА (строго JSON):\n{{\n  "rule_index": "{rule['rule_index']}",\n  "rule_title": "{rule['rule_title']}",\n  "target_document": "{TARGET_DOC}",\n  "status": "PASS или FAIL",\n  "discrepancy": "Описание проблемы если FAIL, иначе пустая строка"\n}}\n\nВерни только JSON, без дополнительного текста.\n'
-    return prompt
+    fact_block = f'Файл существует: {extracted_data['file_exists']}\nЕсть строки (минимум 2): {extracted_data['has_rows']}\nКоличество строк: {extracted_data['rows_count']}'
+    return _build_validator_prompt(rule, fact_block)
 
-RULE_7_4 = SimpleNamespace(
-    RULE_INDEX='7.4',
-    RULE_TITLE='Наличие и заполнение листа "Оцифровка потерь КПСЦ"',
-    TARGET_DOC=TARGET_DOC,
-    load_rule=_load_rule,
+RULE_7_4 = _make_validator_module(
+    rule_index='7.4',
+    rule_title='Наличие и заполнение листа "Оцифровка потерь КПСЦ"',
     load_data=_rule_7_4_load_data,
     extract_relevant_data=_rule_7_4_extract_relevant_data,
     build_prompt=_rule_7_4_build_prompt,
-    call_llm=_call_validator_llm,
-    save_result=_save_result,
 )
 
 
@@ -946,16 +962,13 @@ RULE_7_4 = SimpleNamespace(
 # ==============================================================================
 def _rule_7_5_load_data(parser_outputs_dir: Path) -> dict:
     """Загрузка необходимых JSON данных"""
-    pa1_table_file = parser_outputs_dir / 'pa1_table_v1.json'
-    pa1_chart_file = parser_outputs_dir / 'pa1_chart_v3.json'
-    files_exist = {'pa1_table_v1.json': pa1_table_file.exists(), 'pa1_chart_v3.json': pa1_chart_file.exists()}
-    data_content = {}
-    if pa1_table_file.exists():
-        with open(pa1_table_file, 'r', encoding='utf-8') as f:
-            data_content['table'] = json.load(f)
-    if pa1_chart_file.exists():
-        with open(pa1_chart_file, 'r', encoding='utf-8') as f:
-            data_content['chart'] = json.load(f)
+    files_exist, data_content = _load_existing_jsons(
+        parser_outputs_dir,
+        {
+            'table': 'pa1_table_v1.json',
+            'chart': 'pa1_chart_v3.json',
+        },
+    )
     return {'files_exist': files_exist, 'data_content': data_content}
 
 def _rule_7_5_extract_relevant_data(data: dict) -> dict:
@@ -967,19 +980,15 @@ def _rule_7_5_extract_relevant_data(data: dict) -> dict:
 
 def _rule_7_5_build_prompt(extracted_data: dict, rule: dict) -> str:
     """Формирование промпта для LLM с динамической подстановкой правила"""
-    prompt = f'\nТы эксперт по проверке документов КПСЦ (Карта Потока Создания Ценности).\n\nТРЕБОВАНИЕ ЭКСПЕРТА:\n{rule['requirement_expert']}\n\nТЕХНИЧЕСКОЕ ОПИСАНИЕ:\n{rule['technical_description']}\n\nКРИТЕРИИ ПРОВЕРКИ:\n- Что проверять: {rule['validation_criteria']['what_to_check']}\n- Условие успеха: {rule['validation_criteria']['success_condition']}\n- Условие ошибки: {rule['validation_criteria']['error_condition']}\n\nФАКТИЧЕСКИЕ ДАННЫЕ:\nСтатус файлов: {extracted_data['files_status']}\nКоличество найденных файлов: {extracted_data['files_count']}\nЕсть данные: {extracted_data['has_data']}\n\nЗАДАНИЕ:\nПроверь соответствие фактических данных требованию эксперта и критериям проверки.\n\nФОРМАТ ОТВЕТА (строго JSON):\n{{\n  "rule_index": "{rule['rule_index']}",\n  "rule_title": "{rule['rule_title']}",\n  "target_document": "{TARGET_DOC}",\n  "status": "PASS или FAIL",\n  "discrepancy": "Описание проблемы если FAIL, иначе пустая строка"\n}}\n\nВерни только JSON, без дополнительного текста.\n'
-    return prompt
+    fact_block = f'Статус файлов: {extracted_data['files_status']}\nКоличество найденных файлов: {extracted_data['files_count']}\nЕсть данные: {extracted_data['has_data']}'
+    return _build_validator_prompt(rule, fact_block)
 
-RULE_7_5 = SimpleNamespace(
-    RULE_INDEX='7.5',
-    RULE_TITLE='Наличие и заполнение листа "ПА-1"',
-    TARGET_DOC=TARGET_DOC,
-    load_rule=_load_rule,
+RULE_7_5 = _make_validator_module(
+    rule_index='7.5',
+    rule_title='Наличие и заполнение листа "ПА-1"',
     load_data=_rule_7_5_load_data,
     extract_relevant_data=_rule_7_5_extract_relevant_data,
     build_prompt=_rule_7_5_build_prompt,
-    call_llm=_call_validator_llm,
-    save_result=_save_result,
 )
 
 
@@ -988,12 +997,7 @@ RULE_7_5 = SimpleNamespace(
 # ==============================================================================
 def _rule_7_6_load_data(parser_outputs_dir: Path) -> dict:
     """Загрузка необходимых JSON данных"""
-    spaghetti_file = parser_outputs_dir / 'spaghetti_sheet_v2.json'
-    if not spaghetti_file.exists():
-        return {'file_exists': False, 'data': None}
-    with open(spaghetti_file, 'r', encoding='utf-8') as f:
-        data = json.load(f)
-    return {'file_exists': True, 'data': data}
+    return _load_optional_json(parser_outputs_dir, 'spaghetti_sheet_v2.json')
 
 def _rule_7_6_extract_relevant_data(data: dict) -> dict:
     """Извлечение данных для проверки"""
@@ -1004,19 +1008,15 @@ def _rule_7_6_extract_relevant_data(data: dict) -> dict:
 
 def _rule_7_6_build_prompt(extracted_data: dict, rule: dict) -> str:
     """Формирование промпта для LLM с динамической подстановкой правила"""
-    prompt = f'\nТы эксперт по проверке документов КПСЦ (Карта Потока Создания Ценности).\n\nТРЕБОВАНИЕ ЭКСПЕРТА:\n{rule['requirement_expert']}\n\nТЕХНИЧЕСКОЕ ОПИСАНИЕ:\n{rule['technical_description']}\n\nКРИТЕРИИ ПРОВЕРКИ:\n- Что проверять: {rule['validation_criteria']['what_to_check']}\n- Условие успеха: {rule['validation_criteria']['success_condition']}\n- Условие ошибки: {rule['validation_criteria']['error_condition']}\n\nФАКТИЧЕСКИЕ ДАННЫЕ:\nФайл существует: {extracted_data['file_exists']}\nЕсть строки (rows): {extracted_data['has_rows']}\nКоличество строк: {extracted_data['rows_count']}\n\nЗАДАНИЕ:\nПроверь соответствие фактических данных требованию эксперта и критериям проверки.\n\nФОРМАТ ОТВЕТА (строго JSON):\n{{\n  "rule_index": "{rule['rule_index']}",\n  "rule_title": "{rule['rule_title']}",\n  "target_document": "{TARGET_DOC}",\n  "status": "PASS или FAIL",\n  "discrepancy": "Описание проблемы если FAIL, иначе пустая строка"\n}}\n\nВерни только JSON, без дополнительного текста.\n'
-    return prompt
+    fact_block = f'Файл существует: {extracted_data['file_exists']}\nЕсть строки (rows): {extracted_data['has_rows']}\nКоличество строк: {extracted_data['rows_count']}'
+    return _build_validator_prompt(rule, fact_block)
 
-RULE_7_6 = SimpleNamespace(
-    RULE_INDEX='7.6',
-    RULE_TITLE='Наличие и заполнение листа "Диаграмма Спагетти" или "ДС"',
-    TARGET_DOC=TARGET_DOC,
-    load_rule=_load_rule,
+RULE_7_6 = _make_validator_module(
+    rule_index='7.6',
+    rule_title='Наличие и заполнение листа "Диаграмма Спагетти" или "ДС"',
     load_data=_rule_7_6_load_data,
     extract_relevant_data=_rule_7_6_extract_relevant_data,
     build_prompt=_rule_7_6_build_prompt,
-    call_llm=_call_validator_llm,
-    save_result=_save_result,
 )
 
 
@@ -1025,12 +1025,7 @@ RULE_7_6 = SimpleNamespace(
 # ==============================================================================
 def _rule_7_7_load_data(parser_outputs_dir: Path) -> dict:
     """Загрузка необходимых JSON данных"""
-    spaghetti_problems_file = parser_outputs_dir / 'spaghetti_problems_v1.json'
-    if not spaghetti_problems_file.exists():
-        return {'file_exists': False, 'data': None}
-    with open(spaghetti_problems_file, 'r', encoding='utf-8') as f:
-        data = json.load(f)
-    return {'file_exists': True, 'data': data}
+    return _load_optional_json(parser_outputs_dir, 'spaghetti_problems_v1.json')
 
 def _rule_7_7_extract_relevant_data(data: dict) -> dict:
     """Извлечение данных для проверки"""
@@ -1041,19 +1036,15 @@ def _rule_7_7_extract_relevant_data(data: dict) -> dict:
 
 def _rule_7_7_build_prompt(extracted_data: dict, rule: dict) -> str:
     """Формирование промпта для LLM с динамической подстановкой правила"""
-    prompt = f'\nТы эксперт по проверке документов КПСЦ (Карта Потока Создания Ценности).\n\nТРЕБОВАНИЕ ЭКСПЕРТА:\n{rule['requirement_expert']}\n\nТЕХНИЧЕСКОЕ ОПИСАНИЕ:\n{rule['technical_description']}\n\nКРИТЕРИИ ПРОВЕРКИ:\n- Что проверять: {rule['validation_criteria']['what_to_check']}\n- Условие успеха: {rule['validation_criteria']['success_condition']}\n- Условие ошибки: {rule['validation_criteria']['error_condition']}\n\nФАКТИЧЕСКИЕ ДАННЫЕ:\nФайл существует: {extracted_data['file_exists']}\nЕсть строки (минимум 2): {extracted_data['has_rows']}\nКоличество строк: {extracted_data['rows_count']}\n\nЗАДАНИЕ:\nПроверь соответствие фактических данных требованию эксперта и критериям проверки.\n\nФОРМАТ ОТВЕТА (строго JSON):\n{{\n  "rule_index": "{rule['rule_index']}",\n  "rule_title": "{rule['rule_title']}",\n  "target_document": "{TARGET_DOC}",\n  "status": "PASS или FAIL",\n  "discrepancy": "Описание проблемы если FAIL, иначе пустая строка"\n}}\n\nВерни только JSON, без дополнительного текста.\n'
-    return prompt
+    fact_block = f'Файл существует: {extracted_data['file_exists']}\nЕсть строки (минимум 2): {extracted_data['has_rows']}\nКоличество строк: {extracted_data['rows_count']}'
+    return _build_validator_prompt(rule, fact_block)
 
-RULE_7_7 = SimpleNamespace(
-    RULE_INDEX='7.7',
-    RULE_TITLE='Наличие и заполнение листа "Перечень проблем по Диаграмме Спагетти"',
-    TARGET_DOC=TARGET_DOC,
-    load_rule=_load_rule,
+RULE_7_7 = _make_validator_module(
+    rule_index='7.7',
+    rule_title='Наличие и заполнение листа "Перечень проблем по Диаграмме Спагетти"',
     load_data=_rule_7_7_load_data,
     extract_relevant_data=_rule_7_7_extract_relevant_data,
     build_prompt=_rule_7_7_build_prompt,
-    call_llm=_call_validator_llm,
-    save_result=_save_result,
 )
 
 
@@ -1062,12 +1053,7 @@ RULE_7_7 = SimpleNamespace(
 # ==============================================================================
 def _rule_7_8_load_data(parser_outputs_dir: Path) -> dict:
     """Загрузка необходимых JSON данных"""
-    header_file = parser_outputs_dir / 'kpsc_header_v2.json'
-    if not header_file.exists():
-        return {'header_exists': False, 'data': None}
-    with open(header_file, 'r', encoding='utf-8') as f:
-        data = json.load(f)
-    return {'header_exists': True, 'data': data}
+    return _load_optional_json(parser_outputs_dir, 'kpsc_header_v2.json', exists_key='header_exists')
 
 def _rule_7_8_extract_relevant_data(data: dict) -> dict:
     """Извлечение данных для проверки"""
@@ -1078,19 +1064,15 @@ def _rule_7_8_extract_relevant_data(data: dict) -> dict:
 
 def _rule_7_8_build_prompt(extracted_data: dict, rule: dict) -> str:
     """Формирование промпта для LLM с динамической подстановкой правила"""
-    prompt = f'\nТы эксперт по проверке документов КПСЦ (Карта Потока Создания Ценности).\n\nТРЕБОВАНИЕ ЭКСПЕРТА:\n{rule['requirement_expert']}\n\nТЕХНИЧЕСКОЕ ОПИСАНИЕ:\n{rule['technical_description']}\n\nКРИТЕРИИ ПРОВЕРКИ:\n- Что проверять: {rule['validation_criteria']['what_to_check']}\n- Условие успеха: {rule['validation_criteria']['success_condition']}\n- Условие ошибки: {rule['validation_criteria']['error_condition']}\n\nФАКТИЧЕСКИЕ ДАННЫЕ:\nФайл заголовка существует: {extracted_data['header_exists']}\nПоле takt_time: "{extracted_data.get('takt_time', '')}"\nПоле заполнено: {extracted_data.get('has_takt_time', False)}\n\nЗАДАНИЕ:\nПроверь соответствие фактических данных требованию эксперта и критериям проверки.\n\nФОРМАТ ОТВЕТА (строго JSON):\n{{\n  "rule_index": "{rule['rule_index']}",\n  "rule_title": "{rule['rule_title']}",\n  "target_document": "{TARGET_DOC}",\n  "status": "PASS или FAIL",\n  "discrepancy": "Описание проблемы если FAIL, иначе пустая строка"\n}}\n\nВерни только JSON, без дополнительного текста.\n'
-    return prompt
+    fact_block = f'Файл заголовка существует: {extracted_data['header_exists']}\nПоле takt_time: "{extracted_data.get('takt_time', '')}"\nПоле заполнено: {extracted_data.get('has_takt_time', False)}'
+    return _build_validator_prompt(rule, fact_block)
 
-RULE_7_8 = SimpleNamespace(
-    RULE_INDEX='7.8',
-    RULE_TITLE='Наличие и заполнение листа "Расчет такта" / "Расчет времени такта"',
-    TARGET_DOC=TARGET_DOC,
-    load_rule=_load_rule,
+RULE_7_8 = _make_validator_module(
+    rule_index='7.8',
+    rule_title='Наличие и заполнение листа "Расчет такта" / "Расчет времени такта"',
     load_data=_rule_7_8_load_data,
     extract_relevant_data=_rule_7_8_extract_relevant_data,
     build_prompt=_rule_7_8_build_prompt,
-    call_llm=_call_validator_llm,
-    save_result=_save_result,
 )
 
 
@@ -1103,10 +1085,9 @@ def _rule_8_1_load_data(parser_outputs_dir: Path) -> dict:
     kpsc_table_file = parser_outputs_dir / 'kpsc_table1_v2.json'
     if not pokazateli_file.exists() or not kpsc_table_file.exists():
         return {'pokazateli_exists': pokazateli_file.exists(), 'kpsc_exists': kpsc_table_file.exists(), 'pokazateli_data': None, 'kpsc_data': None}
-    with open(pokazateli_file, 'r', encoding='utf-8') as f:
-        pokazateli_data = json.load(f)
-    with open(kpsc_table_file, 'r', encoding='utf-8') as f:
-        kpsc_data = json.load(f)
+    loaded = _load_required_jsons(parser_outputs_dir, {'pokazateli_data': 'pokazateli_v3.json', 'kpsc_data': 'kpsc_table1_v2.json'})
+    pokazateli_data = loaded['pokazateli_data']
+    kpsc_data = loaded['kpsc_data']
     return {'pokazateli_exists': True, 'kpsc_exists': True, 'pokazateli_data': pokazateli_data, 'kpsc_data': kpsc_data}
 
 def _rule_8_1_extract_relevant_data(data: dict) -> dict:
@@ -1145,19 +1126,15 @@ def _rule_8_1_extract_relevant_data(data: dict) -> dict:
 
 def _rule_8_1_build_prompt(extracted_data: dict, rule: dict) -> str:
     """Формирование промпта для LLM с динамической подстановкой правила"""
-    prompt = f'\nТы эксперт по проверке документов КПСЦ (Карта Потока Создания Ценности).\n\nТРЕБОВАНИЕ ЭКСПЕРТА:\n{rule['requirement_expert']}\n\nТЕХНИЧЕСКОЕ ОПИСАНИЕ:\n{rule['technical_description']}\n\nКРИТЕРИИ ПРОВЕРКИ:\n- Что проверять: {rule['validation_criteria']['what_to_check']}\n- Условие успеха: {rule['validation_criteria']['success_condition']}\n- Условие ошибки: {rule['validation_criteria']['error_condition']}\n\nФАКТИЧЕСКИЕ ДАННЫЕ:\nФайлы существуют: {extracted_data['files_exist']}\n\nПОКАЗАТЕЛИ ИЗ ЛИСТА "ПОКАЗАТЕЛИ" (всего {extracted_data.get('pokazateli_count', 0)}):\n{json.dumps(extracted_data.get('pokazateli_units', {}), ensure_ascii=False, indent=2)}\n\nПОКАЗАТЕЛИ ИЗ ЛИСТА "КПСЦ" БЛОК "РАСЧЕТ ВПП" (всего {extracted_data.get('kpsc_count', 0)}):\n{json.dumps(extracted_data.get('kpsc_units', {}), ensure_ascii=False, indent=2)}\n\nНЕСООТВЕТСТВИЯ ЕДИНИЦ ИЗМЕРЕНИЯ:\n{json.dumps(extracted_data.get('mismatches', []), ensure_ascii=False, indent=2)}\n\nЕсть несоответствия: {extracted_data.get('has_mismatches', False)}\n\nЗАДАНИЕ:\nПроверь соответствие фактических данных требованию эксперта и критериям проверки.\n\nФОРМАТ ОТВЕТА (строго JSON):\n{{\n  "rule_index": "{rule['rule_index']}",\n  "rule_title": "{rule['rule_title']}",\n  "target_document": "{TARGET_DOC}",\n  "status": "PASS или FAIL",\n  "discrepancy": "Описание проблемы если FAIL, иначе пустая строка"\n}}\n\nВерни только JSON, без дополнительного текста.\n'
-    return prompt
+    fact_block = f'Файлы существуют: {extracted_data['files_exist']}\n\nПОКАЗАТЕЛИ ИЗ ЛИСТА "ПОКАЗАТЕЛИ" (всего {extracted_data.get('pokazateli_count', 0)}):\n{json.dumps(extracted_data.get('pokazateli_units', {}), ensure_ascii=False, indent=2)}\n\nПОКАЗАТЕЛИ ИЗ ЛИСТА "КПСЦ" БЛОК "РАСЧЕТ ВПП" (всего {extracted_data.get('kpsc_count', 0)}):\n{json.dumps(extracted_data.get('kpsc_units', {}), ensure_ascii=False, indent=2)}\n\nНЕСООТВЕТСТВИЯ ЕДИНИЦ ИЗМЕРЕНИЯ:\n{json.dumps(extracted_data.get('mismatches', []), ensure_ascii=False, indent=2)}\n\nЕсть несоответствия: {extracted_data.get('has_mismatches', False)}'
+    return _build_validator_prompt(rule, fact_block)
 
-RULE_8_1 = SimpleNamespace(
-    RULE_INDEX='8.1',
-    RULE_TITLE='Соответствие единиц измерения между листами "Показатели" и "КПСЦ"',
-    TARGET_DOC=TARGET_DOC,
-    load_rule=_load_rule,
+RULE_8_1 = _make_validator_module(
+    rule_index='8.1',
+    rule_title='Соответствие единиц измерения между листами "Показатели" и "КПСЦ"',
     load_data=_rule_8_1_load_data,
     extract_relevant_data=_rule_8_1_extract_relevant_data,
     build_prompt=_rule_8_1_build_prompt,
-    call_llm=_call_validator_llm,
-    save_result=_save_result,
 )
 
 
@@ -1170,10 +1147,9 @@ def _rule_8_2_load_data(parser_outputs_dir: Path) -> dict:
     kpsc_table_file = parser_outputs_dir / 'kpsc_table1_v2.json'
     if not pokazateli_file.exists() or not kpsc_table_file.exists():
         return {'pokazateli_exists': pokazateli_file.exists(), 'kpsc_exists': kpsc_table_file.exists(), 'pokazateli_data': None, 'kpsc_data': None}
-    with open(pokazateli_file, 'r', encoding='utf-8') as f:
-        pokazateli_data = json.load(f)
-    with open(kpsc_table_file, 'r', encoding='utf-8') as f:
-        kpsc_data = json.load(f)
+    loaded = _load_required_jsons(parser_outputs_dir, {'pokazateli_data': 'pokazateli_v3.json', 'kpsc_data': 'kpsc_table1_v2.json'})
+    pokazateli_data = loaded['pokazateli_data']
+    kpsc_data = loaded['kpsc_data']
     return {'pokazateli_exists': True, 'kpsc_exists': True, 'pokazateli_data': pokazateli_data, 'kpsc_data': kpsc_data}
 
 def _rule_8_2_extract_relevant_data(data: dict) -> dict:
@@ -1228,19 +1204,15 @@ def _rule_8_2_extract_relevant_data(data: dict) -> dict:
 
 def _rule_8_2_build_prompt(extracted_data: dict, rule: dict) -> str:
     """Формирование промпта для LLM с динамической подстановкой правила"""
-    prompt = f'\nТы эксперт по проверке документов КПСЦ (Карта Потока Создания Ценности).\n\nТРЕБОВАНИЕ ЭКСПЕРТА:\n{rule['requirement_expert']}\n\nТЕХНИЧЕСКОЕ ОПИСАНИЕ:\n{rule['technical_description']}\n\nКРИТЕРИИ ПРОВЕРКИ:\n- Что проверять: {rule['validation_criteria']['what_to_check']}\n- Условие успеха: {rule['validation_criteria']['success_condition']}\n- Условие ошибки: {rule['validation_criteria']['error_condition']}\n\nФАКТИЧЕСКИЕ ДАННЫЕ:\nФайлы существуют: {extracted_data['files_exist']}\n\nЗНАЧЕНИЯ ИЗ ЛИСТА "ПОКАЗАТЕЛИ" (всего {extracted_data.get('pokazateli_count', 0)}):\n{json.dumps(extracted_data.get('pokazateli_values', {}), ensure_ascii=False, indent=2)}\n\nЗНАЧЕНИЯ ИТОГО ИЗ ЛИСТА "КПСЦ" БЛОК "РАСЧЕТ ВПП" (всего {extracted_data.get('kpsc_count', 0)}):\n{json.dumps(extracted_data.get('kpsc_itogo_values', {}), ensure_ascii=False, indent=2)}\n\nНЕСООТВЕТСТВИЯ ЗНАЧЕНИЙ (погрешность > 0.01):\n{json.dumps(extracted_data.get('mismatches', []), ensure_ascii=False, indent=2)}\n\nЕсть несоответствия: {extracted_data.get('has_mismatches', False)}\n\nЗАДАНИЕ:\nПроверь соответствие фактических данных требованию эксперта и критериям проверки.\n\nФОРМАТ ОТВЕТА (строго JSON):\n{{\n  "rule_index": "{rule['rule_index']}",\n  "rule_title": "{rule['rule_title']}",\n  "target_document": "{TARGET_DOC}",\n  "status": "PASS или FAIL",\n  "discrepancy": "Описание проблемы если FAIL, иначе пустая строка"\n}}\n\nВерни только JSON, без дополнительного текста.\n'
-    return prompt
+    fact_block = f'Файлы существуют: {extracted_data['files_exist']}\n\nЗНАЧЕНИЯ ИЗ ЛИСТА "ПОКАЗАТЕЛИ" (всего {extracted_data.get('pokazateli_count', 0)}):\n{json.dumps(extracted_data.get('pokazateli_values', {}), ensure_ascii=False, indent=2)}\n\nЗНАЧЕНИЯ ИТОГО ИЗ ЛИСТА "КПСЦ" БЛОК "РАСЧЕТ ВПП" (всего {extracted_data.get('kpsc_count', 0)}):\n{json.dumps(extracted_data.get('kpsc_itogo_values', {}), ensure_ascii=False, indent=2)}\n\nНЕСООТВЕТСТВИЯ ЗНАЧЕНИЙ (погрешность > 0.01):\n{json.dumps(extracted_data.get('mismatches', []), ensure_ascii=False, indent=2)}\n\nЕсть несоответствия: {extracted_data.get('has_mismatches', False)}'
+    return _build_validator_prompt(rule, fact_block)
 
-RULE_8_2 = SimpleNamespace(
-    RULE_INDEX='8.2',
-    RULE_TITLE='Соответствие значений из "Показатели" с колонкой ИТОГО в "КПСЦ"',
-    TARGET_DOC=TARGET_DOC,
-    load_rule=_load_rule,
+RULE_8_2 = _make_validator_module(
+    rule_index='8.2',
+    rule_title='Соответствие значений из "Показатели" с колонкой ИТОГО в "КПСЦ"',
     load_data=_rule_8_2_load_data,
     extract_relevant_data=_rule_8_2_extract_relevant_data,
     build_prompt=_rule_8_2_build_prompt,
-    call_llm=_call_validator_llm,
-    save_result=_save_result,
 )
 
 
@@ -1253,10 +1225,9 @@ def _rule_8_3_load_data(parser_outputs_dir: Path) -> dict:
     kpsc_table_file = parser_outputs_dir / 'kpsc_table1_v2.json'
     if not pokazateli_file.exists() or not kpsc_table_file.exists():
         return {'pokazateli_exists': pokazateli_file.exists(), 'kpsc_exists': kpsc_table_file.exists(), 'pokazateli_data': None, 'kpsc_data': None}
-    with open(pokazateli_file, 'r', encoding='utf-8') as f:
-        pokazateli_data = json.load(f)
-    with open(kpsc_table_file, 'r', encoding='utf-8') as f:
-        kpsc_data = json.load(f)
+    loaded = _load_required_jsons(parser_outputs_dir, {'pokazateli_data': 'pokazateli_v3.json', 'kpsc_data': 'kpsc_table1_v2.json'})
+    pokazateli_data = loaded['pokazateli_data']
+    kpsc_data = loaded['kpsc_data']
     return {'pokazateli_exists': True, 'kpsc_exists': True, 'pokazateli_data': pokazateli_data, 'kpsc_data': kpsc_data}
 
 def _rule_8_3_extract_relevant_data(data: dict) -> dict:
@@ -1299,19 +1270,15 @@ def _rule_8_3_extract_relevant_data(data: dict) -> dict:
 
 def _rule_8_3_build_prompt(extracted_data: dict, rule: dict) -> str:
     """Формирование промпта для LLM с динамической подстановкой правила"""
-    prompt = f'\nТы эксперт по проверке документов КПСЦ (Карта Потока Создания Ценности).\n\nТРЕБОВАНИЕ ЭКСПЕРТА:\n{rule['requirement_expert']}\n\nТЕХНИЧЕСКОЕ ОПИСАНИЕ:\n{rule['technical_description']}\n\nКРИТЕРИИ ПРОВЕРКИ:\n- Что проверять: {rule['validation_criteria']['what_to_check']}\n- Условие успеха: {rule['validation_criteria']['success_condition']}\n- Условие ошибки: {rule['validation_criteria']['error_condition']}\n\nФАКТИЧЕСКИЕ ДАННЫЕ:\nФайлы существуют: {extracted_data['files_exist']}\n\nПОКАЗАТЕЛИ ИЗ ЛИСТА "ПОКАЗАТЕЛИ" (всего {extracted_data.get('pokazateli_count', 0)}):\n{json.dumps(extracted_data.get('pokazateli_indicators', []), ensure_ascii=False, indent=2)}\n\nПОКАЗАТЕЛИ ИЗ ЛИСТА "КПСЦ" БЛОК "РАСЧЕТ ВПП" (всего {extracted_data.get('kpsc_count', 0)}):\n{json.dumps(extracted_data.get('kpsc_indicators', []), ensure_ascii=False, indent=2)}\n\nОТСУТСТВУЮЩИЕ ПОКАЗАТЕЛИ (есть в "Показатели", но нет в "КПСЦ"):\n{json.dumps(extracted_data.get('missing_indicators', []), ensure_ascii=False, indent=2)}\n\nЕсть отсутствующие показатели: {extracted_data.get('has_missing', False)}\n\nЗАДАНИЕ:\nПроверь соответствие фактических данных требованию эксперта и критериям проверки.\n\nФОРМАТ ОТВЕТА (строго JSON):\n{{\n  "rule_index": "{rule['rule_index']}",\n  "rule_title": "{rule['rule_title']}",\n  "target_document": "{TARGET_DOC}",\n  "status": "PASS или FAIL",\n  "discrepancy": "Описание проблемы если FAIL, иначе пустая строка"\n}}\n\nВерни только JSON, без дополнительного текста.\n'
-    return prompt
+    fact_block = f'Файлы существуют: {extracted_data['files_exist']}\n\nПОКАЗАТЕЛИ ИЗ ЛИСТА "ПОКАЗАТЕЛИ" (всего {extracted_data.get('pokazateli_count', 0)}):\n{json.dumps(extracted_data.get('pokazateli_indicators', []), ensure_ascii=False, indent=2)}\n\nПОКАЗАТЕЛИ ИЗ ЛИСТА "КПСЦ" БЛОК "РАСЧЕТ ВПП" (всего {extracted_data.get('kpsc_count', 0)}):\n{json.dumps(extracted_data.get('kpsc_indicators', []), ensure_ascii=False, indent=2)}\n\nОТСУТСТВУЮЩИЕ ПОКАЗАТЕЛИ (есть в "Показатели", но нет в "КПСЦ"):\n{json.dumps(extracted_data.get('missing_indicators', []), ensure_ascii=False, indent=2)}\n\nЕсть отсутствующие показатели: {extracted_data.get('has_missing', False)}'
+    return _build_validator_prompt(rule, fact_block)
 
-RULE_8_3 = SimpleNamespace(
-    RULE_INDEX='8.3',
-    RULE_TITLE='Соответствие названий показателей между листами "Показатели" и "КПСЦ"',
-    TARGET_DOC=TARGET_DOC,
-    load_rule=_load_rule,
+RULE_8_3 = _make_validator_module(
+    rule_index='8.3',
+    rule_title='Соответствие названий показателей между листами "Показатели" и "КПСЦ"',
     load_data=_rule_8_3_load_data,
     extract_relevant_data=_rule_8_3_extract_relevant_data,
     build_prompt=_rule_8_3_build_prompt,
-    call_llm=_call_validator_llm,
-    save_result=_save_result,
 )
 
 
