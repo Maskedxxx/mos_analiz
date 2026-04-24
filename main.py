@@ -293,7 +293,7 @@ class AuditConfig:
     """
     doc_type: str
     doc_title: str = ''
-    model: str = 'gpt-4.1-mini'
+    model: str = field(default_factory=lambda: LLM_CONFIG.default_model)
     system_prompt: str = 'default.txt'
     filename_pattern: str = ''
     filename_keywords: Optional[List[str]] = None
@@ -378,7 +378,7 @@ def load_audit_config(config_dir: Path) -> AuditConfig:
     config = AuditConfig(
         doc_type=data['doc_type'],
         doc_title=data.get('doc_title', data['doc_type']),
-        model=data.get('model', 'gpt-4.1-mini'),
+        model=data.get('model', LLM_CONFIG.default_model),
         system_prompt=data.get('system_prompt', 'default.txt'),
         filename_pattern=data.get('filename_pattern', ''),
         filename_keywords=data.get('filename_keywords', None),
@@ -1178,7 +1178,8 @@ from src.format_parsers import parse_docx
 from src.format_parsers import parse_pptx
 from src.format_parsers import pptx_parser__table_to_html
 from src.format_parsers import pptx_parser_logger
-from config.parsers import CONFIG
+from config.llm import LLM_CONFIG
+from config.parsers import PARSERS_CONFIG
 from src.format_parsers.pdf import parse_pdf
 from src.format_parsers.pdf._clients import VLMClient
 from src.doc_type_parsers.grafik_obhod import parse_grafik_obhod
@@ -1197,6 +1198,7 @@ from src.doc_type_parsers.kpsc import (
     parse_spaghetti_sheet,
 )
 from src.doc_type_parsers.drivers import parse_excel_to_json
+from src.llm import call_llm, parse_json_response, resolve_runtime_llm_model
 
 docx_parser_module = SimpleNamespace(
     logger=docx_parser_logger,
@@ -1454,9 +1456,9 @@ def kpsc_validate_1_1_kpsc_text_build_prompt(extracted_data: dict, rule: dict) -
 
 def kpsc_validate_1_1_kpsc_text_call_llm(prompt: str, api_key: str) -> dict:
     """Вызов OpenAI API"""
-    base_url = os.environ.get('LLM_BASE_URL', 'http://localhost:8001/v1/')
+    base_url = LLM_CONFIG.base_url
     client = OpenAI(api_key=api_key, base_url=base_url)
-    response = client.chat.completions.create(model=os.environ.get('LLM_MODEL', 'openai/gpt-oss-120b'), messages=[{'role': 'system', 'content': 'Ты эксперт по валидации документов КПСЦ. Отвечаешь строго в формате JSON.'}, {'role': 'user', 'content': prompt}], temperature=0, response_format={'type': 'json_object'})
+    response = client.chat.completions.create(model=os.environ.get('LLM_MODEL', LLM_CONFIG.default_model), messages=[{'role': 'system', 'content': 'Ты эксперт по валидации документов КПСЦ. Отвечаешь строго в формате JSON.'}, {'role': 'user', 'content': prompt}], temperature=0, response_format={'type': 'json_object'})
     result_text = response.choices[0].message.content
     return json.loads(result_text)
 
@@ -1565,9 +1567,9 @@ def kpsc_validate_1_2_company_name_build_prompt(extracted_data: dict, rule: dict
 
 def kpsc_validate_1_2_company_name_call_llm(prompt: str, api_key: str) -> dict:
     """Вызов OpenAI API"""
-    base_url = os.environ.get('LLM_BASE_URL', 'http://localhost:8001/v1/')
+    base_url = LLM_CONFIG.base_url
     client = OpenAI(api_key=api_key, base_url=base_url)
-    response = client.chat.completions.create(model=os.environ.get('LLM_MODEL', 'openai/gpt-oss-120b'), messages=[{'role': 'system', 'content': 'Ты эксперт по валидации документов КПСЦ. Отвечаешь строго в формате JSON.'}, {'role': 'user', 'content': prompt}], temperature=0, response_format={'type': 'json_object'})
+    response = client.chat.completions.create(model=os.environ.get('LLM_MODEL', LLM_CONFIG.default_model), messages=[{'role': 'system', 'content': 'Ты эксперт по валидации документов КПСЦ. Отвечаешь строго в формате JSON.'}, {'role': 'user', 'content': prompt}], temperature=0, response_format={'type': 'json_object'})
     result_text = response.choices[0].message.content
     return json.loads(result_text)
 
@@ -1691,9 +1693,9 @@ def kpsc_validate_1_3_flow_name_build_prompt(extracted_data: dict, rule: dict) -
 
 def kpsc_validate_1_3_flow_name_call_llm(prompt: str, api_key: str) -> dict:
     """Вызов OpenAI API"""
-    base_url = os.environ.get('LLM_BASE_URL', 'http://localhost:8001/v1/')
+    base_url = LLM_CONFIG.base_url
     client = OpenAI(api_key=api_key, base_url=base_url)
-    response = client.chat.completions.create(model=os.environ.get('LLM_MODEL', 'openai/gpt-oss-120b'), messages=[{'role': 'system', 'content': 'Ты эксперт по валидации документов КПСЦ. Отвечаешь строго в формате JSON.'}, {'role': 'user', 'content': prompt}], temperature=0, response_format={'type': 'json_object'})
+    response = client.chat.completions.create(model=os.environ.get('LLM_MODEL', LLM_CONFIG.default_model), messages=[{'role': 'system', 'content': 'Ты эксперт по валидации документов КПСЦ. Отвечаешь строго в формате JSON.'}, {'role': 'user', 'content': prompt}], temperature=0, response_format={'type': 'json_object'})
     result_text = response.choices[0].message.content
     return json.loads(result_text)
 
@@ -1804,9 +1806,9 @@ def kpsc_validate_1_4_responsible_build_prompt(extracted_data: dict, rule: dict)
 
 def kpsc_validate_1_4_responsible_call_llm(prompt: str, api_key: str) -> dict:
     """Вызов OpenAI API"""
-    base_url = os.environ.get('LLM_BASE_URL', 'http://localhost:8001/v1/')
+    base_url = LLM_CONFIG.base_url
     client = OpenAI(api_key=api_key, base_url=base_url)
-    response = client.chat.completions.create(model=os.environ.get('LLM_MODEL', 'openai/gpt-oss-120b'), messages=[{'role': 'system', 'content': 'Ты эксперт по валидации документов КПСЦ. Отвечаешь строго в формате JSON.'}, {'role': 'user', 'content': prompt}], temperature=0, response_format={'type': 'json_object'})
+    response = client.chat.completions.create(model=os.environ.get('LLM_MODEL', LLM_CONFIG.default_model), messages=[{'role': 'system', 'content': 'Ты эксперт по валидации документов КПСЦ. Отвечаешь строго в формате JSON.'}, {'role': 'user', 'content': prompt}], temperature=0, response_format={'type': 'json_object'})
     result_text = response.choices[0].message.content
     return json.loads(result_text)
 
@@ -1921,9 +1923,9 @@ def kpsc_validate_1_5_date_developed_build_prompt(extracted_data: dict, rule: di
 
 def kpsc_validate_1_5_date_developed_call_llm(prompt: str, api_key: str) -> dict:
     """Вызов OpenAI API"""
-    base_url = os.environ.get('LLM_BASE_URL', 'http://localhost:8001/v1/')
+    base_url = LLM_CONFIG.base_url
     client = OpenAI(api_key=api_key, base_url=base_url)
-    response = client.chat.completions.create(model=os.environ.get('LLM_MODEL', 'openai/gpt-oss-120b'), messages=[{'role': 'system', 'content': 'Ты эксперт по валидации документов КПСЦ. Отвечаешь строго в формате JSON.'}, {'role': 'user', 'content': prompt}], temperature=0, response_format={'type': 'json_object'})
+    response = client.chat.completions.create(model=os.environ.get('LLM_MODEL', LLM_CONFIG.default_model), messages=[{'role': 'system', 'content': 'Ты эксперт по валидации документов КПСЦ. Отвечаешь строго в формате JSON.'}, {'role': 'user', 'content': prompt}], temperature=0, response_format={'type': 'json_object'})
     result_text = response.choices[0].message.content
     return json.loads(result_text)
 
@@ -2032,9 +2034,9 @@ def kpsc_validate_1_6_date_implementation_build_prompt(extracted_data: dict, rul
 
 def kpsc_validate_1_6_date_implementation_call_llm(prompt: str, api_key: str) -> dict:
     """Вызов OpenAI API"""
-    base_url = os.environ.get('LLM_BASE_URL', 'http://localhost:8001/v1/')
+    base_url = LLM_CONFIG.base_url
     client = OpenAI(api_key=api_key, base_url=base_url)
-    response = client.chat.completions.create(model=os.environ.get('LLM_MODEL', 'openai/gpt-oss-120b'), messages=[{'role': 'system', 'content': 'Ты эксперт по валидации документов КПСЦ. Отвечаешь строго в формате JSON.'}, {'role': 'user', 'content': prompt}], temperature=0, response_format={'type': 'json_object'})
+    response = client.chat.completions.create(model=os.environ.get('LLM_MODEL', LLM_CONFIG.default_model), messages=[{'role': 'system', 'content': 'Ты эксперт по валидации документов КПСЦ. Отвечаешь строго в формате JSON.'}, {'role': 'user', 'content': prompt}], temperature=0, response_format={'type': 'json_object'})
     result_text = response.choices[0].message.content
     return json.loads(result_text)
 
@@ -2143,9 +2145,9 @@ def kpsc_validate_1_7_compiled_by_build_prompt(extracted_data: dict, rule: dict)
 
 def kpsc_validate_1_7_compiled_by_call_llm(prompt: str, api_key: str) -> dict:
     """Вызов OpenAI API"""
-    base_url = os.environ.get('LLM_BASE_URL', 'http://localhost:8001/v1/')
+    base_url = LLM_CONFIG.base_url
     client = OpenAI(api_key=api_key, base_url=base_url)
-    response = client.chat.completions.create(model=os.environ.get('LLM_MODEL', 'openai/gpt-oss-120b'), messages=[{'role': 'system', 'content': 'Ты эксперт по валидации документов КПСЦ. Отвечаешь строго в формате JSON.'}, {'role': 'user', 'content': prompt}], temperature=0, response_format={'type': 'json_object'})
+    response = client.chat.completions.create(model=os.environ.get('LLM_MODEL', LLM_CONFIG.default_model), messages=[{'role': 'system', 'content': 'Ты эксперт по валидации документов КПСЦ. Отвечаешь строго в формате JSON.'}, {'role': 'user', 'content': prompt}], temperature=0, response_format={'type': 'json_object'})
     result_text = response.choices[0].message.content
     return json.loads(result_text)
 
@@ -2274,9 +2276,9 @@ def kpsc_validate_2_1_problems_count_build_prompt(extracted_data: dict, rule: di
 
 def kpsc_validate_2_1_problems_count_call_llm(prompt: str, api_key: str) -> dict:
     """Вызов OpenAI API"""
-    base_url = os.environ.get('LLM_BASE_URL', 'http://localhost:8001/v1/')
+    base_url = LLM_CONFIG.base_url
     client = OpenAI(api_key=api_key, base_url=base_url)
-    response = client.chat.completions.create(model=os.environ.get('LLM_MODEL', 'openai/gpt-oss-120b'), messages=[{'role': 'system', 'content': 'Ты эксперт по валидации документов КПСЦ. Отвечаешь строго в формате JSON.'}, {'role': 'user', 'content': prompt}], temperature=0, response_format={'type': 'json_object'})
+    response = client.chat.completions.create(model=os.environ.get('LLM_MODEL', LLM_CONFIG.default_model), messages=[{'role': 'system', 'content': 'Ты эксперт по валидации документов КПСЦ. Отвечаешь строго в формате JSON.'}, {'role': 'user', 'content': prompt}], temperature=0, response_format={'type': 'json_object'})
     result_text = response.choices[0].message.content
     return json.loads(result_text)
 
@@ -2413,9 +2415,9 @@ def kpsc_validate_2_2_problems_sequence_build_prompt(extracted_data: dict, rule:
 
 def kpsc_validate_2_2_problems_sequence_call_llm(prompt: str, api_key: str) -> dict:
     """Вызов OpenAI API"""
-    base_url = os.environ.get('LLM_BASE_URL', 'http://localhost:8001/v1/')
+    base_url = LLM_CONFIG.base_url
     client = OpenAI(api_key=api_key, base_url=base_url)
-    response = client.chat.completions.create(model=os.environ.get('LLM_MODEL', 'openai/gpt-oss-120b'), messages=[{'role': 'system', 'content': 'Ты эксперт по валидации документов КПСЦ. Отвечаешь строго в формате JSON.'}, {'role': 'user', 'content': prompt}], temperature=0, response_format={'type': 'json_object'})
+    response = client.chat.completions.create(model=os.environ.get('LLM_MODEL', LLM_CONFIG.default_model), messages=[{'role': 'system', 'content': 'Ты эксперт по валидации документов КПСЦ. Отвечаешь строго в формате JSON.'}, {'role': 'user', 'content': prompt}], temperature=0, response_format={'type': 'json_object'})
     result_text = response.choices[0].message.content
     return json.loads(result_text)
 
@@ -2548,9 +2550,9 @@ def kpsc_validate_2_3_problems_description_build_prompt(extracted_data: dict, ru
 
 def kpsc_validate_2_3_problems_description_call_llm(prompt: str, api_key: str) -> dict:
     """Вызов OpenAI API"""
-    base_url = os.environ.get('LLM_BASE_URL', 'http://localhost:8001/v1/')
+    base_url = LLM_CONFIG.base_url
     client = OpenAI(api_key=api_key, base_url=base_url)
-    response = client.chat.completions.create(model=os.environ.get('LLM_MODEL', 'openai/gpt-oss-120b'), messages=[{'role': 'system', 'content': 'Ты эксперт по валидации документов КПСЦ. Отвечаешь строго в формате JSON.'}, {'role': 'user', 'content': prompt}], temperature=0, response_format={'type': 'json_object'})
+    response = client.chat.completions.create(model=os.environ.get('LLM_MODEL', LLM_CONFIG.default_model), messages=[{'role': 'system', 'content': 'Ты эксперт по валидации документов КПСЦ. Отвечаешь строго в формате JSON.'}, {'role': 'user', 'content': prompt}], temperature=0, response_format={'type': 'json_object'})
     result_text = response.choices[0].message.content
     return json.loads(result_text)
 
@@ -2705,9 +2707,9 @@ def kpsc_validate_4_1_vpp_filled_build_prompt(extracted_data: dict, rule: dict) 
 
 def kpsc_validate_4_1_vpp_filled_call_llm(prompt: str, api_key: str) -> dict:
     """Вызов OpenAI API"""
-    base_url = os.environ.get('LLM_BASE_URL', 'http://localhost:8001/v1/')
+    base_url = LLM_CONFIG.base_url
     client = OpenAI(api_key=api_key, base_url=base_url)
-    response = client.chat.completions.create(model=os.environ.get('LLM_MODEL', 'openai/gpt-oss-120b'), messages=[{'role': 'system', 'content': 'Ты эксперт по валидации документов КПСЦ. Отвечаешь строго в формате JSON.'}, {'role': 'user', 'content': prompt}], temperature=0, response_format={'type': 'json_object'})
+    response = client.chat.completions.create(model=os.environ.get('LLM_MODEL', LLM_CONFIG.default_model), messages=[{'role': 'system', 'content': 'Ты эксперт по валидации документов КПСЦ. Отвечаешь строго в формате JSON.'}, {'role': 'user', 'content': prompt}], temperature=0, response_format={'type': 'json_object'})
     result_text = response.choices[0].message.content
     return json.loads(result_text)
 
@@ -2883,9 +2885,9 @@ def kpsc_validate_4_2_vpp_sum_build_prompt(extracted_data: dict, rule: dict) -> 
 
 def kpsc_validate_4_2_vpp_sum_call_llm(prompt: str, api_key: str) -> dict:
     """Вызов OpenAI API"""
-    base_url = os.environ.get('LLM_BASE_URL', 'http://localhost:8001/v1/')
+    base_url = LLM_CONFIG.base_url
     client = OpenAI(api_key=api_key, base_url=base_url)
-    response = client.chat.completions.create(model=os.environ.get('LLM_MODEL', 'openai/gpt-oss-120b'), messages=[{'role': 'system', 'content': 'Ты эксперт по валидации документов КПСЦ. Отвечаешь строго в формате JSON.'}, {'role': 'user', 'content': prompt}], temperature=0, response_format={'type': 'json_object'})
+    response = client.chat.completions.create(model=os.environ.get('LLM_MODEL', LLM_CONFIG.default_model), messages=[{'role': 'system', 'content': 'Ты эксперт по валидации документов КПСЦ. Отвечаешь строго в формате JSON.'}, {'role': 'user', 'content': prompt}], temperature=0, response_format={'type': 'json_object'})
     result_text = response.choices[0].message.content
     return json.loads(result_text)
 
@@ -3024,9 +3026,9 @@ def kpsc_validate_5_1_units_build_prompt(extracted_data: dict, rule: dict) -> st
 
 def kpsc_validate_5_1_units_call_llm(prompt: str, api_key: str) -> dict:
     """Вызов OpenAI API"""
-    base_url = os.environ.get('LLM_BASE_URL', 'http://localhost:8001/v1/')
+    base_url = LLM_CONFIG.base_url
     client = OpenAI(api_key=api_key, base_url=base_url)
-    response = client.chat.completions.create(model=os.environ.get('LLM_MODEL', 'openai/gpt-oss-120b'), messages=[{'role': 'system', 'content': 'Ты эксперт по валидации документов КПСЦ. Отвечаешь строго в формате JSON.'}, {'role': 'user', 'content': prompt}], temperature=0, response_format={'type': 'json_object'})
+    response = client.chat.completions.create(model=os.environ.get('LLM_MODEL', LLM_CONFIG.default_model), messages=[{'role': 'system', 'content': 'Ты эксперт по валидации документов КПСЦ. Отвечаешь строго в формате JSON.'}, {'role': 'user', 'content': prompt}], temperature=0, response_format={'type': 'json_object'})
     result_text = response.choices[0].message.content
     return json.loads(result_text)
 
@@ -3154,9 +3156,9 @@ def kpsc_validate_6_1_transport_row_build_prompt(extracted_data: dict, rule: dic
 
 def kpsc_validate_6_1_transport_row_call_llm(prompt: str, api_key: str) -> dict:
     """Вызов OpenAI API"""
-    base_url = os.environ.get('LLM_BASE_URL', 'http://localhost:8001/v1/')
+    base_url = LLM_CONFIG.base_url
     client = OpenAI(api_key=api_key, base_url=base_url)
-    response = client.chat.completions.create(model=os.environ.get('LLM_MODEL', 'openai/gpt-oss-120b'), messages=[{'role': 'system', 'content': 'Ты эксперт по валидации документов КПСЦ. Отвечаешь строго в формате JSON.'}, {'role': 'user', 'content': prompt}], temperature=0, response_format={'type': 'json_object'})
+    response = client.chat.completions.create(model=os.environ.get('LLM_MODEL', LLM_CONFIG.default_model), messages=[{'role': 'system', 'content': 'Ты эксперт по валидации документов КПСЦ. Отвечаешь строго в формате JSON.'}, {'role': 'user', 'content': prompt}], temperature=0, response_format={'type': 'json_object'})
     result_text = response.choices[0].message.content
     return json.loads(result_text)
 
@@ -3284,9 +3286,9 @@ def kpsc_validate_7_1_sheet_kpsc_build_prompt(extracted_data: dict, rule: dict) 
 
 def kpsc_validate_7_1_sheet_kpsc_call_llm(prompt: str, api_key: str) -> dict:
     """Вызов OpenAI API"""
-    base_url = os.environ.get('LLM_BASE_URL', 'http://localhost:8001/v1/')
+    base_url = LLM_CONFIG.base_url
     client = OpenAI(api_key=api_key, base_url=base_url)
-    response = client.chat.completions.create(model=os.environ.get('LLM_MODEL', 'openai/gpt-oss-120b'), messages=[{'role': 'system', 'content': 'Ты эксперт по валидации документов КПСЦ. Отвечаешь строго в формате JSON.'}, {'role': 'user', 'content': prompt}], temperature=0, response_format={'type': 'json_object'})
+    response = client.chat.completions.create(model=os.environ.get('LLM_MODEL', LLM_CONFIG.default_model), messages=[{'role': 'system', 'content': 'Ты эксперт по валидации документов КПСЦ. Отвечаешь строго в формате JSON.'}, {'role': 'user', 'content': prompt}], temperature=0, response_format={'type': 'json_object'})
     result_text = response.choices[0].message.content
     return json.loads(result_text)
 
@@ -3402,9 +3404,9 @@ def kpsc_validate_7_2_sheet_legend_build_prompt(extracted_data: dict, rule: dict
 
 def kpsc_validate_7_2_sheet_legend_call_llm(prompt: str, api_key: str) -> dict:
     """Вызов OpenAI API"""
-    base_url = os.environ.get('LLM_BASE_URL', 'http://localhost:8001/v1/')
+    base_url = LLM_CONFIG.base_url
     client = OpenAI(api_key=api_key, base_url=base_url)
-    response = client.chat.completions.create(model=os.environ.get('LLM_MODEL', 'openai/gpt-oss-120b'), messages=[{'role': 'system', 'content': 'Ты эксперт по валидации документов КПСЦ. Отвечаешь строго в формате JSON.'}, {'role': 'user', 'content': prompt}], temperature=0, response_format={'type': 'json_object'})
+    response = client.chat.completions.create(model=os.environ.get('LLM_MODEL', LLM_CONFIG.default_model), messages=[{'role': 'system', 'content': 'Ты эксперт по валидации документов КПСЦ. Отвечаешь строго в формате JSON.'}, {'role': 'user', 'content': prompt}], temperature=0, response_format={'type': 'json_object'})
     result_text = response.choices[0].message.content
     return json.loads(result_text)
 
@@ -3520,9 +3522,9 @@ def kpsc_validate_7_3_sheet_pokazateli_build_prompt(extracted_data: dict, rule: 
 
 def kpsc_validate_7_3_sheet_pokazateli_call_llm(prompt: str, api_key: str) -> dict:
     """Вызов OpenAI API"""
-    base_url = os.environ.get('LLM_BASE_URL', 'http://localhost:8001/v1/')
+    base_url = LLM_CONFIG.base_url
     client = OpenAI(api_key=api_key, base_url=base_url)
-    response = client.chat.completions.create(model=os.environ.get('LLM_MODEL', 'openai/gpt-oss-120b'), messages=[{'role': 'system', 'content': 'Ты эксперт по валидации документов КПСЦ. Отвечаешь строго в формате JSON.'}, {'role': 'user', 'content': prompt}], temperature=0, response_format={'type': 'json_object'})
+    response = client.chat.completions.create(model=os.environ.get('LLM_MODEL', LLM_CONFIG.default_model), messages=[{'role': 'system', 'content': 'Ты эксперт по валидации документов КПСЦ. Отвечаешь строго в формате JSON.'}, {'role': 'user', 'content': prompt}], temperature=0, response_format={'type': 'json_object'})
     result_text = response.choices[0].message.content
     return json.loads(result_text)
 
@@ -3637,9 +3639,9 @@ def kpsc_validate_7_4_sheet_ocifrovka_build_prompt(extracted_data: dict, rule: d
 
 def kpsc_validate_7_4_sheet_ocifrovka_call_llm(prompt: str, api_key: str) -> dict:
     """Вызов OpenAI API"""
-    base_url = os.environ.get('LLM_BASE_URL', 'http://localhost:8001/v1/')
+    base_url = LLM_CONFIG.base_url
     client = OpenAI(api_key=api_key, base_url=base_url)
-    response = client.chat.completions.create(model=os.environ.get('LLM_MODEL', 'openai/gpt-oss-120b'), messages=[{'role': 'system', 'content': 'Ты эксперт по валидации документов КПСЦ. Отвечаешь строго в формате JSON.'}, {'role': 'user', 'content': prompt}], temperature=0, response_format={'type': 'json_object'})
+    response = client.chat.completions.create(model=os.environ.get('LLM_MODEL', LLM_CONFIG.default_model), messages=[{'role': 'system', 'content': 'Ты эксперт по валидации документов КПСЦ. Отвечаешь строго в формате JSON.'}, {'role': 'user', 'content': prompt}], temperature=0, response_format={'type': 'json_object'})
     result_text = response.choices[0].message.content
     return json.loads(result_text)
 
@@ -3759,9 +3761,9 @@ def kpsc_validate_7_5_sheet_pa1_build_prompt(extracted_data: dict, rule: dict) -
 
 def kpsc_validate_7_5_sheet_pa1_call_llm(prompt: str, api_key: str) -> dict:
     """Вызов OpenAI API"""
-    base_url = os.environ.get('LLM_BASE_URL', 'http://localhost:8001/v1/')
+    base_url = LLM_CONFIG.base_url
     client = OpenAI(api_key=api_key, base_url=base_url)
-    response = client.chat.completions.create(model=os.environ.get('LLM_MODEL', 'openai/gpt-oss-120b'), messages=[{'role': 'system', 'content': 'Ты эксперт по валидации документов КПСЦ. Отвечаешь строго в формате JSON.'}, {'role': 'user', 'content': prompt}], temperature=0, response_format={'type': 'json_object'})
+    response = client.chat.completions.create(model=os.environ.get('LLM_MODEL', LLM_CONFIG.default_model), messages=[{'role': 'system', 'content': 'Ты эксперт по валидации документов КПСЦ. Отвечаешь строго в формате JSON.'}, {'role': 'user', 'content': prompt}], temperature=0, response_format={'type': 'json_object'})
     result_text = response.choices[0].message.content
     return json.loads(result_text)
 
@@ -3876,9 +3878,9 @@ def kpsc_validate_7_6_sheet_spaghetti_build_prompt(extracted_data: dict, rule: d
 
 def kpsc_validate_7_6_sheet_spaghetti_call_llm(prompt: str, api_key: str) -> dict:
     """Вызов OpenAI API"""
-    base_url = os.environ.get('LLM_BASE_URL', 'http://localhost:8001/v1/')
+    base_url = LLM_CONFIG.base_url
     client = OpenAI(api_key=api_key, base_url=base_url)
-    response = client.chat.completions.create(model=os.environ.get('LLM_MODEL', 'openai/gpt-oss-120b'), messages=[{'role': 'system', 'content': 'Ты эксперт по валидации документов КПСЦ. Отвечаешь строго в формате JSON.'}, {'role': 'user', 'content': prompt}], temperature=0, response_format={'type': 'json_object'})
+    response = client.chat.completions.create(model=os.environ.get('LLM_MODEL', LLM_CONFIG.default_model), messages=[{'role': 'system', 'content': 'Ты эксперт по валидации документов КПСЦ. Отвечаешь строго в формате JSON.'}, {'role': 'user', 'content': prompt}], temperature=0, response_format={'type': 'json_object'})
     result_text = response.choices[0].message.content
     return json.loads(result_text)
 
@@ -3993,9 +3995,9 @@ def kpsc_validate_7_7_sheet_spaghetti_problems_build_prompt(extracted_data: dict
 
 def kpsc_validate_7_7_sheet_spaghetti_problems_call_llm(prompt: str, api_key: str) -> dict:
     """Вызов OpenAI API"""
-    base_url = os.environ.get('LLM_BASE_URL', 'http://localhost:8001/v1/')
+    base_url = LLM_CONFIG.base_url
     client = OpenAI(api_key=api_key, base_url=base_url)
-    response = client.chat.completions.create(model=os.environ.get('LLM_MODEL', 'openai/gpt-oss-120b'), messages=[{'role': 'system', 'content': 'Ты эксперт по валидации документов КПСЦ. Отвечаешь строго в формате JSON.'}, {'role': 'user', 'content': prompt}], temperature=0, response_format={'type': 'json_object'})
+    response = client.chat.completions.create(model=os.environ.get('LLM_MODEL', LLM_CONFIG.default_model), messages=[{'role': 'system', 'content': 'Ты эксперт по валидации документов КПСЦ. Отвечаешь строго в формате JSON.'}, {'role': 'user', 'content': prompt}], temperature=0, response_format={'type': 'json_object'})
     result_text = response.choices[0].message.content
     return json.loads(result_text)
 
@@ -4110,9 +4112,9 @@ def kpsc_validate_7_8_sheet_takt_time_build_prompt(extracted_data: dict, rule: d
 
 def kpsc_validate_7_8_sheet_takt_time_call_llm(prompt: str, api_key: str) -> dict:
     """Вызов OpenAI API"""
-    base_url = os.environ.get('LLM_BASE_URL', 'http://localhost:8001/v1/')
+    base_url = LLM_CONFIG.base_url
     client = OpenAI(api_key=api_key, base_url=base_url)
-    response = client.chat.completions.create(model=os.environ.get('LLM_MODEL', 'openai/gpt-oss-120b'), messages=[{'role': 'system', 'content': 'Ты эксперт по валидации документов КПСЦ. Отвечаешь строго в формате JSON.'}, {'role': 'user', 'content': prompt}], temperature=0, response_format={'type': 'json_object'})
+    response = client.chat.completions.create(model=os.environ.get('LLM_MODEL', LLM_CONFIG.default_model), messages=[{'role': 'system', 'content': 'Ты эксперт по валидации документов КПСЦ. Отвечаешь строго в формате JSON.'}, {'role': 'user', 'content': prompt}], temperature=0, response_format={'type': 'json_object'})
     result_text = response.choices[0].message.content
     return json.loads(result_text)
 
@@ -4257,9 +4259,9 @@ def kpsc_validate_8_1_units_cross_check_build_prompt(extracted_data: dict, rule:
 
 def kpsc_validate_8_1_units_cross_check_call_llm(prompt: str, api_key: str) -> dict:
     """Вызов OpenAI API"""
-    base_url = os.environ.get('LLM_BASE_URL', 'http://localhost:8001/v1/')
+    base_url = LLM_CONFIG.base_url
     client = OpenAI(api_key=api_key, base_url=base_url)
-    response = client.chat.completions.create(model=os.environ.get('LLM_MODEL', 'openai/gpt-oss-120b'), messages=[{'role': 'system', 'content': 'Ты эксперт по валидации документов КПСЦ. Отвечаешь строго в формате JSON.'}, {'role': 'user', 'content': prompt}], temperature=0, response_format={'type': 'json_object'})
+    response = client.chat.completions.create(model=os.environ.get('LLM_MODEL', LLM_CONFIG.default_model), messages=[{'role': 'system', 'content': 'Ты эксперт по валидации документов КПСЦ. Отвечаешь строго в формате JSON.'}, {'role': 'user', 'content': prompt}], temperature=0, response_format={'type': 'json_object'})
     result_text = response.choices[0].message.content
     return json.loads(result_text)
 
@@ -4420,9 +4422,9 @@ def kpsc_validate_8_2_values_cross_check_build_prompt(extracted_data: dict, rule
 
 def kpsc_validate_8_2_values_cross_check_call_llm(prompt: str, api_key: str) -> dict:
     """Вызов OpenAI API"""
-    base_url = os.environ.get('LLM_BASE_URL', 'http://localhost:8001/v1/')
+    base_url = LLM_CONFIG.base_url
     client = OpenAI(api_key=api_key, base_url=base_url)
-    response = client.chat.completions.create(model=os.environ.get('LLM_MODEL', 'openai/gpt-oss-120b'), messages=[{'role': 'system', 'content': 'Ты эксперт по валидации документов КПСЦ. Отвечаешь строго в формате JSON.'}, {'role': 'user', 'content': prompt}], temperature=0, response_format={'type': 'json_object'})
+    response = client.chat.completions.create(model=os.environ.get('LLM_MODEL', LLM_CONFIG.default_model), messages=[{'role': 'system', 'content': 'Ты эксперт по валидации документов КПСЦ. Отвечаешь строго в формате JSON.'}, {'role': 'user', 'content': prompt}], temperature=0, response_format={'type': 'json_object'})
     result_text = response.choices[0].message.content
     return json.loads(result_text)
 
@@ -4571,9 +4573,9 @@ def kpsc_validate_8_3_indicators_cross_check_build_prompt(extracted_data: dict, 
 
 def kpsc_validate_8_3_indicators_cross_check_call_llm(prompt: str, api_key: str) -> dict:
     """Вызов OpenAI API"""
-    base_url = os.environ.get('LLM_BASE_URL', 'http://localhost:8001/v1/')
+    base_url = LLM_CONFIG.base_url
     client = OpenAI(api_key=api_key, base_url=base_url)
-    response = client.chat.completions.create(model=os.environ.get('LLM_MODEL', 'openai/gpt-oss-120b'), messages=[{'role': 'system', 'content': 'Ты эксперт по валидации документов КПСЦ. Отвечаешь строго в формате JSON.'}, {'role': 'user', 'content': prompt}], temperature=0, response_format={'type': 'json_object'})
+    response = client.chat.completions.create(model=os.environ.get('LLM_MODEL', LLM_CONFIG.default_model), messages=[{'role': 'system', 'content': 'Ты эксперт по валидации документов КПСЦ. Отвечаешь строго в формате JSON.'}, {'role': 'user', 'content': prompt}], temperature=0, response_format={'type': 'json_object'})
     result_text = response.choices[0].message.content
     return json.loads(result_text)
 
@@ -4920,7 +4922,7 @@ def kartochka_proekta_validate_3_flow_name_load_data(parser_outputs_dir: Path) -
 
 def kartochka_proekta_validate_3_flow_name_check_semantic(project_name: str, rule: dict, api_key: str) -> dict:
     """LLM-проверка осмысленности названия проекта/потока."""
-    base_url = os.environ.get('LLM_BASE_URL', 'http://localhost:8001/v1/')
+    base_url = LLM_CONFIG.base_url
     client = OpenAI(api_key=api_key, base_url=base_url)
     prompt = f'Ты эксперт по проверке документов «Карточка проекта» в рамках бережливого производства.\n\nТРЕБОВАНИЕ:\n{rule['requirement_expert']}\n\nКРИТЕРИИ:\n- Что проверять: {rule['validation_criteria']['what_to_check']}\n- Условие успеха: {rule['validation_criteria']['success_condition']}\n- Условие ошибки: {rule['validation_criteria']['error_condition']}\n\nФАКТИЧЕСКИЕ ДАННЫЕ:\nНазвание проекта/потока: "{project_name}"\n\nЗАДАНИЕ:\nПроверь, является ли название проекта осмысленным текстом, описывающим реальный проект или поток.\nНе является осмысленным: placeholder ("Название проекта"), набор символов ("ааааа"), слишком общий текст ("тест").\nЯвляется осмысленным: конкретное описание проекта ("Оптимизация производства приборов учёта").\n\nФОРМАТ ОТВЕТА (строго JSON):\n{{\n  "rule_index": "{kartochka_proekta_validate_3_flow_name_RULE_INDEX}",\n  "rule_title": "{kartochka_proekta_validate_3_flow_name_RULE_TITLE}",\n  "status": "PASS или FAIL",\n  "discrepancy": "Описание проблемы если FAIL, иначе пустая строка"\n}}\n'
     response = client.chat.completions.create(model=resolve_runtime_llm_model(os.environ.get('LLM_MODEL', 'gpt-4.1-mini')), messages=[{'role': 'system', 'content': 'Ты эксперт по валидации документов. Отвечаешь строго в формате JSON.'}, {'role': 'user', 'content': prompt}], temperature=0, response_format={'type': 'json_object'})
@@ -5129,7 +5131,7 @@ def kartochka_proekta_validate_6_justification_load_data(parser_outputs_dir: Pat
 
 def kartochka_proekta_validate_6_justification_check_semantic(key_risk: str, justification: str, rule: dict, api_key: str) -> dict:
     """LLM-проверка осмысленности обоснования и ключевого риска."""
-    base_url = os.environ.get('LLM_BASE_URL', 'http://localhost:8001/v1/')
+    base_url = LLM_CONFIG.base_url
     client = OpenAI(api_key=api_key, base_url=base_url)
     prompt = f'Ты эксперт по проверке документов «Карточка проекта» в рамках бережливого производства.\n\nТРЕБОВАНИЕ:\n{rule['requirement_expert']}\n\nКРИТЕРИИ:\n- Что проверять: {rule['validation_criteria']['what_to_check']}\n- Условие успеха: {rule['validation_criteria']['success_condition']}\n- Условие ошибки: {rule['validation_criteria']['error_condition']}\n\nФАКТИЧЕСКИЕ ДАННЫЕ:\nКлючевой риск (M11): "{key_risk}"\nОбоснование выбора потока (M13): "{justification}"\n\nЗАДАНИЕ:\nПроверь, содержат ли оба поля осмысленный текст:\n- Ключевой риск — должен описывать конкретный риск проекта (например: "Срыв сроков", "Потеря клиентов").\n  НЕ осмысленный: "-", "нет", "риск", набор символов.\n- Обоснование — должно содержать аргументацию выбора потока (например: "Наличие ожидания в потоке, несвоевременная подготовка").\n  НЕ осмысленный: "-", "обоснование", "тест", набор символов.\n\nФОРМАТ ОТВЕТА (строго JSON):\n{{\n  "rule_index": "{kartochka_proekta_validate_6_justification_RULE_INDEX}",\n  "rule_title": "{kartochka_proekta_validate_6_justification_RULE_TITLE}",\n  "status": "PASS или FAIL",\n  "discrepancy": "Описание проблемы если FAIL, иначе пустая строка"\n}}\n'
     response = client.chat.completions.create(model=resolve_runtime_llm_model(os.environ.get('LLM_MODEL', 'gpt-4.1-mini')), messages=[{'role': 'system', 'content': 'Ты эксперт по валидации документов. Отвечаешь строго в формате JSON.'}, {'role': 'user', 'content': prompt}], temperature=0, response_format={'type': 'json_object'})
@@ -5415,16 +5417,6 @@ def get_all_checks(doc_type: str) -> Dict[int, Callable]:
     return {idx: fn for (dt, idx), fn in non_llm_checks_registry__REGISTRY.items() if dt == doc_type}
 
 non_llm_checks_registry_module = SimpleNamespace(_REGISTRY=non_llm_checks_registry__REGISTRY, register=register, get_check=get_check, get_all_checks=get_all_checks)
-
-def resolve_runtime_llm_model(model_name: Optional[str]) -> str:
-    """Map stale cloud model ids to the local model exposed by the repo LLM endpoint."""
-    fallback = os.environ.get('LLM_MODEL', 'Qwen3.5-35B-A3B')
-    if not model_name:
-        return fallback
-    lowered = model_name.lower()
-    if lowered.startswith('openai/') or lowered.startswith('gpt-'):
-        return fallback
-    return model_name
 
 # END_SOURCE_NON_LLM_CHECKS_REGISTRY
 
@@ -6713,124 +6705,6 @@ context_builder_module = SimpleNamespace(extract_matching_paragraphs=extract_mat
 
 # END_SOURCE_CONTEXT_BUILDER
 
-# START_SOURCE_LLM_CLIENT
-# PURPOSE: Inlined source from audit_engine/llm_client.py.
-def sanitize_json_string(s: str) -> str:
-    """
-    Экранирует неэкранированные переносы строк внутри JSON-строк.
-
-    LLM иногда возвращает JSON с реальными \\n внутри строковых значений,
-    что ломает json.loads(). Эта функция проходит по тексту посимвольно,
-    отслеживая состояние "внутри строки" / "вне строки", и заменяет
-    сырые \\n, \\r, \\t на их escaped-версии.
-    """
-    result_chars = []
-    in_string = False
-    escape_next = False
-    for char in s:
-        if escape_next:
-            result_chars.append(char)
-            escape_next = False
-            continue
-        if char == '\\' and in_string:
-            result_chars.append(char)
-            escape_next = True
-            continue
-        if char == '"':
-            in_string = not in_string
-            result_chars.append(char)
-            continue
-        if in_string and char in '\n\r\t':
-            if char == '\n':
-                result_chars.append('\\n')
-            elif char == '\r':
-                result_chars.append('\\r')
-            elif char == '\t':
-                result_chars.append('\\t')
-        else:
-            result_chars.append(char)
-    return ''.join(result_chars)
-
-def parse_json_response(raw_response: str, spec_index: int, spec_title: str) -> List[Dict[str, Any]]:
-    """
-    Парсит JSON-ответ от LLM.
-
-    Обрабатывает:
-    - Markdown код-блоки (```json ... ```)
-    - Битый JSON (переносы строк внутри строк)
-    - Формат {"status": "ok"} → пустой список
-    - Формат {"status": "fail", "нарушения": [...]} → список нарушений
-
-    Args:
-        raw_response: сырой ответ от LLM
-        spec_index: номер правила (для fallback)
-        spec_title: название правила (для fallback)
-
-    Returns:
-        Список нарушений. Пустой список если status=ok.
-    """
-    text = raw_response.strip()
-    if text.startswith('```'):
-        lines = text.split('\n')
-        if lines[0].startswith('```'):
-            lines = lines[1:]
-        if lines and lines[-1].strip() == '```':
-            lines = lines[:-1]
-        text = '\n'.join(lines)
-    text = sanitize_json_string(text)
-    try:
-        result = json.loads(text)
-        if isinstance(result, dict):
-            if result.get('status') == 'ok':
-                return []
-            violations = result.get('нарушения', [])
-            for v in violations:
-                v['rule_index'] = result.get('rule_index', spec_index)
-                v['rule_title'] = result.get('rule_title', spec_title)
-            return violations
-        if isinstance(result, list):
-            return result
-        return []
-    except json.JSONDecodeError as e:
-        print(f'[WARN] Не удалось распарсить JSON: {e}', file=sys.stderr)
-        print(f'[WARN] Ответ: {text[:200]}...', file=sys.stderr)
-        return []
-
-def call_llm(messages: List[Dict[str, str]], model: str, temperature: float=0.0, base_url: Optional[str]=None, max_tokens: Optional[int]=None, reasoning_effort: Optional[str]=None, seed: Optional[int]=None) -> str:
-    """
-    Вызывает LLM через OpenAI Chat API.
-
-    Args:
-        messages: список сообщений [{role, content}]
-        model: идентификатор модели (gpt-4.1-mini, openai/gpt-oss-120b и т.д.)
-        temperature: температура генерации (0.0 = детерминированный ответ)
-        base_url: URL API (None = облачный OpenAI из env)
-        max_tokens: лимит токенов генерации (None = по умолчанию провайдера)
-        reasoning_effort: уровень reasoning для моделей gpt-oss ("low"/"medium"/"high")
-        seed: фиксированный seed для воспроизводимости (особенно важен для MoE-моделей)
-
-    Returns:
-        Текст ответа LLM.
-    """
-    if base_url:
-        model = resolve_runtime_llm_model(model)
-        client = OpenAI(base_url=base_url, api_key='none')
-    else:
-        client = OpenAI()
-    kwargs: Dict[str, Any] = {'model': model, 'messages': messages, 'temperature': temperature}
-    if max_tokens is not None:
-        kwargs['max_tokens'] = max_tokens
-    if seed is not None:
-        kwargs['seed'] = seed
-    if reasoning_effort:
-        kwargs['extra_body'] = {'reasoning_effort': reasoning_effort}
-    response = client.chat.completions.create(**kwargs)
-    return response.choices[0].message.content or ''
-
-llm_client_module = SimpleNamespace(sanitize_json_string=sanitize_json_string, parse_json_response=parse_json_response, call_llm=call_llm)
-
-# END_SOURCE_LLM_CLIENT
-
 # START_SOURCE_MULTI_RULE
 # PURPOSE: Inlined source from audit_engine/multi_rule.py.
 multi_rule_logger = logging.getLogger(__name__)
@@ -7293,7 +7167,7 @@ def drivers__run_pipeline(args, config: Dict[str, Any], model: str, temperature:
         return AuditResult(doc_type='drivers', session_dir=session_dir, target_path=str(target_path), duration_sec=time.time() - start_time)
     print('\n[2/4] LLM-анализ секций...')
     api_key = os.environ.get('OPENAI_API_KEY', 'dummy')
-    base_url = config.get('llm_base_url', 'http://localhost:8001/v1/')
+    base_url = config.get('llm_base_url', LLM_CONFIG.base_url)
     client = OpenAI(api_key=api_key, base_url=base_url)
     model = resolve_runtime_llm_model(model)
     system_prompt = load_driver_prompt()
@@ -7499,8 +7373,8 @@ def kpsc_run(args) -> AuditResult:
     print(f'  Параллельность: {max_workers}')
     print()
     os.environ['VALIDATION_RULES_PATH'] = str(rules_path)
-    os.environ['LLM_BASE_URL'] = config.get('llm_base_url', 'http://localhost:8001/v1/')
-    os.environ['LLM_MODEL'] = config.get('model', 'openai/gpt-oss-120b')
+    os.environ['LLM_BASE_URL'] = config.get('llm_base_url', LLM_CONFIG.base_url)
+    os.environ['LLM_MODEL'] = config.get('model', LLM_CONFIG.default_model)
     if not os.environ.get('OPENAI_API_KEY'):
         os.environ['OPENAI_API_KEY'] = 'dummy'
     print('[1/3] Запуск 9 парсеров...')
@@ -9082,8 +8956,8 @@ def run_kartochka_proekta_special(args) -> AuditResult:
     validation_outputs_dir = session_dir / "validation_outputs"
 
     os.environ["VALIDATION_RULES_PATH"] = str(rules_path)
-    os.environ["LLM_BASE_URL"] = config.get("llm_base_url", "http://172.16.10.35:11437/v1/")
-    os.environ["LLM_MODEL"] = resolve_runtime_llm_model(config.get("model", "openai/gpt-oss-120b"))
+    os.environ["LLM_BASE_URL"] = config.get("llm_base_url", LLM_CONFIG.base_url)
+    os.environ["LLM_MODEL"] = resolve_runtime_llm_model(config.get("model", LLM_CONFIG.default_model))
     os.environ.setdefault("OPENAI_API_KEY", "dummy")
     parser_results = kartochka_proekta_run_validations_run_parsers(target_path, parser_outputs_dir)
     with open(session_dir / "parser_summary.json", "w", encoding="utf-8") as f:
@@ -9174,8 +9048,8 @@ def _audit_engine_init(self, doc_type: str, base_dir: Optional[str] = None, conf
     self.config = load_audit_config(self.config_path)
     # Парсер-конфиг — это singleton CONFIG из config/parsers.py (Pydantic-модель).
     # Берём ссылки на нужные суб-конфиги, чтобы не тянуть в runtime сам CONFIG.
-    self.pdf_parser_config = CONFIG.pdf
-    self.docx_header_ocr_config = CONFIG.docx_header_ocr
+    self.pdf_parser_config = PARSERS_CONFIG.pdf
+    self.docx_header_ocr_config = PARSERS_CONFIG.docx_header_ocr
     self.system_prompt = self._load_system_prompt()
     self.preprocessors = get_preprocessors(doc_type)
     self.logger = None

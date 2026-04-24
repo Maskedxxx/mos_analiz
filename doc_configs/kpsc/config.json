@@ -2,10 +2,9 @@
   "doc_type": "kpsc",
   "doc_title": "2.1 КПСЦ — Карта потока создания ценности",
   "engine": "kpsc",
-  "model": "openai/gpt-oss-120b",
+  "model": "Qwen3.5-35B-A3B",
   "temperature": 0.0,
   "max_workers": 5,
   "llm_base_url": "http://172.16.10.35:11437/v1/",
-  "reasoning_effort": "medium",
   "llm_seed": 42
 }

@@ -1,7 +1,7 @@
 {
   "doc_type": "polozhenie_comp_ppu",
   "doc_title": "3.10 Положение о конкурсах проектов и ППУ",
-  "model": "openai/gpt-oss-120b",
+  "model": "Qwen3.5-35B-A3B",
   "system_prompt": "default.txt",
   "filename_pattern": "reg_comp_ppu",
   "filename_keywords": [
@@ -16,7 +16,6 @@
   },
   "llm_base_url": "http://172.16.10.35:11437/v1/",
   "llm_max_tokens": 4096,
-  "reasoning_effort": "medium",
   "llm_seed": 42,
   "engine_mode": "multi_rule"
 }

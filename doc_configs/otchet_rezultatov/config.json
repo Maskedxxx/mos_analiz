@@ -1,7 +1,7 @@
 {
   "doc_type": "otchet_rezultatov",
   "doc_title": "3.3 Отчет о результатах опроса",
-  "model": "openai/gpt-oss-120b",
+  "model": "Qwen3.5-35B-A3B",
   "system_prompt": "default.txt",
   "filename_keywords": [
     "отчет",
@@ -15,7 +15,6 @@
   },
   "llm_base_url": "http://172.16.10.35:11437/v1/",
   "llm_max_tokens": 4096,
-  "reasoning_effort": "medium",
   "llm_seed": 42,
   "engine_mode": "multi_rule"
 }

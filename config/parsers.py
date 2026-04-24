@@ -353,9 +353,9 @@ class ParsersConfig(BaseModel):
 
 
 # START_SINGLETON
-# PURPOSE: Единственный экземпляр конфига на весь рантайм. Используется импортом `from config.parsers import CONFIG`.
+# PURPOSE: Единственный экземпляр конфига на весь рантайм. Используется импортом `from config.parsers import PARSERS_CONFIG`.
 # INPUTS: —
-# OUTPUTS: `CONFIG` с полностью заполненными дефолтами.
+# OUTPUTS: `PARSERS_CONFIG` с полностью заполненными дефолтами.
 # KEYWORDS: singleton, config, runtime.
-CONFIG = ParsersConfig()
+PARSERS_CONFIG = ParsersConfig()
 # END_SINGLETON
