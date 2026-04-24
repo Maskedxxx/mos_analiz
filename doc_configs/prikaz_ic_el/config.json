@@ -1,7 +1,7 @@
 {
   "doc_type": "prikaz_ic_el",
   "doc_title": "1.5 Приказ о создании ИЦ предприятия эл. вид с прилож.",
-  "parser": "paddle",
+  "parser_by_ext": {".pdf": "paddle", ".docx": "docx"},
   "model": "openai/gpt-oss-120b",
   "system_prompt": "default.txt",
   "filename_keywords": [

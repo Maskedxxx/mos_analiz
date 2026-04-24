@@ -1,7 +1,7 @@
 {
   "doc_type": "prikaz_pa",
   "doc_title": "2.2 Приказ о внедрении ПА с приложениями",
-  "parser": "paddle",
+  "parser_by_ext": {".pdf": "paddle", ".docx": "docx"},
   "model": "openai/gpt-oss-120b",
   "system_prompt": "default.txt",
   "filename_keywords": [

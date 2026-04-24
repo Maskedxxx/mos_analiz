@@ -10,7 +10,7 @@
   ],
   "max_workers": 4,
   "temperature": 0.0,
-  "parser": "paddle",
+  "parser_by_ext": {".pdf": "paddle", ".docx": "docx"},
   "ocr_base_url": "http://172.16.10.35:11438/v1/",
   "ocr_dpi": 200,
   "llm_base_url": "http://172.16.10.35:11437/v1/",

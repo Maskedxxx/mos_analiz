@@ -8,7 +8,7 @@
   ],
   "max_workers": 1,
   "temperature": 0.0,
-  "parser": "pptx",
+  "parser_by_ext": {".pptx": "pptx"},
   "llm_base_url": "http://172.16.10.35:11437/v1/",
   "llm_max_tokens": 4096,
   "reasoning_effort": "medium",

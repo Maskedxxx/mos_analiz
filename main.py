@@ -279,6 +279,11 @@ class AuditConfig:
         max_workers — количество параллельных LLM-запросов
         temperature — температура генерации
         secondary_file — конфиг вторичного файла (для multi-file аудитов)
+        parser_by_ext — карта «расширение файла → имя парсера» для generic-пути AuditEngine.
+                        Пример: {".pdf": "paddle", ".docx": "docx"}. Пусто, если doc_type
+                        обслуживается special-движком.
+        engine — имя кастомного движка для doc_type (kpsc, kartochka_proekta, ...).
+                 Заполнено только для special-движков; взаимоисключающе с parser_by_ext.
         config_dir — путь к папке с конфигами (автоматически)
         rules_path — путь к rules.json (автоматически)
         chunks_vision_path — путь к chunks_vision.json (автоматически)
@@ -294,7 +299,10 @@ class AuditConfig:
     max_workers: int = 1
     temperature: float = 0.0
     secondary_file: Optional[SecondaryFileConfig] = None
-    parser: str = 'vision'
+    # Выбор парсера по расширению файла для generic-пути. Для special-движков — пусто.
+    parser_by_ext: Dict[str, str] = field(default_factory=dict)
+    # Имя special-движка (kpsc, kartochka_proekta, ...). Взаимоисключающе с parser_by_ext.
+    engine: Optional[str] = None
     ocr_model: Optional[str] = None
     ocr_base_url: str = 'http://localhost:8010/v1/'
     ocr_prompt: str = '提取文档图片中正文的所有信息用markdown格式表示，忽略页眉页脚。表格用html格式表达，公式用LaTeX格式表示，按照阅读顺序组织进行解析。特别注意：保留表格上方和下方的所有独立标题行和文本，不要将标题合并到表格中。'
@@ -359,11 +367,24 @@ def load_audit_config(config_dir: Path) -> AuditConfig:
     Загружает AuditConfig из папки конфигов.
 
     Ищет config.json, rules.json, chunks_vision.json, template/*.
+
+    Правило выбора рантайма: ровно одно из двух полей должно быть задано —
+    либо `parser_by_ext` (generic-путь через AuditEngine), либо `engine`
+    (special-движок). Оба пустых/оба заполненных — ошибка конфигурации.
     """
     config_path = config_dir / 'config.json'
     with open(config_path, 'r', encoding='utf-8') as f:
         data = json.load(f)
-    config = AuditConfig(doc_type=data['doc_type'], doc_title=data.get('doc_title', data['doc_type']), model=data.get('model', 'gpt-4.1-mini'), system_prompt=data.get('system_prompt', 'default.txt'), filename_pattern=data.get('filename_pattern', ''), filename_keywords=data.get('filename_keywords', None), max_workers=data.get('max_workers', 1), temperature=data.get('temperature', 0.0), parser=data.get('parser', 'vision'), ocr_model=data.get('ocr_model', None), ocr_base_url=data.get('ocr_base_url', 'http://localhost:8010/v1/'), ocr_prompt=data.get('ocr_prompt', AuditConfig.ocr_prompt), ocr_dpi=data.get('ocr_dpi', 200), paddle_layout_model=data.get('paddle_layout_model', None), paddle_layout_device=data.get('paddle_layout_device', 'cuda:0'), paddle_layout_base_url=data.get('paddle_layout_base_url', None), paddle_vlm_model=data.get('paddle_vlm_model', None), llm_base_url=data.get('llm_base_url', 'http://localhost:8001/v1/'), llm_max_tokens=data.get('llm_max_tokens', 4096), reasoning_effort=data.get('reasoning_effort', None), llm_seed=data.get('llm_seed', None), strip_annotations_chunks=data.get('strip_annotations_chunks', []), engine_mode=data.get('engine_mode', 'legacy'), config_dir=config_dir, rules_path=config_dir / 'rules.json', chunks_vision_path=config_dir / 'chunks_vision.json')
+    # XOR-валидация источника правды по рантайму: либо parser_by_ext, либо engine.
+    parser_by_ext = data.get('parser_by_ext', {})
+    engine = data.get('engine', None)
+    has_parser_map = isinstance(parser_by_ext, dict) and bool(parser_by_ext)
+    has_engine = isinstance(engine, str) and bool(engine)
+    if has_parser_map and has_engine:
+        raise ValueError(f"Конфиг {config_path}: одновременно заданы parser_by_ext и engine — должен быть ровно один источник правды.")
+    if not has_parser_map and not has_engine:
+        raise ValueError(f"Конфиг {config_path}: не задан ни parser_by_ext (generic), ни engine (special). Укажите ровно одно.")
+    config = AuditConfig(doc_type=data['doc_type'], doc_title=data.get('doc_title', data['doc_type']), model=data.get('model', 'gpt-4.1-mini'), system_prompt=data.get('system_prompt', 'default.txt'), filename_pattern=data.get('filename_pattern', ''), filename_keywords=data.get('filename_keywords', None), max_workers=data.get('max_workers', 1), temperature=data.get('temperature', 0.0), parser_by_ext=parser_by_ext if has_parser_map else {}, engine=engine if has_engine else None, ocr_model=data.get('ocr_model', None), ocr_base_url=data.get('ocr_base_url', 'http://localhost:8010/v1/'), ocr_prompt=data.get('ocr_prompt', AuditConfig.ocr_prompt), ocr_dpi=data.get('ocr_dpi', 200), paddle_layout_model=data.get('paddle_layout_model', None), paddle_layout_device=data.get('paddle_layout_device', 'cuda:0'), paddle_layout_base_url=data.get('paddle_layout_base_url', None), paddle_vlm_model=data.get('paddle_vlm_model', None), llm_base_url=data.get('llm_base_url', 'http://localhost:8001/v1/'), llm_max_tokens=data.get('llm_max_tokens', 4096), reasoning_effort=data.get('reasoning_effort', None), llm_seed=data.get('llm_seed', None), strip_annotations_chunks=data.get('strip_annotations_chunks', []), engine_mode=data.get('engine_mode', 'legacy'), config_dir=config_dir, rules_path=config_dir / 'rules.json', chunks_vision_path=config_dir / 'chunks_vision.json')
     if 'secondary_file' in data:
         sf = data['secondary_file']
         config.secondary_file = SecondaryFileConfig(type=sf['type'], parser=sf['parser'], chunk_prefix=sf.get('chunk_prefix', 'xlsx_'))
@@ -12340,12 +12361,16 @@ class AuditEngine:
         if secondary_path:
             self.logger.log(f'   Вторичный файл: {secondary_path}')
         self.logger.log(f'   Модель: {model}')
-        self.logger.log(f'   Парсер: {self.config.parser}')
-        if self.config.parser == 'paddle':
+        # Логируем карту парсеров по расширениям; блоки дополнительного контекста
+        # выводим, только если соответствующий парсер реально задействован хотя бы для
+        # одного расширения.
+        self.logger.log(f'   Парсеры по расширениям: {self.config.parser_by_ext}')
+        parser_names = set(self.config.parser_by_ext.values())
+        if 'paddle' in parser_names:
             self.logger.log(f'   Layout: {self.config.paddle_layout_model or 'Heron-101 (дефолт)'}')
             self.logger.log(f'   VLM: {self.config.paddle_vlm_model or 'PaddleOCR-VL-1.5 (авто)'}')
             self.logger.log(f'   VLM URL: {self.config.ocr_base_url}')
-        if self.config.parser == 'ocr':
+        if 'ocr' in parser_names:
             self.logger.log(f'   OCR URL: {self.config.ocr_base_url}')
         if self.config.llm_base_url:
             self.logger.log(f'   LLM URL: {self.config.llm_base_url}')
@@ -12476,29 +12501,29 @@ class AuditEngine:
 
     def _parse_document(self, file_path: str, chunks_to_parse: Optional[List[str]], vision_log_dir: Path) -> Dict[str, Any]:
         """
-        Парсит документ через выбранный парсер (Vision или OCR).
+        Парсит документ выбранным парсером.
 
-        Выбор парсера определяется config.parser:
-        - "vision" → VisionParser (облачный GPT Vision)
-        - "ocr" → OcrParser (локальный HunyuanOCR + сборка по страницам)
+        Выбор парсера: `config.parser_by_ext[<расширение файла>]`. Никаких
+        автоматических переопределений — один конфиг описывает всю цепочку.
+        Если расширение не описано в карте, бросается ValueError.
         """
         chunk_filter_arg = chunks_to_parse[0] if chunks_to_parse and len(chunks_to_parse) == 1 else None
         file_ext = Path(file_path).suffix.lower()
-        effective_parser = self.config.parser
-        if effective_parser == 'paddle' and file_ext == '.docx':
-            effective_parser = 'docx'
-            self.logger.log(f'📄 Файл .docx — переключение на docx-парсер (без OCR)')
-        if effective_parser == 'docx':
+        # Единый источник правды — parser_by_ext. Никаких скрытых override по формату.
+        if file_ext not in self.config.parser_by_ext:
+            raise ValueError(f"Для doc_type={self.doc_type} не сконфигурирован парсер для расширения {file_ext!r}. parser_by_ext={self.config.parser_by_ext}")
+        parser_name = self.config.parser_by_ext[file_ext]
+        if parser_name == 'docx':
             self.logger.log(f'📄 DOCX-парсинг: {file_path}...')
             doc = parse_docx(file_path, vlm_base_url=getattr(self.config, 'ocr_base_url', None))
-        elif effective_parser == 'pptx':
+        elif parser_name == 'pptx':
             self.logger.log(f'📄 PPTX-парсинг: {file_path}...')
             doc = parse_pptx(file_path)
-        elif effective_parser == 'paddle':
+        elif parser_name == 'paddle':
             self.logger.log(f'📄 Paddle-парсинг: {file_path}...')
             parser = PaddleParser(config=self.config, log_dir=str(vision_log_dir))
             doc = parser.parse(file_path, chunk_filter=chunk_filter_arg)
-        elif self.config.parser == 'ocr':
+        elif parser_name == 'ocr':
             self.logger.log(f'📄 OCR-парсинг: {file_path}...')
             parser = OcrParser(config=self.config, log_dir=str(vision_log_dir))
             doc = parser.parse(file_path, chunk_filter=chunk_filter_arg)
@@ -12530,12 +12555,15 @@ class AuditEngine:
         self.logger.log(f'📄 Шаблон: {tpl_path}')
         file_hash = self._compute_file_hash(tpl_path)
         cache_path = tpl_path.parent / 'template_cached.json'
+        # Имя парсера для шаблона резолвим из parser_by_ext по расширению файла шаблона.
+        tpl_ext = tpl_path.suffix.lower()
+        expected_parser = self.config.parser_by_ext.get(tpl_ext, '')
         if not no_cache and cache_path.exists():
             try:
                 with open(cache_path, 'r', encoding='utf-8') as f:
                     cached = json.load(f)
-                cache_parser = cached.get('_parser', 'vision')
-                if cached.get('_hash') == file_hash and cache_parser == self.config.parser:
+                cache_parser = cached.get('_parser', '')
+                if cached.get('_hash') == file_hash and cache_parser == expected_parser:
                     self.logger.log(f'✅ Используем кэш шаблона: {cache_path}')
                     cached.pop('_hash', None)
                     cached.pop('_cached_at', None)
@@ -12544,14 +12572,14 @@ class AuditEngine:
                 elif cached.get('_hash') != file_hash:
                     self.logger.log(f'⚠️ Кэш устарел (хэш изменился), перепарсинг...')
                 else:
-                    self.logger.log(f'⚠️ Кэш от другого парсера ({cache_parser}→{self.config.parser}), перепарсинг...')
+                    self.logger.log(f'⚠️ Кэш от другого парсера ({cache_parser}→{expected_parser}), перепарсинг...')
             except (json.JSONDecodeError, KeyError):
                 self.logger.log(f'⚠️ Кэш повреждён, перепарсинг...')
         self.logger.log(f'🔮 Vision-парсинг шаблона...')
         template_doc = self._parse_document(str(tpl_path), chunks_to_parse, session_dir / 'vision_template')
         cache_data = dict(template_doc)
         cache_data['_hash'] = file_hash
-        cache_data['_parser'] = self.config.parser
+        cache_data['_parser'] = expected_parser
         cache_data['_cached_at'] = datetime.now().isoformat()
         with open(cache_path, 'w', encoding='utf-8') as f:
             json.dump(cache_data, f, ensure_ascii=False, indent=2)

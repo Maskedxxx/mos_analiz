@@ -5,6 +5,5 @@
   "model": "openai/gpt-oss-120b",
   "temperature": 0.0,
   "max_workers": 1,
-  "parser": "paddle",
   "paddle_layout_base_url": "http://172.16.10.35:11439"
 }
