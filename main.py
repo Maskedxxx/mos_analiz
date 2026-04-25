@@ -457,6 +457,8 @@ from src.doc_type_validators.kpsc import (
     KPSC_VALIDATOR_MODULE_DISPATCH,
     run_kpsc_validator_module,
 )
+from src.doc_type_validators.drivers import run_drivers_special
+from src.doc_type_validators.plan_grafik import run_all_validators
 from src.llm import (
     call_llm,
     load_methodology_config,
@@ -493,199 +495,6 @@ pptx_parser_module = SimpleNamespace(
 # LINKS: audit_engine/kpsc/validation_scripts/, audit_engine/kartochka_proekta/validation_scripts/, audit_engine/plan_grafik/validators.py.
 # RATIONALE: Validation logic is the business core that the monolith must expose directly.
 
-# START_SOURCE_PLAN_GRAFIK_VALIDATORS
-# PURPOSE: Inlined source from audit_engine/plan_grafik/validators.py.
-def run_all_validators(parsed: Dict[str, Any], target_path: str) -> List[Dict[str, Any]]:
-    """
-    Запускает все 9 валидаторов последовательно.
-
-    Args:
-        parsed: результат парсинга из parser.py
-        target_path: путь к файлу (для проверки имени)
-
-    Returns:
-        Список нарушений
-    """
-    violations = []
-    validators = [validate_1_filename, validate_2_approval, validate_3_simple_headers, validate_4_complex_headers, validate_5_dates, validate_6_responsible, validate_7_calc_columns, validate_8_signature, validate_9_formulas]
-    for validator in validators:
-        try:
-            result = validator(parsed, target_path)
-            violations.extend(result)
-        except Exception as e:
-            violations.append({'rule_index': 0, 'rule_title': f'Ошибка валидатора {validator.__name__}', 'Целевой документ': str(e), 'Различие': 'Внутренняя ошибка валидатора'})
-    return violations
-
-def validate_1_filename(parsed: Dict, target_path: str) -> List[Dict]:
-    """Rule 1: Проверка имени файла."""
-    from pathlib import Path
-    filename = Path(target_path).stem.lower()
-    keywords = ['2.6', 'план', 'график']
-    missing = []
-    for kw in keywords:
-        if kw == '2.6':
-            if '2.6' not in filename and '2_6' not in filename:
-                missing.append(kw)
-        elif kw.lower() not in filename:
-            missing.append(kw)
-    if missing:
-        return [{'rule_index': 1, 'rule_title': 'Проверка названия файла', 'Целевой документ': Path(target_path).name, 'Различие': f'Отсутствуют ключевые слова: {', '.join(missing)}'}]
-    return []
-
-def validate_2_approval(parsed: Dict, target_path: str) -> List[Dict]:
-    """Rule 2: Проверка блока УТВЕРЖДАЮ."""
-    approval = parsed.get('approval', {})
-    violations = []
-    marker = approval.get('marker', '')
-    if 'утверждаю' not in marker.lower():
-        violations.append({'rule_index': 2, 'rule_title': 'Проверка блока УТВЕРЖДАЮ', 'Целевой документ': f'DM8: {marker or 'пусто'}', 'Различие': 'Отсутствует слово «УТВЕРЖДАЮ»'})
-    position = approval.get('position', '')
-    if not position or (position == 'Генеральный директор' and len(position) < 5):
-        pass
-    if not position:
-        violations.append({'rule_index': 2, 'rule_title': 'Проверка блока УТВЕРЖДАЮ', 'Целевой документ': f'DM9: пусто', 'Различие': 'Не указана должность подписанта'})
-    company = approval.get('company', '')
-    is_placeholder = not company or ('___' in company and (not re.search('[А-Яа-яA-Za-z]{3,}', company.replace('ООО', '').replace('АО', '').replace('ЗАО', ''))))
-    if is_placeholder:
-        violations.append({'rule_index': 2, 'rule_title': 'Проверка блока УТВЕРЖДАЮ', 'Целевой документ': f'DM10: {company or 'пусто'}', 'Различие': 'Наименование организации не заполнено (плейсхолдер)'})
-    fio = approval.get('fio', '')
-    is_fio_placeholder = not fio or 'фио' in fio.lower() or (fio.count('_') > 3 and (not re.search('[А-Яа-я]{2,}', fio.replace('ФИО', ''))))
-    if is_fio_placeholder:
-        violations.append({'rule_index': 2, 'rule_title': 'Проверка блока УТВЕРЖДАЮ', 'Целевой документ': f'DM11: {fio or 'пусто'}', 'Различие': 'ФИО подписанта не заполнено'})
-    return violations
-
-def validate_3_simple_headers(parsed: Dict, target_path: str) -> List[Dict]:
-    """Rule 3: Проверка простых заголовков таблицы."""
-    headers = parsed.get('headers_row16', {})
-    if not headers:
-        return [{'rule_index': 3, 'rule_title': 'Проверка заголовков таблицы', 'Целевой документ': 'Строка 16 пустая', 'Различие': 'Заголовки таблицы отсутствуют'}]
-    all_text = ' '.join(headers.values()).lower()
-    required = {'мероприятие': 'Мероприятие', 'ответственн': 'Ответственный', 'начало': 'Начало мероприятия', 'окончани': 'Окончание мероприятия', 'статус': 'Статус'}
-    missing = []
-    for keyword, name in required.items():
-        if keyword not in all_text:
-            missing.append(name)
-    if missing:
-        return [{'rule_index': 3, 'rule_title': 'Проверка заголовков таблицы', 'Целевой документ': ', '.join(headers.values())[:200], 'Различие': f'Отсутствуют столбцы: {', '.join(missing)}'}]
-    return []
-
-def validate_4_complex_headers(parsed: Dict, target_path: str) -> List[Dict]:
-    """Rule 4: Проверка сложных двухуровневых заголовков."""
-    h16 = parsed.get('headers_row16', {})
-    h17 = parsed.get('headers_row17', {})
-    all_text = ' '.join(list(h16.values()) + list(h17.values())).lower()
-    required_sub = {'выработк': 'Влияние на показатель выработка', 'запас': 'Влияние на показатель запасы', 'впп': 'Влияние на показатель ВПП', 'проблем': '№ проблемы из КПСЦ', 'комментари': 'Комментарии'}
-    missing = []
-    for keyword, name in required_sub.items():
-        if keyword not in all_text:
-            missing.append(name)
-    if missing:
-        return [{'rule_index': 4, 'rule_title': 'Проверка структуры заголовков', 'Целевой документ': f'Строки 16-17: {len(h16)} + {len(h17)} столбцов', 'Различие': f'Отсутствуют подзаголовки: {', '.join(missing)}'}]
-    return []
-
-def validate_5_dates(parsed: Dict, target_path: str) -> List[Dict]:
-    """Rule 5: Проверка дат (формат + логика)."""
-    violations = []
-    dates = parsed.get('dates', {})
-    start_raw = dates.get('start_raw')
-    end_raw = dates.get('end_raw')
-    if not start_raw:
-        violations.append({'rule_index': 5, 'rule_title': 'Проверка дат мероприятий', 'Целевой документ': 'I12: пусто', 'Различие': 'Дата начала мероприятий не заполнена'})
-    if not end_raw:
-        violations.append({'rule_index': 5, 'rule_title': 'Проверка дат мероприятий', 'Целевой документ': 'I13: пусто', 'Различие': 'Дата окончания мероприятий не заполнена'})
-    if start_raw and end_raw:
-        try:
-            start_dt = start_raw if isinstance(start_raw, datetime) else datetime.strptime(str(start_raw)[:10], '%Y-%m-%d')
-            end_dt = end_raw if isinstance(end_raw, datetime) else datetime.strptime(str(end_raw)[:10], '%Y-%m-%d')
-            if end_dt <= start_dt:
-                violations.append({'rule_index': 5, 'rule_title': 'Проверка дат мероприятий', 'Целевой документ': f'Начало: {start_dt.strftime('%d.%m.%Y')}, Окончание: {end_dt.strftime('%d.%m.%Y')}', 'Различие': 'Дата окончания не позже даты начала'})
-        except (ValueError, TypeError):
-            pass
-    data_rows = parsed.get('data_rows', [])
-    plan_rows_no_dates = []
-    plan_rows_bad_logic = []
-    for row_data in data_rows:
-        if row_data.get('plan_fact', '').lower() != 'план':
-            continue
-        row_num = row_data.get('row', '?')
-        start = row_data.get('start_date')
-        end = row_data.get('end_date')
-        if not start and (not end):
-            plan_rows_no_dates.append(str(row_num))
-        elif start and end:
-            try:
-                s = start if isinstance(start, datetime) else datetime.strptime(str(start)[:10], '%Y-%m-%d')
-                e = end if isinstance(end, datetime) else datetime.strptime(str(end)[:10], '%Y-%m-%d')
-                if e < s:
-                    plan_rows_bad_logic.append(str(row_num))
-            except (ValueError, TypeError):
-                pass
-    if plan_rows_no_dates:
-        violations.append({'rule_index': 5, 'rule_title': 'Проверка дат мероприятий', 'Целевой документ': f'Строки без дат: {', '.join(plan_rows_no_dates[:10])}', 'Различие': 'Даты начала/окончания не заполнены для плановых мероприятий'})
-    if plan_rows_bad_logic:
-        violations.append({'rule_index': 5, 'rule_title': 'Проверка дат мероприятий', 'Целевой документ': f'Строки с нарушением логики: {', '.join(plan_rows_bad_logic[:10])}', 'Различие': 'Дата окончания раньше даты начала'})
-    return violations
-
-def validate_6_responsible(parsed: Dict, target_path: str) -> List[Dict]:
-    """Rule 6: Проверка заполненности ответственных (строки «План»)."""
-    data_rows = parsed.get('data_rows', [])
-    empty_rows = []
-    for row_data in data_rows:
-        if row_data.get('plan_fact', '').lower() != 'план':
-            continue
-        responsible = row_data.get('responsible', '').strip()
-        if not responsible:
-            row_num = row_data.get('row', '?')
-            problem = row_data.get('problem_num', '?')
-            empty_rows.append(f'строка {row_num} (проблема №{problem})')
-    if empty_rows:
-        return [{'rule_index': 6, 'rule_title': 'Проверка заполненности ответственных', 'Целевой документ': f'Пустые: {', '.join(empty_rows[:10])}', 'Различие': 'Не указан ответственный за мероприятие (строки «План»)'}]
-    return []
-
-def validate_7_calc_columns(parsed: Dict, target_path: str) -> List[Dict]:
-    """Rule 7: Проверка наличия расчётных столбцов (Статус, Отклонения, Комментарии)."""
-    sc = parsed.get('status_columns', {})
-    violations = []
-    if not sc.get('status_present'):
-        violations.append({'rule_index': 7, 'rule_title': 'Проверка расчётных столбцов', 'Целевой документ': 'Столбец DJ (Статус): отсутствует', 'Различие': 'Столбец «Статус» не найден в заголовках таблицы'})
-    if not sc.get('comments_present'):
-        violations.append({'rule_index': 7, 'rule_title': 'Проверка расчётных столбцов', 'Целевой документ': 'Столбец DM (Комментарии): отсутствует', 'Различие': 'Столбец «Комментарии» не найден в заголовках таблицы'})
-    formulas = parsed.get('formulas', {})
-    dk18 = formulas.get('DK18', {})
-    dl18 = formulas.get('DL18', {})
-    if not dk18.get('is_formula'):
-        violations.append({'rule_index': 7, 'rule_title': 'Проверка расчётных столбцов', 'Целевой документ': f'DK18: {dk18.get('value', 'пусто')}', 'Различие': 'Столбец «Отклонение по началу» не содержит формулу'})
-    if not dl18.get('is_formula'):
-        violations.append({'rule_index': 7, 'rule_title': 'Проверка расчётных столбцов', 'Целевой документ': f'DL18: {dl18.get('value', 'пусто')}', 'Различие': 'Столбец «Отклонение по окончанию» не содержит формулу'})
-    return violations
-
-def validate_8_signature(parsed: Dict, target_path: str) -> List[Dict]:
-    """Rule 8: Проверка блока подписи внизу документа."""
-    approval = parsed.get('approval', {})
-    date_line = approval.get('date_line', '')
-    signature = parsed.get('signature', '').strip()
-    if not date_line and (not signature):
-        return [{'rule_index': 8, 'rule_title': 'Проверка блока подписи', 'Целевой документ': 'отсутствует', 'Различие': 'Строка подписи с датой не найдена в документе'}]
-    return []
-
-def validate_9_formulas(parsed: Dict, target_path: str) -> List[Dict]:
-    """Rule 9: Проверка целостности формул (не заменены на значения, нет #REF)."""
-    formulas = parsed.get('formulas', {})
-    violations = []
-    dk17 = formulas.get('DK17', {})
-    if not dk17.get('is_formula'):
-        violations.append({'rule_index': 9, 'rule_title': 'Проверка целостности формул', 'Целевой документ': f'DK17: {dk17.get('value', 'пусто')}', 'Различие': 'Формула длительности заменена на значение или отсутствует'})
-    n12 = formulas.get('N12', {})
-    if not n12.get('is_formula'):
-        violations.append({'rule_index': 9, 'rule_title': 'Проверка целостности формул', 'Целевой документ': f'N12: {n12.get('value', 'пусто')}', 'Различие': 'Формулы Ганта заменены на значения или отсутствуют'})
-    for cell_name, cell_data in formulas.items():
-        if cell_data.get('has_error'):
-            violations.append({'rule_index': 9, 'rule_title': 'Проверка целостности формул', 'Целевой документ': f'{cell_name}: {cell_data.get('value', '')}', 'Различие': 'Формула содержит ошибку #REF! (сломанная ссылка)'})
-    return violations
-
-plan_grafik_validators_module = SimpleNamespace(run_all_validators=run_all_validators, validate_1_filename=validate_1_filename, validate_2_approval=validate_2_approval, validate_3_simple_headers=validate_3_simple_headers, validate_4_complex_headers=validate_4_complex_headers, validate_5_dates=validate_5_dates, validate_6_responsible=validate_6_responsible, validate_7_calc_columns=validate_7_calc_columns, validate_8_signature=validate_8_signature, validate_9_formulas=validate_9_formulas)
-
-# END_SOURCE_PLAN_GRAFIK_VALIDATORS
 
 
 # END_VALIDATORS
@@ -895,265 +704,10 @@ excel_reporter_module = SimpleNamespace(_DISPLAY_HEADERS=_DISPLAY_HEADERS, _FONT
 # LINKS: audit_engine/engine.py, audit_engine/*/__init__.py, audit_engine/multi_rule.py.
 # RATIONALE: The monolith should expose one runtime graph instead of scattered module entrypoints.
 
-# START_SOURCE_DRIVERS_ANALYZER
-# PURPOSE: Inlined source from audit_engine/drivers/analyzer.py.
-@dataclass
-class DriverEntry:
-    number: str
-    driver_name: str
-    average_score: Optional[float]
-    problem_comment: str
-    notes: List[Dict[str, str]]
 
-def _default_prompt_path() -> Path:
-    return Path(__file__).resolve().parents[2] / 'doc_configs' / 'drivers' / 'driver_check_prompt.txt'
-
-def load_driver_prompt() -> str:
-    env_path = os.environ.get('DRIVERS_PROMPT_PATH')
-    path = Path(env_path) if env_path else _default_prompt_path()
-    return path.read_text(encoding='utf-8')
-
-def parse_average(value: Optional[str]) -> Optional[float]:
-    if value is None:
-        return None
-    cleaned = value.replace(',', '.').strip()
-    if not cleaned:
-        return None
-    try:
-        return float(cleaned)
-    except ValueError:
-        return None
-
-def extract_summary_driver_map(summary_text: str) -> Dict[str, str]:
-    blocks: Dict[str, str] = {}
-    current_key: Optional[str] = None
-    current_lines: List[str] = []
-    bullet_pattern = re.compile('^\\s*(\\d+)\\)\\s*(.*)$')
-    code_prefix = re.compile('^[-–]?\\s*\\d+[?.]?\\s*')
-    for raw_line in summary_text.splitlines():
-        line = raw_line.strip()
-        bullet = bullet_pattern.match(line)
-        if bullet:
-            if current_key is not None:
-                blocks[current_key] = ' '.join(filter(None, current_lines)).strip()
-            remainder = bullet.group(2).strip()
-            remainder = code_prefix.sub('', remainder, count=1).strip()
-            current_key = remainder.split(':', 1)[0].strip() if remainder else f'Driver{bullet.group(1)}'
-            first_text = remainder.split(':', 1)[1].strip() if ':' in remainder else ''
-            current_lines = [first_text] if first_text else []
-        elif current_key is not None and line:
-            current_lines.append(line)
-    if current_key is not None:
-        blocks[current_key] = ' '.join(filter(None, current_lines)).strip()
-    return blocks
-
-def to_driver_entries(section: Dict[str, object]) -> List[DriverEntry]:
-    entries: List[DriverEntry] = []
-    for q in section.get('questions', []):
-        avg = parse_average((q.get('scores') or {}).get('Средняя'))
-        entries.append(DriverEntry(number=(q.get('number') or '').strip(), driver_name=(q.get('question') or '').strip(), average_score=avg, problem_comment=(q.get('problem_comment') or '').strip(), notes=q.get('notes', [])))
-    return entries
-
-def prepare_section_context(section: Dict[str, object], primary_threshold: float=9.0, fallback_threshold: float=7.0) -> Dict[str, object]:
-    drivers = to_driver_entries(section)
-    primary = [d for d in drivers if d.average_score is not None and d.average_score >= primary_threshold]
-    selected_threshold = primary_threshold
-    selected = primary
-    if not selected:
-        selected = [d for d in drivers if d.average_score is not None and d.average_score >= fallback_threshold]
-        selected_threshold = fallback_threshold
-    summary_text = section.get('summary', '') or ''
-    summary_driver_map = extract_summary_driver_map(summary_text)
-    return {'section_title': section.get('title'), 'score_thresholds': {'primary': primary_threshold, 'fallback': fallback_threshold}, 'selected_threshold': selected_threshold, 'eligible_drivers': [{'number': d.number, 'driver_name': d.driver_name, 'average_score': d.average_score, 'problem_comment': d.problem_comment, 'notes': d.notes} for d in selected], 'all_drivers': [{'number': d.number, 'driver_name': d.driver_name, 'average_score': d.average_score, 'problem_comment': d.problem_comment, 'notes': d.notes} for d in drivers], 'summary_text': summary_text, 'summary_driver_map': summary_driver_map}
-
-def call_driver_llm(client: OpenAI, section_payload: Dict[str, object], model: str, temperature: float, system_prompt: str) -> Tuple[str, Any]:
-    user_payload = json.dumps(section_payload, ensure_ascii=False, indent=2)
-    try:
-        response = client.chat.completions.create(model=model, temperature=temperature, response_format={'type': 'json_object'}, messages=[{'role': 'system', 'content': system_prompt}, {'role': 'user', 'content': user_payload}])
-    except Exception:
-        response = client.chat.completions.create(model=model, temperature=temperature, messages=[{'role': 'system', 'content': system_prompt}, {'role': 'user', 'content': user_payload}])
-    return (response.choices[0].message.content or '', response)
-
-def analyze_sections(parsed_data: Dict[str, Any], client: OpenAI, primary_threshold: float, fallback_threshold: float, model: str, temperature: float, progress_callback: Optional[Callable[[str, int, int], None]]=None, system_prompt: Optional[str]=None) -> List[Dict[str, Any]]:
-    prompt = system_prompt or load_driver_prompt()
-    section_results: List[Dict[str, Any]] = []
-    total_sections = len(parsed_data.get('sections') or [])
-    for idx, section in enumerate(parsed_data.get('sections') or [], 1):
-        if progress_callback:
-            title = section.get('title') or f'Секция {idx}'
-            progress_callback(f'Анализ: {title}', idx, total_sections)
-        payload = prepare_section_context(section, primary_threshold, fallback_threshold)
-        answer_text, _ = call_driver_llm(client, payload, model, temperature, prompt)
-        section_json = json.loads(answer_text)
-        section_results.append(section_json)
-    return section_results
-
-def collect_remarks_and_summaries(section_jsons: Iterable[Dict[str, Any]]) -> Tuple[List[Dict[str, Any]], Dict[str, str]]:
-    aggregated_remarks: List[Dict[str, Any]] = []
-    driver_summary_map: Dict[str, str] = {}
-    for section in section_jsons:
-        section_title = section.get('section_title')
-        for remark in section.get('remarks') or []:
-            merged = dict(remark)
-            if section_title and 'section_title' not in merged:
-                merged['section_title'] = section_title
-            aggregated_remarks.append(merged)
-        for driver_name, summary_text in (section.get('summary_driver_map') or {}).items():
-            normalized_name = (driver_name or '').strip()
-            if not normalized_name:
-                continue
-            summary_text = (summary_text or '').strip()
-            existing = driver_summary_map.get(normalized_name)
-            if existing and existing != summary_text:
-                driver_summary_map[normalized_name] = f'{existing}\n---\n{summary_text}'
-            else:
-                driver_summary_map[normalized_name] = summary_text
-    return (aggregated_remarks, driver_summary_map)
-
-def build_question_lookup(parsed_sections: Iterable[Dict[str, Any]]) -> Dict[Tuple[str, str], Dict[str, Any]]:
-    lookup: Dict[Tuple[str, str], Dict[str, Any]] = {}
-    for section in parsed_sections:
-        title = (section.get('title') or '').strip()
-        for question in section.get('questions', []):
-            key = (title, (question.get('number') or '').strip())
-            lookup[key] = {'driver_name': (question.get('question') or '').strip(), 'problem_comment': (question.get('problem_comment') or '').strip(), 'notes': '\n'.join((note.get('text', '').strip() for note in question.get('notes', [])))}
-    return lookup
-
-def export_missing_driver_report(parsed_data: Dict[str, Any], section_results: Iterable[Dict[str, Any]], output_path: Path, sheet_name: str='Итог') -> None:
-    question_lookup = build_question_lookup(parsed_data.get('sections', []))
-    wb = Workbook()
-    ws = wb.active
-    ws.title = sheet_name
-    ws.append(['Блок', 'Номер драйвера', 'Наименование драйвера', 'Средняя оценка', 'Комментарий (проблема)', 'Дополнительные примечания', 'Замечание'])
-    for section in section_results:
-        title = (section.get('section_title') or '').strip()
-        remark_lookup = {(remark.get('number'), remark.get('driver_name')): remark for remark in section.get('remarks') or []}
-        for check in section.get('driver_checks') or []:
-            if check.get('found_in_summary'):
-                continue
-            number = (check.get('number') or '').strip()
-            driver_name = (check.get('driver_name') or '').strip()
-            key = (title, number)
-            parsed_info = question_lookup.get(key, {})
-            remark = remark_lookup.get((number, driver_name), {})
-            ws.append([title, number, driver_name or parsed_info.get('driver_name', ''), check.get('average_score'), parsed_info.get('problem_comment', ''), parsed_info.get('notes', ''), remark.get('issue', 'Нет в выводах')])
-    output_path.parent.mkdir(parents=True, exist_ok=True)
-    wb.save(output_path)
-
-drivers_analyzer_module = SimpleNamespace(DriverEntry=DriverEntry, _default_prompt_path=_default_prompt_path, load_driver_prompt=load_driver_prompt, parse_average=parse_average, extract_summary_driver_map=extract_summary_driver_map, to_driver_entries=to_driver_entries, prepare_section_context=prepare_section_context, call_driver_llm=call_driver_llm, analyze_sections=analyze_sections, collect_remarks_and_summaries=collect_remarks_and_summaries, build_question_lookup=build_question_lookup, export_missing_driver_report=export_missing_driver_report)
-
-# END_SOURCE_DRIVERS_ANALYZER
-
-# START_SOURCE_DRIVERS
-# PURPOSE: Inlined source from audit_engine/drivers/__init__.py.
-drivers_logger = logging.getLogger(__name__)
-
-def drivers__load_config() -> Dict[str, Any]:
-    """Загрузка конфига из doc_configs/drivers/config.json."""
-    config_path = Path(__file__).resolve().parents[2] / 'doc_configs' / 'drivers' / 'config.json'
-    with open(config_path, 'r', encoding='utf-8') as f:
-        return json.load(f)
-
-def drivers_run(args) -> AuditResult:
-    """
-    Запуск аудита драйверов.
-
-    Вход: args (argparse Namespace) с полями:
-        - target: путь к XLSX файлу
-        - parse_only: только парсинг (опционально)
-        - model: переопределить модель (опционально)
-        - temperature: переопределить температуру (опционально)
-        - session_dir: директория для логов (опционально)
-    Выход: AuditResult с violations
-    """
-    start_time = time.time()
-    target_path = Path(args.target)
-    config = drivers__load_config()
-    model = args.model or config.get('model', 'gpt-4.1-mini')
-    temperature = args.temperature if args.temperature is not None else config.get('temperature', 0.0)
-    primary_threshold = config.get('primary_threshold', 9.0)
-    fallback_threshold = config.get('fallback_threshold', 7.0)
-    if args.session_dir:
-        session_dir = Path(args.session_dir)
-    else:
-        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-        session_dir = Path(__file__).resolve().parents[2] / 'logs_result' / 'drivers' / f'session_{timestamp}'
-    session_dir.mkdir(parents=True, exist_ok=True)
-    print(f'\n{'=' * 60}')
-    print(f'  Аудит драйверов производительности')
-    print(f'{'=' * 60}')
-    print(f'  Файл: {target_path.name}')
-    print(f'  Модель: {model}')
-    print(f'  Пороги: primary={primary_threshold}, fallback={fallback_threshold}')
-    print(f'  Сессия: {session_dir}')
-    print()
-    try:
-        return drivers__run_pipeline(args, config, model, temperature, primary_threshold, fallback_threshold, session_dir, start_time)
-    except Exception as e:
-        duration = time.time() - start_time
-        error_msg = f'{type(e).__name__}: {e}\n{traceback.format_exc()}'
-        error_path = session_dir / 'ERROR.txt'
-        error_path.write_text(error_msg, encoding='utf-8')
-        drivers_logger.error('drivers: ошибка аудита → %s: %s', error_path, e)
-        print(f'\n  ОШИБКА: {e}')
-        print(f'  Лог ошибки: {error_path}')
-        raise
-
-def drivers__run_pipeline(args, config: Dict[str, Any], model: str, temperature: float, primary_threshold: float, fallback_threshold: float, session_dir: Path, start_time: float) -> AuditResult:
-    """Основной пайплайн аудита драйверов."""
-    target_path = Path(args.target)
-    print('[1/4] Парсинг Excel...')
-    parsed = parse_excel_to_json(target_path)
-    parsed_path = session_dir / '01_parsed.json'
-    with open(parsed_path, 'w', encoding='utf-8') as f:
-        json.dump(parsed, f, ensure_ascii=False, indent=2)
-    print(f'  Секций: {len(parsed.get('sections', []))}')
-    print(f'  Сохранено: {parsed_path}')
-    if args.parse_only:
-        print(f'\n{'=' * 60}')
-        print('TARGET (parsed):')
-        print(json.dumps(parsed, ensure_ascii=False, indent=2))
-        return AuditResult(doc_type='drivers', session_dir=session_dir, target_path=str(target_path), duration_sec=time.time() - start_time)
-    print('\n[2/4] LLM-анализ секций...')
-    api_key = os.environ.get('OPENAI_API_KEY', 'dummy')
-    base_url = config.get('llm_base_url', LLM_CONFIG.base_url)
-    client = OpenAI(api_key=api_key, base_url=base_url)
-    model = resolve_runtime_llm_model(model)
-    system_prompt = load_driver_prompt()
-
-    def progress_cb(msg: str, idx: int, total: int):
-        print(f'  [{idx}/{total}] {msg}')
-    section_results = analyze_sections(parsed_data=parsed, client=client, primary_threshold=primary_threshold, fallback_threshold=fallback_threshold, model=model, temperature=temperature, progress_callback=progress_cb, system_prompt=system_prompt)
-    analysis_path = session_dir / '02_llm_analysis.json'
-    with open(analysis_path, 'w', encoding='utf-8') as f:
-        json.dump(section_results, f, ensure_ascii=False, indent=2)
-    print(f'  Сохранено: {analysis_path}')
-    print('\n[3/4] Сбор замечаний...')
-    remarks, driver_summary_map = collect_remarks_and_summaries(section_results)
-    print(f'  Замечаний: {len(remarks)}')
-    print('\n[4/4] Генерация Excel-отчёта...')
-    report_path = session_dir / '03_report.xlsx'
-    export_missing_driver_report(parsed, section_results, report_path)
-    print(f'  Отчёт: {report_path}')
-    duration = time.time() - start_time
-    violations = [{'rule_index': f'driver_{r.get('section_title', 'x')}_{r.get('number', '?')}', 'rule_title': r.get('driver_name', ''), 'section_title': r.get('section_title', ''), 'issue': r.get('issue', '')} for r in remarks]
-    print(f'\n{'=' * 60}')
-    print(f'  Итого нарушений: {len(violations)}')
-    if violations:
-        for v in violations:
-            print(f'  - [{v['rule_index']}] {v['rule_title']}: {v['issue']}')
-    print(f'  Время: {duration:.1f} сек')
-    print(f'  Сессия: {session_dir}')
-    print(f'{'=' * 60}')
-    return AuditResult(violations=violations, doc_type='drivers', session_dir=session_dir, duration_sec=duration, rules_checked=len(parsed.get('sections', [])), target_path=str(target_path))
-
-drivers_module = SimpleNamespace(logger=drivers_logger, _load_config=drivers__load_config, run=drivers_run, _run_pipeline=drivers__run_pipeline)
-
-# END_SOURCE_DRIVERS
 
 # START_SOURCE_KPSC_RUN_VALIDATIONS
 # PURPOSE: Inlined source from audit_engine/kpsc/run_validations.py.
-kpsc_run_validations_PARSER_MODULES = ['audit_engine.kpsc.parser_scripts.parse_kpsc_header', 'audit_engine.kpsc.parser_scripts.parse_kpsc_table1', 'audit_engine.kpsc.parser_scripts.parse_legend', 'audit_engine.kpsc.parser_scripts.parse_loss_digitization', 'audit_engine.kpsc.parser_scripts.parse_pa1_chart', 'audit_engine.kpsc.parser_scripts.parse_pa1_table', 'audit_engine.kpsc.parser_scripts.parse_pokazateli', 'audit_engine.kpsc.parser_scripts.parse_spaghetti_sheet', 'audit_engine.kpsc.parser_scripts.parse_spaghetti_problems']
 
 def kpsc_run_validations_load_rules(rules_path: Path) -> List[Dict]:
     """Загрузка правил из validation_rules.json."""
@@ -1174,91 +728,6 @@ def kpsc_run_validations_get_validator_module_name(rule_index: str) -> str:
     module_stem = matches[0].stem
     return f'audit_engine.kpsc.validation_scripts.{module_stem}'
 
-def kpsc_run_validations_run_parsers(xlsx_path: Path, output_dir: Path) -> Dict[str, Any]:
-    """
-    Запускает все 9 парсеров.
-
-    Каждый парсер вызывается через import → parse(xlsx_path, output_dir).
-    Ошибки отдельных парсеров не останавливают остальные.
-
-    Возвращает: {module_name: {"status": "ok"/"error", "error": "..."}}
-    """
-    output_dir.mkdir(parents=True, exist_ok=True)
-    results = {}
-    for module_name in kpsc_run_validations_PARSER_MODULES:
-        short_name = module_name.rsplit('.', 1)[-1]
-        try:
-            mod = importlib.import_module(module_name)
-            mod.parse(xlsx_path, output_dir)
-            results[short_name] = {'status': 'ok'}
-            print(f'  [OK] {short_name}')
-        except Exception as e:
-            results[short_name] = {'status': 'error', 'error': str(e)}
-            print(f'  [ERR] {short_name}: {e}')
-    return results
-
-def kpsc_run_validations_run_single_validator(rule: Dict, parser_outputs_dir: Path, output_dir: Path, rules_path: Path) -> Tuple[Dict, Dict, float]:
-    """
-    Запускает один валидатор через импорт.
-
-    Валидаторы ожидают:
-    - OPENAI_API_KEY в env
-    - VALIDATION_RULES_PATH в env (путь к rules JSON)
-    - --parser-outputs и --output как аргументы CLI
-
-    Вместо subprocess мы подменяем sys.argv и вызываем main().
-    Но безопаснее: каждый валидатор имеет load_rule / load_data / extract / build_prompt / call_llm.
-    Мы вызываем их main() через subprocess для изоляции (argparse конфликтов).
-    """
-    import subprocess
-    import sys
-    rule_index = rule['rule_index']
-    start = time.time()
-    try:
-        prefix = rule_index.replace('.', '_')
-        scripts_dir = Path(__file__).parent / 'validation_scripts'
-        pattern = f'validate_{prefix}_*.py'
-        matches = list(scripts_dir.glob(pattern))
-        if not matches:
-            return (rule, {'rule_index': rule_index, 'status': 'MISSING', 'discrepancy': f'Валидатор не найден (паттерн: {pattern})'}, 0.0)
-        script_path = matches[0]
-        output_file = output_dir / f'validate_{prefix}.json'
-        env = os.environ.copy()
-        env['VALIDATION_RULES_PATH'] = str(rules_path)
-        result = subprocess.run([sys.executable, str(script_path), '--parser-outputs', str(parser_outputs_dir), '--output', str(output_file)], capture_output=True, text=True, timeout=300, env=env)
-        duration = time.time() - start
-        if output_file.exists():
-            with open(output_file, 'r', encoding='utf-8') as f:
-                result_data = json.load(f)
-        else:
-            result_data = {'rule_index': rule_index, 'status': 'ERROR', 'discrepancy': f'Выходной файл не создан. STDERR: {result.stderr[:300]}'}
-        return (rule, result_data, duration)
-    except Exception as e:
-        duration = time.time() - start
-        return (rule, {'rule_index': rule_index, 'status': 'ERROR', 'discrepancy': f'Исключение: {str(e)}'}, duration)
-
-def kpsc_run_validations_run_validators_parallel(rules: List[Dict], parser_outputs_dir: Path, output_dir: Path, rules_path: Path, max_workers: int=5) -> List[Tuple[Dict, Dict, float]]:
-    """Запуск всех валидаторов параллельно."""
-    output_dir.mkdir(parents=True, exist_ok=True)
-    results = []
-    with ThreadPoolExecutor(max_workers=max_workers) as executor:
-        futures = {}
-        for rule in rules:
-            future = executor.submit(kpsc_run_validations_run_single_validator, rule, parser_outputs_dir, output_dir, rules_path)
-            futures[future] = rule
-        for future in as_completed(futures):
-            rule = futures[future]
-            try:
-                rule_data, result_data, duration = future.result()
-                results.append((rule_data, result_data, duration))
-                status = result_data.get('status', '?')
-                emoji = '+' if status == 'PASS' else '-' if status == 'FAIL' else '!'
-                idx = result_data.get('rule_index', '?')
-                print(f'  [{emoji}] [{len(results)}/{len(rules)}] {idx}: {status} ({duration:.1f}s)')
-            except Exception as e:
-                results.append((rule, {'rule_index': rule['rule_index'], 'status': 'ERROR', 'discrepancy': f'Future exception: {str(e)}'}, 0.0))
-    return results
-
 def kpsc_run_validations_create_excel_report(results: List[Tuple[Dict, Dict, float]], report_path: Path):
     """Создание Excel-отчёта с результатами валидации."""
     rows = []
@@ -1276,7 +745,6 @@ def kpsc_run_validations_create_excel_report(results: List[Tuple[Dict, Dict, flo
             worksheet.column_dimensions[get_column_letter(idx + 1)].width = min(max_length + 2, 50)
     return df
 
-kpsc_run_validations_module = SimpleNamespace(PARSER_MODULES=kpsc_run_validations_PARSER_MODULES, load_rules=kpsc_run_validations_load_rules, get_validator_module_name=kpsc_run_validations_get_validator_module_name, run_parsers=kpsc_run_validations_run_parsers, run_single_validator=kpsc_run_validations_run_single_validator, run_validators_parallel=kpsc_run_validations_run_validators_parallel, create_excel_report=kpsc_run_validations_create_excel_report)
 
 # END_SOURCE_KPSC_RUN_VALIDATIONS
 
@@ -1386,88 +854,12 @@ kpsc_module = SimpleNamespace(_load_config=kpsc__load_config, run=kpsc_run)
 
 # START_SOURCE_KARTOCHKA_PROEKTA_RUN_VALIDATIONS
 # PURPOSE: Inlined source from audit_engine/kartochka_proekta/run_validations.py.
-kartochka_proekta_run_validations_PARSER_MODULES = ['audit_engine.kartochka_proekta.parser_scripts.parse_kartochka_main', 'audit_engine.kartochka_proekta.parser_scripts.parse_metodika', 'audit_engine.kartochka_proekta.parser_scripts.parse_dropdown']
 
 def kartochka_proekta_run_validations_load_rules(rules_path: Path) -> List[Dict]:
     """Загрузка правил из validation_rules.json."""
     with open(rules_path, 'r', encoding='utf-8') as f:
         data = json.load(f)
     return data['rules']
-
-def kartochka_proekta_run_validations_run_parsers(xlsx_path: Path, output_dir: Path) -> Dict[str, Any]:
-    """
-    Запускает все 3 парсера.
-
-    Каждый парсер: import → parse(xlsx_path, output_dir).
-    Ошибки отдельных парсеров не останавливают остальные.
-    """
-    output_dir.mkdir(parents=True, exist_ok=True)
-    results = {}
-    for module_name in kartochka_proekta_run_validations_PARSER_MODULES:
-        short_name = module_name.rsplit('.', 1)[-1]
-        try:
-            mod = importlib.import_module(module_name)
-            mod.parse(xlsx_path, output_dir)
-            results[short_name] = {'status': 'ok'}
-            print(f'  [OK] {short_name}')
-        except Exception as e:
-            results[short_name] = {'status': 'error', 'error': str(e)}
-            print(f'  [ERR] {short_name}: {e}')
-    return results
-
-def kartochka_proekta_run_validations_run_single_validator(rule: Dict, parser_outputs_dir: Path, output_dir: Path, rules_path: Path) -> Tuple[Dict, Dict, float]:
-    """
-    Запускает один валидатор как subprocess.
-
-    Валидатор — скрипт validate_N_*.py в validation_scripts/.
-    Принимает --parser-outputs и --output, пишет JSON-результат.
-    """
-    rule_index = rule['rule_index']
-    start = time.time()
-    try:
-        prefix = rule_index.replace('.', '_')
-        scripts_dir = Path(__file__).parent / 'validation_scripts'
-        pattern = f'validate_{prefix}_*.py'
-        matches = list(scripts_dir.glob(pattern))
-        if not matches:
-            return (rule, {'rule_index': rule_index, 'status': 'MISSING', 'discrepancy': f'Валидатор не найден (паттерн: {pattern})'}, 0.0)
-        script_path = matches[0]
-        output_file = output_dir / f'validate_{prefix}.json'
-        env = os.environ.copy()
-        env['VALIDATION_RULES_PATH'] = str(rules_path)
-        result = subprocess.run([sys.executable, str(script_path), '--parser-outputs', str(parser_outputs_dir), '--output', str(output_file)], capture_output=True, text=True, timeout=300, env=env)
-        duration = time.time() - start
-        if output_file.exists():
-            with open(output_file, 'r', encoding='utf-8') as f:
-                result_data = json.load(f)
-        else:
-            result_data = {'rule_index': rule_index, 'status': 'ERROR', 'discrepancy': f'Выходной файл не создан. STDERR: {result.stderr[:500]}'}
-        return (rule, result_data, duration)
-    except Exception as e:
-        duration = time.time() - start
-        return (rule, {'rule_index': rule_index, 'status': 'ERROR', 'discrepancy': f'Исключение: {str(e)}'}, duration)
-
-def kartochka_proekta_run_validations_run_validators_parallel(rules: List[Dict], parser_outputs_dir: Path, output_dir: Path, rules_path: Path, max_workers: int=5) -> List[Tuple[Dict, Dict, float]]:
-    """Запуск всех валидаторов параллельно через ThreadPoolExecutor."""
-    output_dir.mkdir(parents=True, exist_ok=True)
-    results = []
-    with ThreadPoolExecutor(max_workers=max_workers) as executor:
-        futures = {}
-        for rule in rules:
-            future = executor.submit(kartochka_proekta_run_validations_run_single_validator, rule, parser_outputs_dir, output_dir, rules_path)
-            futures[future] = rule
-        for future in as_completed(futures):
-            rule = futures[future]
-            try:
-                rule_data, result_data, duration = future.result()
-                results.append((rule_data, result_data, duration))
-                status = result_data.get('status', '?')
-                emoji = '+' if status == 'PASS' else '-' if status == 'FAIL' else '!'
-                idx = result_data.get('rule_index', '?')
-                print(f'  [{emoji}] [{len(results)}/{len(rules)}] {idx}: {status} ({duration:.1f}s)')
-            except Exception as e:
-                results.append((rule, {'rule_index': rule['rule_index'], 'status': 'ERROR', 'discrepancy': f'Future exception: {str(e)}'}, 0.0))
-    return results
 
 def kartochka_proekta_run_validations_create_excel_report(results: List[Tuple[Dict, Dict, float]], report_path: Path):
     """Создание Excel-отчёта с результатами валидации."""
@@ -1486,7 +878,6 @@ def kartochka_proekta_run_validations_create_excel_report(results: List[Tuple[Di
             worksheet.column_dimensions[get_column_letter(idx + 1)].width = min(max_length + 2, 50)
     return df
 
-kartochka_proekta_run_validations_module = SimpleNamespace(PARSER_MODULES=kartochka_proekta_run_validations_PARSER_MODULES, load_rules=kartochka_proekta_run_validations_load_rules, run_parsers=kartochka_proekta_run_validations_run_parsers, run_single_validator=kartochka_proekta_run_validations_run_single_validator, run_validators_parallel=kartochka_proekta_run_validations_run_validators_parallel, create_excel_report=kartochka_proekta_run_validations_create_excel_report)
 
 # END_SOURCE_KARTOCHKA_PROEKTA_RUN_VALIDATIONS
 
@@ -1591,50 +982,6 @@ kartochka_proekta_module = SimpleNamespace(_load_config=kartochka_proekta__load_
 
 # END_SOURCE_KARTOCHKA_PROEKTA
 
-# START_SOURCE_PLAN_GRAFIK
-# PURPOSE: Inlined source from audit_engine/plan_grafik/__init__.py.
-plan_grafik_logger = logging.getLogger(__name__)
-
-def plan_grafik_run(args) -> AuditResult:
-    """
-    Запуск аудита план-графика.
-
-    Args:
-        args: Namespace с полями target, session_dir, parse_only, rule_filter
-
-    Returns:
-        AuditResult с нарушениями
-    """
-    start_time = time.time()
-    target_path = args.target
-    session_dir = Path(args.session_dir) if args.session_dir else Path(f'logs_result/plan_grafik/session_{datetime.now().strftime('%Y%m%d_%H%M%S')}')
-    session_dir.mkdir(parents=True, exist_ok=True)
-    print(f'[plan_grafik] Старт аудита: {target_path}')
-    print(f'[plan_grafik] Сессия: {session_dir}')
-    try:
-        parsed = parse_plan_grafik(target_path)
-    except Exception as e:
-        error_msg = f'Ошибка парсинга: {e}'
-        print(f'[plan_grafik] {error_msg}', file=sys.stderr)
-        (session_dir / 'ERROR.txt').write_text(error_msg, encoding='utf-8')
-        return AuditResult(violations=[], doc_type='plan_grafik', session_dir=session_dir, duration_sec=time.time() - start_time, rules_checked=0, target_path=target_path)
-    parsed_path = session_dir / 'parsed.json'
-    with open(parsed_path, 'w', encoding='utf-8') as f:
-        json.dump(parsed, f, ensure_ascii=False, indent=2, default=str)
-    print(f'[plan_grafik] Парсинг сохранён: {parsed_path}')
-    if getattr(args, 'parse_only', False):
-        return AuditResult(doc_type='plan_grafik', session_dir=session_dir, duration_sec=time.time() - start_time, target_path=target_path)
-    violations = run_all_validators(parsed, target_path)
-    xlsx_path = str(session_dir / 'validation_report.xlsx')
-    save_to_excel(violations, xlsx_path)
-    print(f'[plan_grafik] Отчёт: {xlsx_path}')
-    duration = time.time() - start_time
-    print(f'[plan_grafik] Завершён за {duration:.1f} сек. Нарушений: {len(violations)}')
-    return AuditResult(violations=violations, doc_type='plan_grafik', session_dir=session_dir, duration_sec=duration, rules_checked=9, target_path=target_path)
-
-plan_grafik_module = SimpleNamespace(logger=plan_grafik_logger, run=plan_grafik_run)
-
-# END_SOURCE_PLAN_GRAFIK
 
 # START_SOURCE_ENGINE
 # PURPOSE: Inlined source from audit_engine/engine.py.
@@ -2232,84 +1579,10 @@ def _run_audit_thread(session_id: str, doc_type: str, target_path: str):
         with _queue_counter_lock:
             _queue_counter -= 1
 
-api_server_module = SimpleNamespace(app=app, _audit_lock=_audit_lock, _queue_counter=_queue_counter, _queue_counter_lock=_queue_counter_lock, AUTH_LOGIN=AUTH_LOGIN, AUTH_PASSWORD=AUTH_PASSWORD, AUTH_TOKEN=AUTH_TOKEN, UPLOAD_DIR=UPLOAD_DIR, sessions=sessions, LoginRequest=LoginRequest, _check_auth=_check_auth, health_check=health_check, login=login, get_types=get_types, start_audit=start_audit, audit_events=audit_events, get_result=get_result, download_report=download_report, _detect_engine=api_server__detect_engine, _STANDARD_EXTENSIONS=_STANDARD_EXTENSIONS, _XLSX_EXTENSIONS=_XLSX_EXTENSIONS, _PPTX_EXTENSIONS=_PPTX_EXTENSIONS, _get_allowed_extensions=_get_allowed_extensions, SPECIAL_ENGINES=api_server_SPECIAL_ENGINES, _run_special_engine=_run_special_engine, _run_audit_thread=_run_audit_thread)
 
 # END_SOURCE_API_SERVER
 # END_API
 
-# START_CLI
-# PURPOSE: Provide the repository CLI for document audit execution and doc-type discovery.
-# INPUTS: argparse flags, doc_type, target path, optional overrides.
-# OUTPUTS: terminal progress, session artifacts, process exit status.
-# KEYWORDS: cli, argparse, audit, list-types.
-# LINKS: run_audit.py.
-# RATIONALE: `python main.py ...` must become the only active CLI path.
-
-# START_SOURCE_RUN_AUDIT
-# PURPOSE: Inlined source from run_audit.py.
-run_audit_SPECIAL_ENGINES = {'drivers': 'audit_engine.drivers', 'kpsc': 'audit_engine.kpsc', 'kartochka_proekta': 'audit_engine.kartochka_proekta'}
-
-def run_audit__detect_engine(doc_type: str) -> str:
-    """
-    Определяет тип движка по config.json.
-
-    Если в config.json есть поле "engine" — возвращает его значение.
-    Иначе возвращает "vision" (стандартный pipeline).
-    """
-    config_path = Path(__file__).parent / 'doc_configs' / doc_type / 'config.json'
-    if config_path.exists():
-        with open(config_path, 'r', encoding='utf-8') as f:
-            data = json.load(f)
-        return data.get('engine', 'vision')
-    return 'vision'
-
-def main():
-    """Точка входа CLI."""
-    parser = argparse.ArgumentParser(description='Единый аудит документов — Vision Pipeline + LLM')
-    parser.add_argument('--doc-type', default=None, help='Тип документа (имя папки в doc_configs/)')
-    parser.add_argument('--target', default=None, help='Путь к целевому документу')
-    parser.add_argument('--model', default=None, help='Модель OpenAI (переопределяет конфиг)')
-    parser.add_argument('--temperature', type=float, default=None, help='Температура генерации')
-    parser.add_argument('--rule-filter', default=None, help='Проверить только указанное правило (номер: 3 для Vision, 1.1 для КПСЦ)')
-    parser.add_argument('--parse-only', action='store_true', help='Только Vision-парсинг, без проверки правил')
-    parser.add_argument('--print-prompts', action='store_true', help='Режим отладки: только промпты без вызова LLM')
-    parser.add_argument('--session-dir', default=None, help='Директория для логов сессии')
-    parser.add_argument('--chunk-filter', default=None, help='Парсить только указанный чанк')
-    parser.add_argument('--out-xlsx', default=None, help='Путь для сохранения Excel')
-    parser.add_argument('--secondary', default=None, help='Путь к вторичному файлу (XLSX для multi-file аудитов)')
-    parser.add_argument('--list-types', action='store_true', help='Показать список доступных типов документов')
-    args = parser.parse_args()
-    if args.list_types:
-        doc_types = AuditEngine.list_doc_types()
-        if not doc_types:
-            print('Нет доступных типов документов в doc_configs/')
-            print('Создайте папку doc_configs/<doc_type>/ с config.json, rules.json и chunks_vision.json')
-            sys.exit(0)
-        print(f'\n📋 Доступные типы документов ({len(doc_types)}):')
-        print(f'{'─' * 50}')
-        for dt in doc_types:
-            title = f' — {dt['doc_title']}' if dt['doc_title'] else ''
-            print(f'  {dt['doc_type']}{title}')
-        print(f'\nИспользование: python run_audit.py --doc-type <doc_type> --target <file>')
-        sys.exit(0)
-    if not args.doc_type:
-        parser.error('--doc-type обязателен (или используйте --list-types)')
-    if not args.target:
-        parser.error('--target обязателен')
-    engine_type = run_audit__detect_engine(args.doc_type)
-    if engine_type in run_audit_SPECIAL_ENGINES:
-        module = importlib.import_module(run_audit_SPECIAL_ENGINES[engine_type])
-        result = module.run(args)
-    else:
-        rule_filter = int(args.rule_filter) if args.rule_filter is not None else None
-        engine = AuditEngine(args.doc_type)
-        result = engine.run(target_path=args.target, model=args.model, temperature=args.temperature, rule_filter=rule_filter, parse_only=args.parse_only, print_prompts=args.print_prompts, session_dir=args.session_dir, chunk_filter=args.chunk_filter, out_xlsx=args.out_xlsx, secondary_path=args.secondary)
-    sys.exit(1 if result.violations else 0)
-
-run_audit_module = SimpleNamespace(SPECIAL_ENGINES=run_audit_SPECIAL_ENGINES, _detect_engine=run_audit__detect_engine, main=main)
-
-# END_SOURCE_RUN_AUDIT
-# END_CLI
 
 # START_RUNTIME_INTEGRATION
 # PURPOSE: Replace legacy module-string and file-script dispatch with direct monolith callables.
@@ -2527,13 +1800,7 @@ def kartochka_proekta_run_validations_run_validators_parallel(
     return results
 
 
-def _default_prompt_path() -> Path:
-    return DOC_CONFIGS_DIR / "drivers" / "driver_check_prompt.txt"
 
-
-def drivers__load_config() -> Dict[str, Any]:
-    with open(DOC_CONFIGS_DIR / "drivers" / "config.json", "r", encoding="utf-8") as f:
-        return json.load(f)
 
 
 def kpsc__load_config() -> Dict[str, Any]:
@@ -2578,17 +1845,6 @@ def kartochka_proekta__load_config() -> Dict[str, Any]:
     with open(DOC_CONFIGS_DIR / "kartochka_proekta" / "config.json", "r", encoding="utf-8") as f:
         return json.load(f)
 
-
-def run_drivers_special(args) -> AuditResult:
-    start_time = time.time()
-    config = drivers__load_config()
-    model = args.model or config.get("model", "gpt-4.1-mini")
-    temperature = args.temperature if args.temperature is not None else config.get("temperature", 0.0)
-    primary_threshold = config.get("primary_threshold", 9.0)
-    fallback_threshold = config.get("fallback_threshold", 7.0)
-    session_dir = Path(args.session_dir) if args.session_dir else LOGS_RESULT_DIR / "drivers" / f"session_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
-    session_dir.mkdir(parents=True, exist_ok=True)
-    return drivers__run_pipeline(args, config, model, temperature, primary_threshold, fallback_threshold, session_dir, start_time)
 
 
 def run_kpsc_special(args) -> AuditResult:
@@ -2820,27 +2076,6 @@ def _run_special_engine(engine_type: str, doc_type: str, target_path: str, sessi
     return runner(args)
 
 
-api_server_module = SimpleNamespace(
-    app=app,
-    AUTH_LOGIN=AUTH_LOGIN,
-    AUTH_PASSWORD=AUTH_PASSWORD,
-    AUTH_TOKEN=AUTH_TOKEN,
-    UPLOAD_DIR=UPLOAD_DIR,
-    sessions=sessions,
-    LoginRequest=LoginRequest,
-    _check_auth=_check_auth,
-    health_check=health_check,
-    login=login,
-    get_types=get_types,
-    start_audit=start_audit,
-    audit_events=audit_events,
-    get_result=get_result,
-    download_report=download_report,
-    _detect_engine=api_server__detect_engine,
-    SPECIAL_ENGINES=api_server_SPECIAL_ENGINES,
-    _run_special_engine=_run_special_engine,
-    _run_audit_thread=_run_audit_thread,
-)
 
 
 def run_audit__detect_engine(doc_type: str) -> str:
@@ -2909,11 +2144,6 @@ def main() -> None:
     sys.exit(1 if result.violations else 0)
 
 
-run_audit_module = SimpleNamespace(
-    SPECIAL_ENGINES=run_audit_SPECIAL_ENGINES,
-    _detect_engine=run_audit__detect_engine,
-    main=main,
-)
 
 
 build_kpsc_header_payload = kpsc_parse_kpsc_header_build_payload
