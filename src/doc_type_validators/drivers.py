@@ -30,6 +30,7 @@ from typing import Any, Dict, Iterable, List, Optional, Tuple
 from openpyxl import Workbook
 
 from config.llm import LLM_CONFIG
+from src.audit.models import AuditResult
 from src.doc_type_parsers.drivers import parse_excel_to_json
 from src.llm.client import call_llm, resolve_runtime_llm_model
 # END_IMPORTS
@@ -332,8 +333,7 @@ def _run_drivers_pipeline(
     session_dir: Path,
     start_time: float,
 ):
-    """Основной пайплайн drivers (4 шага). Возвращает AuditResult — типизирован Any во избежание циклического импорта."""
-    from main import AuditResult  # late import — main.py импортирует этот модуль, поэтому здесь lazy
+    """Основной пайплайн drivers (4 шага)."""
     target_path = Path(args.target)
     print("[1/4] Парсинг Excel...")
     parsed = parse_excel_to_json(target_path)

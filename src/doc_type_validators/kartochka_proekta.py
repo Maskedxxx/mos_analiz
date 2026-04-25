@@ -30,6 +30,7 @@ import pandas as pd
 from openpyxl.utils import get_column_letter
 
 from config.llm import LLM_CONFIG
+from src.audit.models import AuditResult
 from src.doc_type_parsers.kartochka_proekta import parse_dropdown, parse_kartochka_main, parse_metodika
 from src.llm.client import call_llm, resolve_runtime_llm_model
 # END_IMPORTS
@@ -832,8 +833,6 @@ def run_kartochka_proekta_special(args):
     Выход:
         AuditResult.
     """
-    from main import AuditResult  # late import: main.py импортирует этот модуль
-
     start_time = time.time()
     target_path = Path(args.target)
     config = _load_kartochka_config()

@@ -21,6 +21,8 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List
 
+from src.audit.excel_reporter import save_to_excel
+from src.audit.models import AuditResult
 from src.doc_type_parsers.plan_grafik import parse_plan_grafik
 # END_IMPORTS
 
@@ -239,7 +241,6 @@ def run_plan_grafik_special(args):
         4. run_all_validators(parsed, target_path) → нарушения.
         5. save_to_excel — отчёт.
     """
-    from main import AuditResult, save_to_excel  # late import: main.py импортирует этот модуль
 
     start_time = time.time()
     target_path = str(args.target)
