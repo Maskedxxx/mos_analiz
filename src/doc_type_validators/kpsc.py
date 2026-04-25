@@ -19,13 +19,54 @@ from __future__ import annotations
 # START_IMPORTS
 import json
 import os
+import time
+from concurrent.futures import ThreadPoolExecutor, as_completed
+from datetime import datetime
 from pathlib import Path
 from types import SimpleNamespace
-from typing import Any, Dict
+from typing import Any, Dict, List, Tuple
+
+import pandas as pd
+from openpyxl.utils import get_column_letter
 
 from config.llm import LLM_CONFIG
-from src.llm.client import call_llm
+from src.doc_type_parsers.kpsc import (
+    parse_kpsc_header,
+    parse_kpsc_table1,
+    parse_legend,
+    parse_loss_digitization,
+    parse_pa1_chart,
+    parse_pa1_table,
+    parse_pokazateli,
+    parse_spaghetti_problems,
+    parse_spaghetti_sheet,
+)
+from src.llm.client import call_llm, resolve_runtime_llm_model
 # END_IMPORTS
+
+
+# START_PATHS
+# PURPOSE: parents[2] = repo root.
+_REPO_ROOT = Path(__file__).resolve().parents[2]
+_DOC_CONFIGS_DIR = _REPO_ROOT / "doc_configs"
+_LOGS_RESULT_DIR = _REPO_ROOT / "logs_result"
+# END_PATHS
+
+
+# START_PARSER_DISPATCH
+# PURPOSE: Маппинг "имя парсера → callable". Используется `_run_kpsc_parsers`.
+KPSC_PARSER_MODULE_DISPATCH = {
+    "parse_kpsc_header": parse_kpsc_header,
+    "parse_kpsc_table1": parse_kpsc_table1,
+    "parse_legend": parse_legend,
+    "parse_loss_digitization": parse_loss_digitization,
+    "parse_pa1_chart": parse_pa1_chart,
+    "parse_pa1_table": parse_pa1_table,
+    "parse_pokazateli": parse_pokazateli,
+    "parse_spaghetti_sheet": parse_spaghetti_sheet,
+    "parse_spaghetti_problems": parse_spaghetti_problems,
+}
+# END_PARSER_DISPATCH
 
 
 # START_CONSTANTS
@@ -1341,3 +1382,274 @@ def run_kpsc_validator_module(module_ns: SimpleNamespace, parser_outputs_dir: Pa
     module_ns.save_result(result, output_file)
     return result
 # END_VALIDATOR_RUNNER
+
+
+
+# ==============================================================================
+#                            KPSC SPECIAL RUNNER
+# Публичный entrypoint `run_kpsc_special` для регистрации в `SPECIAL_ENGINE_RUNNERS`.
+# Оркестрация: load_config → run_parsers (9 шт) → load_rules → run_validators_parallel → excel_report.
+# ==============================================================================
+
+# START_KPSC_HELPERS
+def _load_kpsc_config() -> Dict[str, Any]:
+    """Читает doc_configs/kpsc/config.json (model, max_workers, llm_base_url)."""
+    with open(_DOC_CONFIGS_DIR / "kpsc" / "config.json", "r", encoding="utf-8") as f:
+        return json.load(f)
+
+
+def _load_kpsc_rules(rules_path: Path) -> List[Dict[str, Any]]:
+    """Загружает все правила из validation_rules.json."""
+    with open(rules_path, "r", encoding="utf-8") as f:
+        data = json.load(f)
+    return data["rules"]
+
+
+def _kpsc_core_sheet_missing(parser_results: Dict[str, Dict[str, Any]]) -> bool:
+    """
+    Назначение:
+        True если в xlsx нет основного листа КПСЦ — тогда смысла гонять валидаторы
+        нет, можно сразу выдать FAIL по всем правилам без вызова LLM.
+
+    Логика:
+        Проверяет что оба парсера `parse_kpsc_header` и `parse_kpsc_table1`
+        упали с сообщением «Лист КПСЦ не найден».
+    """
+    required = ("parse_kpsc_header", "parse_kpsc_table1")
+    hits = 0
+    for parser_name in required:
+        parser_state = parser_results.get(parser_name, {})
+        error_text = str(parser_state.get("error", ""))
+        if parser_state.get("status") == "error" and "Лист КПСЦ не найден" in error_text:
+            hits += 1
+    return hits == len(required)
+
+
+def _kpsc_fast_fail_results(
+    rules: List[Dict[str, Any]],
+    output_dir: Path,
+    discrepancy: str,
+) -> List[Tuple[Dict[str, Any], Dict[str, Any], float]]:
+    """Генерирует FAIL-результаты для всех правил без вызова LLM (используется при отсутствии листа КПСЦ)."""
+    output_dir.mkdir(parents=True, exist_ok=True)
+    results: List[Tuple[Dict[str, Any], Dict[str, Any], float]] = []
+    for rule in rules:
+        result_data = {
+            "rule_index": rule["rule_index"],
+            "rule_title": rule.get("rule_title", ""),
+            "status": "FAIL",
+            "discrepancy": discrepancy,
+        }
+        output_file = output_dir / f"validate_{rule['rule_index'].replace('.', '_')}.json"
+        with open(output_file, "w", encoding="utf-8") as f:
+            json.dump(result_data, f, ensure_ascii=False, indent=2)
+        results.append((rule, result_data, 0.0))
+    return results
+
+
+def _run_kpsc_parsers(xlsx_path: Path, output_dir: Path) -> Dict[str, Any]:
+    """Прогоняет все 9 парсеров КПСЦ. Каждый парсер сам пишет JSON в output_dir."""
+    output_dir.mkdir(parents=True, exist_ok=True)
+    results: Dict[str, Any] = {}
+    for short_name, parser_fn in KPSC_PARSER_MODULE_DISPATCH.items():
+        try:
+            parser_fn(xlsx_path, output_dir)
+            results[short_name] = {"status": "ok"}
+            print(f"  [OK] {short_name}")
+        except Exception as e:
+            results[short_name] = {"status": "error", "error": str(e)}
+            print(f"  [ERR] {short_name}: {e}")
+    return results
+
+
+def _run_kpsc_single_validator(
+    rule: Dict[str, Any],
+    parser_outputs_dir: Path,
+    output_dir: Path,
+    rules_path: Path,
+) -> Tuple[Dict[str, Any], Dict[str, Any], float]:
+    """Запускает один валидатор по rule_index. Возвращает (rule, result, duration)."""
+    rule_index = rule["rule_index"]
+    start = time.time()
+    module_ns = KPSC_VALIDATOR_MODULE_DISPATCH.get(rule_index)
+    if module_ns is None:
+        return rule, {
+            "rule_index": rule_index,
+            "status": "MISSING",
+            "discrepancy": f"Валидатор для правила {rule_index} не зарегистрирован",
+        }, 0.0
+    os.environ["VALIDATION_RULES_PATH"] = str(rules_path)
+    output_file = output_dir / f"validate_{rule_index.replace('.', '_')}.json"
+    try:
+        result_data = run_kpsc_validator_module(module_ns, parser_outputs_dir, output_file)
+        return rule, result_data, time.time() - start
+    except FileNotFoundError as e:
+        result_data = {
+            "rule_index": rule_index,
+            "status": "FAIL",
+            "discrepancy": f"Недостаточно данных парсинга для правила {rule_index}: {e}",
+        }
+        output_file.parent.mkdir(parents=True, exist_ok=True)
+        with open(output_file, "w", encoding="utf-8") as f:
+            json.dump(result_data, f, ensure_ascii=False, indent=2)
+        return rule, result_data, time.time() - start
+    except Exception as e:
+        return rule, {
+            "rule_index": rule_index,
+            "status": "ERROR",
+            "discrepancy": f"Исключение: {e}",
+        }, time.time() - start
+
+
+def _run_kpsc_validators_parallel(
+    rules: List[Dict[str, Any]],
+    parser_outputs_dir: Path,
+    output_dir: Path,
+    rules_path: Path,
+    max_workers: int = 5,
+) -> List[Tuple[Dict[str, Any], Dict[str, Any], float]]:
+    """Параллельный прогон всех валидаторов через ThreadPoolExecutor."""
+    output_dir.mkdir(parents=True, exist_ok=True)
+    results: List[Tuple[Dict[str, Any], Dict[str, Any], float]] = []
+    with ThreadPoolExecutor(max_workers=max_workers) as executor:
+        futures = {
+            executor.submit(
+                _run_kpsc_single_validator, rule, parser_outputs_dir, output_dir, rules_path,
+            ): rule
+            for rule in rules
+        }
+        for future in as_completed(futures):
+            rule = futures[future]
+            try:
+                rule_data, result_data, duration = future.result()
+                results.append((rule_data, result_data, duration))
+                status = result_data.get("status", "?")
+                emoji = "+" if status == "PASS" else "-" if status == "FAIL" else "!"
+                print(f"  [{emoji}] [{len(results)}/{len(rules)}] {result_data.get('rule_index', '?')}: {status} ({duration:.1f}s)")
+            except Exception as e:
+                results.append((rule, {
+                    "rule_index": rule["rule_index"],
+                    "status": "ERROR",
+                    "discrepancy": f"Future exception: {e}",
+                }, 0.0))
+    return results
+
+
+def _create_kpsc_excel_report(
+    results: List[Tuple[Dict[str, Any], Dict[str, Any], float]],
+    report_path: Path,
+) -> pd.DataFrame:
+    """Собирает Excel-отчёт по результатам KPSC-валидации."""
+    rows = []
+    for rule, result_data, duration in results:
+        rows.append({
+            "rule_index": rule["rule_index"],
+            "section": rule.get("section", ""),
+            "rule_title": rule.get("rule_title", ""),
+            "status": result_data.get("status", "UNKNOWN"),
+            "discrepancy": result_data.get("discrepancy", ""),
+            "duration_sec": round(duration, 2),
+        })
+    df = pd.DataFrame(rows)
+    df = df.sort_values("rule_index")
+    report_path.parent.mkdir(parents=True, exist_ok=True)
+    with pd.ExcelWriter(report_path, engine="openpyxl") as writer:
+        df.to_excel(writer, sheet_name="Validation Results", index=False)
+        worksheet = writer.sheets["Validation Results"]
+        for idx, col in enumerate(df.columns):
+            max_length = max(df[col].astype(str).apply(len).max(), len(col))
+            worksheet.column_dimensions[get_column_letter(idx + 1)].width = min(max_length + 2, 50)
+    return df
+# END_KPSC_HELPERS
+
+
+# START_KPSC_RUNNER
+def run_kpsc_special(args):
+    """
+    Назначение:
+        Публичный entrypoint для KPSC. Регистрируется в `SPECIAL_ENGINE_RUNNERS`
+        в main.py. Оркестрирует: 9 парсеров → загрузка правил → параллельный
+        прогон 25 валидаторов через `KPSC_VALIDATOR_MODULE_DISPATCH` → Excel-отчёт.
+
+    Вход:
+        args: argparse-Namespace со полями {target, model?, temperature?,
+              parse_only?, rule_filter?, session_dir?}.
+
+    Выход:
+        AuditResult.
+
+    Логика:
+        1. Загружает config.json + готовит env (VALIDATION_RULES_PATH, LLM_*).
+        2. Запускает 9 парсеров → JSON-файлы в parser_outputs/.
+        3. Если основного листа КПСЦ нет — fast-fail без LLM.
+        4. Иначе параллельно прогоняет валидаторы (max_workers из config).
+        5. Пишет Excel-отчёт + AuditResult с violations.
+    """
+    from main import AuditResult  # late import: main.py импортирует этот модуль
+
+    start_time = time.time()
+    target_path = Path(args.target)
+    config = _load_kpsc_config()
+    max_workers = config.get("max_workers", 5)
+    rules_path = _DOC_CONFIGS_DIR / "kpsc" / "validation_rules.json"
+    session_dir = (
+        Path(args.session_dir) if args.session_dir
+        else _LOGS_RESULT_DIR / "kpsc" / f"session_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+    )
+    session_dir.mkdir(parents=True, exist_ok=True)
+    parser_outputs_dir = session_dir / "parser_outputs"
+    validation_outputs_dir = session_dir / "validation_outputs"
+
+    os.environ["VALIDATION_RULES_PATH"] = str(rules_path)
+    os.environ["LLM_BASE_URL"] = config.get("llm_base_url", LLM_CONFIG.base_url)
+    os.environ["LLM_MODEL"] = resolve_runtime_llm_model(config.get("model", LLM_CONFIG.default_model))
+    os.environ.setdefault("OPENAI_API_KEY", "dummy")
+
+    parser_results = _run_kpsc_parsers(target_path, parser_outputs_dir)
+    with open(session_dir / "parser_summary.json", "w", encoding="utf-8") as f:
+        json.dump(parser_results, f, ensure_ascii=False, indent=2)
+
+    if getattr(args, "parse_only", False):
+        return AuditResult(
+            doc_type="kpsc", session_dir=session_dir,
+            target_path=str(target_path), duration_sec=time.time() - start_time,
+        )
+
+    rules = _load_kpsc_rules(rules_path)
+    if args.rule_filter:
+        rules = [r for r in rules if r["rule_index"] == str(args.rule_filter)]
+        if not rules:
+            raise ValueError(f"Правило {args.rule_filter} не найдено в kpsc")
+
+    if _kpsc_core_sheet_missing(parser_results):
+        print("  [WARN] Лист 'КПСЦ' отсутствует. Формируем FAIL-результаты без вызова LLM.")
+        results = _kpsc_fast_fail_results(
+            rules=rules,
+            output_dir=validation_outputs_dir,
+            discrepancy="Файл не похож на КПСЦ: отсутствует основной лист 'КПСЦ', поэтому правила КПСЦ завершены как FAIL без LLM-вызова.",
+        )
+    else:
+        results = _run_kpsc_validators_parallel(
+            rules=rules,
+            parser_outputs_dir=parser_outputs_dir,
+            output_dir=validation_outputs_dir,
+            rules_path=rules_path,
+            max_workers=max_workers,
+        )
+    df = _create_kpsc_excel_report(results, session_dir / "validation_report.xlsx")
+
+    violations = []
+    for rule, result_data, _dur in results:
+        if result_data.get("status") == "FAIL":
+            violations.append({
+                "rule_index": result_data.get("rule_index", rule.get("rule_index", "?")),
+                "rule_title": result_data.get("rule_title", rule.get("rule_title", "")),
+                "section": rule.get("section", ""),
+                "discrepancy": result_data.get("discrepancy", ""),
+            })
+    return AuditResult(
+        violations=violations, doc_type="kpsc", session_dir=session_dir,
+        duration_sec=time.time() - start_time, rules_checked=len(df),
+        target_path=str(target_path),
+    )
+# END_KPSC_RUNNER

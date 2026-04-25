@@ -1,25 +1,34 @@
 # START_MODULE_CONTRACT
-# PURPOSE: Валидаторы документа «План-график» (xlsx). 9 детерминистских non-LLM проверок: имя файла, блок УТВЕРЖДАЮ, заголовки столбцов, даты мероприятий, ответственные, расчётные колонки, подпись, формулы.
-# INPUTS: `parsed` — dict от `parse_plan_grafik` (src/doc_type_parsers/plan_grafik.py); `target_path` — путь к xlsx-файлу (для проверки имени).
-# OUTPUTS: `run_all_validators(parsed, target_path) -> List[Dict]` — список нарушений {rule_index, rule_title, Целевой документ, Различие}. Каждый отдельный `validate_N_*(parsed, target_path)` возвращает свой под-список.
-# KEYWORDS: validators, plan-grafik, non-llm, deterministic.
-# LINKS: src/doc_type_parsers/plan_grafik.py (parse_plan_grafik — источник parsed dict).
+# PURPOSE: Аудит документа «План-график» (xlsx). 9 детерминистских non-LLM проверок (имя файла, блок УТВЕРЖДАЮ, заголовки, даты, ответственные, расчётные колонки, подпись, формулы) + публичный entrypoint `run_plan_grafik_special` для регистрации в `SPECIAL_ENGINE_RUNNERS`.
+# INPUTS: xlsx-файл; парсинг через `parse_plan_grafik` (src/doc_type_parsers/plan_grafik.py); конфиг отсутствует (правила захардкожены в валидаторах).
+# OUTPUTS: `run_plan_grafik_special(args) -> AuditResult`. Также пишет в session_dir: `parsed.json` + `validation_report.xlsx`.
+# KEYWORDS: validators, plan-grafik, non-llm, deterministic, runner.
+# LINKS: src/doc_type_parsers/plan_grafik.py (parse_plan_grafik), main.py (save_to_excel + AuditResult — лениво импортируются).
 # RATIONALE:
-#   План-график — xlsx-документ со структурированными ячейками (блок УТВЕРЖДАЮ,
-#   таблица мероприятий с датами, подписи). Проверки простые — регексы, проверки
-#   наличия полей, сравнение дат — не требуют LLM. Интерфейс отличается от
-#   KPSC/kartochka: нет `SimpleNamespace`, нет dispatch — просто 9 функций +
-#   `run_all_validators`, который вызывается из `run_plan_grafik_special` в main.py.
+#   План-график — xlsx со структурированными ячейками. Проверки простые (regex,
+#   наличие полей, сравнение дат) — не требуют LLM. По симметрии с drivers.py
+#   и kpsc.py весь doc_type-специфичный код (валидаторы + runner) живёт в одном
+#   файле.
 # END_MODULE_CONTRACT
 
 from __future__ import annotations
 
 # START_IMPORTS
+import json
 import re
+import time
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List
+
+from src.doc_type_parsers.plan_grafik import parse_plan_grafik
 # END_IMPORTS
+
+
+# START_PATHS
+# PURPOSE: parents[2] = repo root (файл лежит в src/doc_type_validators/).
+_LOGS_RESULT_DIR = Path(__file__).resolve().parents[2] / "logs_result"
+# END_PATHS
 
 
 def run_all_validators(parsed: Dict[str, Any], target_path: str) -> List[Dict[str, Any]]:
@@ -208,3 +217,57 @@ def validate_9_formulas(parsed: Dict, target_path: str) -> List[Dict]:
         if cell_data.get('has_error'):
             violations.append({'rule_index': 9, 'rule_title': 'Проверка целостности формул', 'Целевой документ': f'{cell_name}: {cell_data.get('value', '')}', 'Различие': 'Формула содержит ошибку #REF! (сломанная ссылка)'})
     return violations
+
+
+# START_RUNNER
+def run_plan_grafik_special(args):
+    """
+    Назначение:
+        Публичный entrypoint для plan_grafik. Регистрируется в `SPECIAL_ENGINE_RUNNERS`
+        в main.py. Парсит xlsx, прогоняет 9 валидаторов, пишет Excel-отчёт.
+
+    Вход:
+        args: argparse-Namespace со полями {target, session_dir?, parse_only?}.
+
+    Выход:
+        AuditResult.
+
+    Логика:
+        1. Создаёт session_dir.
+        2. parse_plan_grafik(target). Если падает — пишет ERROR.txt и возвращает пустой AuditResult.
+        3. Сохраняет parsed.json. Если parse_only — выходит.
+        4. run_all_validators(parsed, target_path) → нарушения.
+        5. save_to_excel — отчёт.
+    """
+    from main import AuditResult, save_to_excel  # late import: main.py импортирует этот модуль
+
+    start_time = time.time()
+    target_path = str(args.target)
+    session_dir = (
+        Path(args.session_dir) if args.session_dir
+        else _LOGS_RESULT_DIR / "plan_grafik" / f"session_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+    )
+    session_dir.mkdir(parents=True, exist_ok=True)
+    try:
+        parsed = parse_plan_grafik(target_path)
+    except Exception as e:
+        error_msg = f"Ошибка парсинга: {e}"
+        (session_dir / "ERROR.txt").write_text(error_msg, encoding="utf-8")
+        return AuditResult(
+            violations=[], doc_type="plan_grafik", session_dir=session_dir,
+            duration_sec=time.time() - start_time, rules_checked=0, target_path=target_path,
+        )
+    with open(session_dir / "parsed.json", "w", encoding="utf-8") as f:
+        json.dump(parsed, f, ensure_ascii=False, indent=2, default=str)
+    if getattr(args, "parse_only", False):
+        return AuditResult(
+            doc_type="plan_grafik", session_dir=session_dir,
+            duration_sec=time.time() - start_time, target_path=target_path,
+        )
+    violations = run_all_validators(parsed, target_path)
+    save_to_excel(violations, str(session_dir / "validation_report.xlsx"))
+    return AuditResult(
+        violations=violations, doc_type="plan_grafik", session_dir=session_dir,
+        duration_sec=time.time() - start_time, rules_checked=9, target_path=target_path,
+    )
+# END_RUNNER
