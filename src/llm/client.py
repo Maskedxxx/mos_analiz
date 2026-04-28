@@ -29,7 +29,7 @@ from config.llm import LLM_CONFIG
 # - OPENAI_TIMEOUT_SEC: дефолтный таймаут запроса (сек), env-override.
 # - DISABLE_THINKING_EXTRA_BODY: всегда добавляется в `extra_body` чтобы Qwen
 #   не уходил в thinking-mode (он ломает строгий JSON, обёртывает в markdown).
-OPENAI_TIMEOUT_SEC = float(os.environ.get("OPENAI_TIMEOUT_SEC", "45"))
+OPENAI_TIMEOUT_SEC = float(os.environ.get("OPENAI_TIMEOUT_SEC", "300"))
 DISABLE_THINKING_EXTRA_BODY: Dict[str, Any] = {"chat_template_kwargs": {"enable_thinking": False}}
 # END_OPENAI_DEFAULTS
 

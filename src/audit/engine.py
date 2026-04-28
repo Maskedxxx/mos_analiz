@@ -23,7 +23,7 @@ from typing import Any, Callable, Dict, List, Optional
 from config.parsers import PARSERS_CONFIG
 from src.audit.excel_reporter import save_to_excel
 from src.audit.logger import PipelineLogger
-from src.audit.models import AuditConfig, AuditResult, load_audit_config, load_rules
+from src.audit.models import AuditConfig, AuditResult, load_audit_config
 from src.doc_type_parsers.grafik_obhod import parse_grafik_obhod
 from src.format_parsers import parse_docx, parse_pptx
 from src.format_parsers.pdf import parse_pdf
@@ -100,11 +100,9 @@ class AuditEngine:
         target_path: str,
         model: Optional[str] = None,
         temperature: Optional[float] = None,
-        rule_filter: Optional[int] = None,
         parse_only: bool = False,
         print_prompts: bool = False,
         session_dir: Optional[str] = None,
-        chunk_filter: Optional[str] = None,
         out_xlsx: Optional[str] = None,
         secondary_path: Optional[str] = None,
         progress_callback: Optional[Callable] = None,
@@ -116,11 +114,9 @@ class AuditEngine:
             target_path: путь к целевому документу.
             model: модель LLM (переопределяет конфиг).
             temperature: температура (переопределяет конфиг).
-            rule_filter: проверить только одно правило.
             parse_only: режим только парсинга.
             print_prompts: режим отладки — выводить промпты без LLM.
             session_dir: директория для логов.
-            chunk_filter: парсить только указанный чанк.
             out_xlsx: путь для сохранения Excel.
             secondary_path: путь к вторичному файлу (XLSX для multi-file аудитов).
             progress_callback: колбэк прогресса для веб-UI (type: str, data: dict).
@@ -171,22 +167,7 @@ class AuditEngine:
         if secondary_path and (not Path(secondary_path).exists()):
             self.logger.log(f"❌ Вторичный файл не найден: {secondary_path}")
             raise FileNotFoundError(f"Вторичный файл не найден: {secondary_path}")
-        self.logger.log("📋 Загрузка правил...")
-        all_rules = load_rules(str(self.config.rules_path))
-        self.logger.log(f"   Загружено {len(all_rules)} правил")
-        _emit("audit_start", {"doc_type": self.doc_type, "filename": Path(target_path).name, "total_rules": len(all_rules)})
-        rules = all_rules
-        chunks_to_parse = None
-        if rule_filter is not None:
-            rules = [r for r in all_rules if r.index == rule_filter]
-            if not rules:
-                self.logger.log(f"❌ Правило #{rule_filter} не найдено")
-                raise ValueError(f"Правило #{rule_filter} не найдено в {self.doc_type}")
-            rule = rules[0]
-            chunks_to_parse = [rule.scope] if isinstance(rule.scope, str) else list(rule.scope)
-            self.logger.log(f"   ⚠️ Фильтр: только правило #{rule_filter}")
-        if chunk_filter:
-            chunks_to_parse = [chunk_filter]
+        _emit("audit_start", {"doc_type": self.doc_type, "filename": Path(target_path).name})
         target_ext = Path(target_path).suffix.lower()
         if self.config.secondary_file and target_ext == f".{self.config.secondary_file.type}" and (not secondary_path):
             self.logger.log(f"📊 Загружен {target_ext} — парсим как вторичный файл")
@@ -195,7 +176,7 @@ class AuditEngine:
             _emit("parsing_target_done", {})
         else:
             _emit("parsing_target", {})
-            target_doc = self._parse_document(target_path, chunks_to_parse, session_path / "vision_target")
+            target_doc = self._parse_document(target_path, session_path / "parse_logs")
             _emit("parsing_target_done", {})
             if secondary_path and self.config.secondary_file:
                 secondary_chunks = self._parse_secondary(secondary_path)
@@ -258,7 +239,7 @@ class AuditEngine:
             xlsx_path = out_xlsx
         else:
             xlsx_path = str(session_path / "audit_result.xlsx")
-        save_to_excel(violations, xlsx_path, all_rules=None, multi_rules=_all_multi_rules)
+        save_to_excel(violations, xlsx_path, multi_rules=_all_multi_rules)
         self.logger.log(f"📊 Excel сохранён: {xlsx_path}")
         duration = time.time() - start_time
         self.logger.log(f"{'=' * 60}")
@@ -278,19 +259,14 @@ class AuditEngine:
             duration_sec=duration, rules_checked=len(_all_multi_rules), target_path=target_path,
         )
 
-    def _parse_document(self, file_path: str, chunks_to_parse: Optional[List[str]], vision_log_dir: Path) -> Dict[str, Any]:
+    def _parse_document(self, file_path: str, parse_log_dir: Path) -> Dict[str, Any]:
         """
         Парсит документ выбранным парсером.
 
         Выбор парсера: `config.parser_by_ext[<расширение файла>]`. Никаких
         автоматических переопределений — один конфиг описывает всю цепочку.
         Если расширение не описано в карте, бросается ValueError.
-
-        Параметр `chunks_to_parse` оставлен в сигнатуре для обратной совместимости
-        с вызывающим кодом, но не используется: форматные парсеры теперь всегда
-        отдают весь текст документа целиком (`ParsedDocument` с `raw_text`).
         """
-        del chunks_to_parse  # параметр больше не нужен формат-парсерам
         file_ext = Path(file_path).suffix.lower()
         # Единый источник правды — parser_by_ext. Никаких скрытых override по формату.
         if file_ext not in self.config.parser_by_ext:
@@ -313,7 +289,7 @@ class AuditEngine:
             doc = parse_pptx(file_path)
         elif parser_name == "paddle":
             self.logger.log(f"📄 PDF-парсинг (Paddle): {file_path}...")
-            doc = parse_pdf(file_path, self.pdf_parser_config, log_dir=vision_log_dir)
+            doc = parse_pdf(file_path, self.pdf_parser_config, log_dir=parse_log_dir)
         else:
             # Единственные поддерживаемые парсеры сейчас — docx/pptx/paddle. Любое другое
             # значение — ошибка конфигурации и причина явно падать, а не молча продолжать.

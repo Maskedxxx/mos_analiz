@@ -1,7 +1,7 @@
 # START_MODULE_CONTRACT
-# PURPOSE: Базовые контракты данных аудита — dataclass-модели и loader-ы JSON-конфигов. Не зависят от движка/runner-ов; импортируются всеми слоями (main.py CLI, AuditEngine, doc_type-runner-ы).
-# INPUTS: doc_configs/<doc_type>/config.json + rules.json (читаются `load_audit_config` и `load_rules`).
-# OUTPUTS: `RuleSpec`, `SecondaryFileConfig`, `AuditConfig`, `AuditResult`, `load_rules`, `load_audit_config`.
+# PURPOSE: Базовые контракты данных аудита — dataclass-модели и loader JSON-конфигов doc_type. Не зависят от движка/runner-ов; импортируются всеми слоями (main.py CLI, AuditEngine, doc_type-runner-ы).
+# INPUTS: doc_configs/<doc_type>/config.json (читается `load_audit_config`).
+# OUTPUTS: `SecondaryFileConfig`, `AuditConfig`, `AuditResult`, `load_audit_config`.
 # KEYWORDS: dataclass, models, contracts, audit-config, audit-result.
 # LINKS: config/llm.py (LLM_CONFIG — defaults для AuditConfig), main.py (CLI/AuditEngine), src/doc_type_validators/*.py (runner-ы возвращают AuditResult).
 # RATIONALE:
@@ -9,8 +9,7 @@
 #   drivers/plan_grafik) делали `from main import AuditResult` лениво внутри
 #   функций — потому что main.py импортирует runner-ы сверху, а runner-ы
 #   нуждаются в `AuditResult` для возврата результата (циркулярка). Вынос
-#   моделей в отдельный модуль решает циркулярку: runner-ы импортируют
-#   `AuditResult` нормально на верхнем уровне.
+#   моделей в отдельный модуль решает циркулярку.
 # END_MODULE_CONTRACT
 
 from __future__ import annotations
@@ -19,38 +18,10 @@ from __future__ import annotations
 import json
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, List, Optional
 
 from config.llm import LLM_CONFIG
 # END_IMPORTS
-
-
-# START_RULE_SPEC
-@dataclass
-class RuleSpec:
-    """
-    Спецификация одного правила проверки (legacy single-rule формат).
-
-    Поля:
-        index — номер правила (1, 2, 3...)
-        title — название правила
-        scope — чанк(и) документа для проверки
-        compare — тип сравнения: template / target_only / cross_check
-        llm — использует ли LLM (False = non-LLM проверка)
-        instructions — текстовые инструкции для LLM (из поля "content" в JSON)
-        context_filter — фильтры контекста по чанкам {scope: [patterns]}
-        context_filter_mode — режим фильтрации: "paragraphs" или "headers_only"
-    """
-    index: int
-    title: str
-    scope: Union[str, List[str]]
-    compare: str
-    llm: bool
-    instructions: List[str] = field(default_factory=list)
-    context_filter: Dict[str, List[str]] = field(default_factory=dict)
-    context_filter_mode: str = "paragraphs"
-    max_chars: Optional[int] = None
-# END_RULE_SPEC
 
 
 # START_SECONDARY_FILE_CONFIG
@@ -64,7 +35,7 @@ class SecondaryFileConfig:
     Поля:
         type — тип файла ("xlsx", "csv" и т.д.)
         parser — имя парсера (например "grafik_obhod")
-        chunk_prefix — префикс для чанков вторичного файла (по умолчанию "xlsx_")
+        chunk_prefix — префикс для ключей вторичного файла (по умолчанию "xlsx_")
     """
     type: str
     parser: str
@@ -96,8 +67,7 @@ class AuditConfig:
                  только для special-движков; взаимоисключающе с parser_by_ext.
         llm_base_url, llm_max_tokens, reasoning_effort, llm_seed — параметры
             LLM-клиента (defaults из LLM_CONFIG).
-        config_dir — путь к папке с конфигами (автоматически)
-        rules_path — путь к rules.json (автоматически)
+        config_dir — путь к папке с конфигами (автоматически).
     """
     doc_type: str
     doc_title: str = ""
@@ -116,7 +86,6 @@ class AuditConfig:
     reasoning_effort: Optional[str] = field(default_factory=lambda: LLM_CONFIG.default_reasoning_effort)
     llm_seed: Optional[int] = field(default_factory=lambda: LLM_CONFIG.default_seed)
     config_dir: Path = field(default_factory=Path)
-    rules_path: Path = field(default_factory=Path)
 # END_AUDIT_CONFIG
 
 
@@ -143,46 +112,6 @@ class AuditResult:
 # END_AUDIT_RESULT
 
 
-# START_LOAD_RULES
-def load_rules(rules_path: str) -> List[RuleSpec]:
-    """
-    Назначение:
-        Загружает правила из JSON-файла (legacy single-rule формат).
-
-    Вход:
-        rules_path: путь к rules.json.
-
-    Выход:
-        Список `RuleSpec` (распакованных из массива `data["правила"]`).
-
-    Формат JSON:
-        {
-          "правила": [
-            {"index": 1, "title": "...", "scope": "...", "compare": "...",
-             "llm": true/false, "content": [...]}
-          ]
-        }
-    """
-    with open(rules_path, "r", encoding="utf-8") as f:
-        data = json.load(f)
-    rules = []
-    for rule in data.get("правила", []):
-        spec = RuleSpec(
-            index=rule["index"],
-            title=rule["title"],
-            scope=rule["scope"],
-            compare=rule["compare"],
-            llm=rule["llm"],
-            instructions=rule.get("content", []),
-            context_filter=rule.get("context_filter", {}),
-            context_filter_mode=rule.get("context_filter_mode", "paragraphs"),
-            max_chars=rule.get("max_chars", None),
-        )
-        rules.append(spec)
-    return rules
-# END_LOAD_RULES
-
-
 # START_LOAD_AUDIT_CONFIG
 def load_audit_config(config_dir: Path) -> AuditConfig:
     """
@@ -190,7 +119,7 @@ def load_audit_config(config_dir: Path) -> AuditConfig:
         Загружает AuditConfig из папки конфигов doc_configs/<doc_type>/.
 
     Вход:
-        config_dir: путь к папке (содержит config.json + rules.json).
+        config_dir: путь к папке (содержит config.json).
 
     Выход:
         Готовый `AuditConfig` с заполненным `secondary_file` если он есть.
@@ -228,7 +157,6 @@ def load_audit_config(config_dir: Path) -> AuditConfig:
         reasoning_effort=data.get("reasoning_effort", LLM_CONFIG.default_reasoning_effort),
         llm_seed=data.get("llm_seed", LLM_CONFIG.default_seed),
         config_dir=config_dir,
-        rules_path=config_dir / "rules.json",
     )
     if "secondary_file" in data:
         sf = data["secondary_file"]

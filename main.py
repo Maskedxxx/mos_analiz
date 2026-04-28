@@ -76,11 +76,10 @@ def main() -> None:
     parser.add_argument("--target", default=None, help="Путь к целевому документу")
     parser.add_argument("--model", default=None, help="Модель LLM (переопределяет конфиг)")
     parser.add_argument("--temperature", type=float, default=None, help="Температура генерации")
-    parser.add_argument("--rule-filter", default=None, help="Проверить только указанное правило")
+    parser.add_argument("--rule-filter", default=None, help="Проверить только указанное правило (только для special-runner-ов: kpsc/kartochka_proekta)")
     parser.add_argument("--parse-only", action="store_true", help="Только парсинг, без проверок")
     parser.add_argument("--print-prompts", action="store_true", help="Печатать промпты без вызова LLM")
     parser.add_argument("--session-dir", default=None, help="Директория для логов сессии")
-    parser.add_argument("--chunk-filter", default=None, help="Парсить только указанный чанк")
     parser.add_argument("--out-xlsx", default=None, help="Путь для сохранения Excel")
     parser.add_argument("--secondary", default=None, help="Путь к вторичному файлу")
     parser.add_argument("--list-types", action="store_true", help="Показать список доступных типов документов")
@@ -109,17 +108,14 @@ def main() -> None:
     if engine_type in SPECIAL_ENGINE_RUNNERS:
         result = SPECIAL_ENGINE_RUNNERS[engine_type](args)
     else:
-        rule_filter = int(args.rule_filter) if args.rule_filter is not None else None
         engine = AuditEngine(args.doc_type)
         result = engine.run(
             target_path=args.target,
             model=args.model,
             temperature=args.temperature,
-            rule_filter=rule_filter,
             parse_only=args.parse_only,
             print_prompts=args.print_prompts,
             session_dir=args.session_dir,
-            chunk_filter=args.chunk_filter,
             out_xlsx=args.out_xlsx,
             secondary_path=args.secondary,
         )

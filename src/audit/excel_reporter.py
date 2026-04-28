@@ -54,7 +54,6 @@ def _layer_label(layer: str) -> str:
 def save_to_excel(
     violations: List[Dict[str, Any]],
     output_path: str,
-    all_rules: Optional[List[Any]] = None,
     multi_rules: Optional[List[Dict[str, Any]]] = None,
 ) -> None:
     """
@@ -66,16 +65,16 @@ def save_to_excel(
     Вход:
         violations: список нарушений (list of dicts, каждый с полем "layer").
         output_path: путь для сохранения .xlsx.
-        all_rules: список всех `RuleSpec` (legacy формат).
         multi_rules: список dict-правил из rules_multi.json + rules_methodology.json.
+            Если задан — итерируем по нему (показываем PASS+FAIL); иначе — только по
+            `violations` (без PASS-строк).
 
     Выход:
         None (пишет файл по `output_path`).
 
     Логика:
         1. Группируем violations по (rule_index, layer).
-        2. Если задан `multi_rules` — итерируем по нему, по сортировке (base→methodology, index).
-           Если задан `all_rules` — по нему. Иначе по `violations` напрямую.
+        2. Если задан `multi_rules` — итерируем по нему (PASS+FAIL); иначе — только violations.
         3. Каждое правило → одна строка PASS («ОК») или N строк FAIL (по числу нарушений).
         4. Цвет ячеек: base PASS=зелёная, base FAIL=розовая, methodology PASS=голубая, methodology FAIL=светло-розовая.
         5. Авто-ширина колонок в пределах [_MIN_WIDTHS..._MAX_WIDTHS].
@@ -118,21 +117,6 @@ def save_to_excel(
             else:
                 rows_data.append({
                     "index": idx, "title": rule.get("title", ""), "layer": layer,
-                    "status": "ОК", "target": "", "diff": "",
-                })
-    elif all_rules:
-        for rule in sorted(all_rules, key=lambda r: r.index):
-            key = (rule.index, "base")
-            rule_violations = violations_by_rule.get(key, [])
-            if rule_violations:
-                for v in rule_violations:
-                    rows_data.append({
-                        "index": rule.index, "title": rule.title, "layer": "base",
-                        "status": "FAIL", "target": v.get("Целевой документ", ""), "diff": v.get("Различие", ""),
-                    })
-            else:
-                rows_data.append({
-                    "index": rule.index, "title": rule.title, "layer": "base",
                     "status": "ОК", "target": "", "diff": "",
                 })
     else:
