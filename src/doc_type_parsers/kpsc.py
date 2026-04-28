@@ -10,22 +10,120 @@
 from __future__ import annotations
 
 # START_IMPORTS
+import argparse
 import json
 import re
 import xml.etree.ElementTree as ET
-from collections import Counter, defaultdict
 from pathlib import Path
-from typing import Any, Dict, List, Optional, TypedDict
-from xml.etree import ElementTree
+from typing import Any, Dict, List, Optional, Tuple, TypedDict
 
-import openpyxl
 import posixpath
 import zipfile
 from openpyxl import Workbook, load_workbook
 from openpyxl.chart._chart import ChartBase
-from openpyxl.utils import column_index_from_string, get_column_letter, range_boundaries
+from openpyxl.utils import get_column_letter, range_boundaries
 from openpyxl.worksheet.worksheet import Worksheet
 # END_IMPORTS
+
+
+def _write_json_payload(output_path: Path, payload: Any, *, default_str: bool=True) -> None:
+    output_path.write_text(
+        json.dumps(
+            payload,
+            ensure_ascii=False,
+            indent=2,
+            default=str if default_str else None,
+        ),
+        encoding='utf-8',
+    )
+
+
+def _save_parser_payload(output_dir: Path, filename: str, payload: Any, *, default_str: bool=True) -> None:
+    output_dir.mkdir(parents=True, exist_ok=True)
+    _write_json_payload(output_dir / filename, payload, default_str=default_str)
+
+
+def _run_parser_cli(
+    description: str,
+    build_payload_fn,
+    *,
+    default_str: bool=True,
+    input_help: Optional[str]=None,
+    sheet_help: Optional[str]=None,
+    output_help: Optional[str]=None,
+) -> None:
+    ap = argparse.ArgumentParser(description=description)
+    ap.add_argument('-i', '--input', required=True, help=input_help)
+    ap.add_argument('-s', '--sheet', default=None, help=sheet_help)
+    ap.add_argument('-o', '--output', help=output_help)
+    args = ap.parse_args()
+    payload = build_payload_fn(Path(args.input), args.sheet)
+    data = json.dumps(payload, ensure_ascii=False, indent=2, default=str if default_str else None)
+    if args.output:
+        Path(args.output).write_text(data, encoding='utf-8')
+        print(f'Wrote {args.output}')
+    else:
+        print(data)
+
+
+def _build_bounds(top_row: int, bottom_row: int, left_col: int, right_col: int, *, with_letters: bool=True) -> Dict[str, Any]:
+    bounds = {'top_row': top_row, 'bottom_row': bottom_row, 'left_col': left_col, 'right_col': right_col}
+    if with_letters:
+        bounds.update(
+            {
+                'left_letter': get_column_letter(left_col),
+                'right_letter': get_column_letter(right_col),
+                'height': bottom_row - top_row + 1,
+                'width': right_col - left_col + 1,
+            }
+        )
+    return bounds
+
+
+def _build_merged_lookup(ws):
+    lookup = {}
+    for merge in ws.merged_cells.ranges:
+        coord = merge.coord
+        for r in range(merge.min_row, merge.max_row + 1):
+            for c in range(merge.min_col, merge.max_col + 1):
+                lookup[r, c] = coord
+    return lookup
+
+
+def _extract_table_rows(
+    ws,
+    top_row: int,
+    bottom_row: int,
+    left_col: int,
+    right_col: int,
+    merged_lookup: Optional[Dict[Tuple[int, int], str]]=None,
+    *,
+    col_before_row: bool=False,
+):
+    if merged_lookup is None:
+        merged_lookup = _build_merged_lookup(ws)
+    rows = []
+    for r in range(top_row, bottom_row + 1):
+        row_cells = []
+        for c in range(left_col, right_col + 1):
+            coord = f'{get_column_letter(c)}{r}'
+            merge_range = merged_lookup.get((r, c))
+            if merge_range:
+                min_col_m, min_row_m, max_col_m, max_row_m = range_boundaries(merge_range)
+                anchor = r == min_row_m and c == min_col_m
+                value = ws.cell(row=min_row_m, column=min_col_m).value
+            else:
+                anchor = True
+                value = ws.cell(row=r, column=c).value
+            cell_data = {'coord': coord}
+            if col_before_row:
+                cell_data.update({'col': c, 'row': r})
+            else:
+                cell_data.update({'row': r, 'col': c})
+            cell_data.update({'value': value, 'merge_range': merge_range, 'merge_anchor': anchor if merge_range else False})
+            row_cells.append(cell_data)
+        rows.append({'row': r, 'cells': row_cells})
+    return rows
 
 
 # START_CONTRACTS
@@ -439,25 +537,12 @@ def kpsc_parse_kpsc_header_build_payload(xlsx: Path, sheet_name: Optional[str]=N
 
 def parse_kpsc_header(xlsx_path: Path, output_dir: Path) -> KpscHeaderDocument:
     """Парсит верхний блок КПСЦ и сохраняет результат в output_dir/kpsc_header_v2.json."""
-    output_dir.mkdir(parents=True, exist_ok=True)
     payload = kpsc_parse_kpsc_header_build_payload(xlsx_path)
-    output_path = output_dir / 'kpsc_header_v2.json'
-    output_path.write_text(json.dumps(payload, ensure_ascii=False, indent=2, default=str), encoding='utf-8')
+    _save_parser_payload(output_dir, 'kpsc_header_v2.json', payload)
     return payload
 
 def kpsc_parse_kpsc_header_main():
-    ap = argparse.ArgumentParser(description='Парсер верхнего блока КПСЦ')
-    ap.add_argument('-i', '--input', required=True)
-    ap.add_argument('-s', '--sheet', default=None)
-    ap.add_argument('-o', '--output')
-    args = ap.parse_args()
-    payload = kpsc_parse_kpsc_header_build_payload(Path(args.input), args.sheet)
-    data = json.dumps(payload, ensure_ascii=False, indent=2, default=str)
-    if args.output:
-        Path(args.output).write_text(data, encoding='utf-8')
-        print(f'Wrote {args.output}')
-    else:
-        print(data)
+    _run_parser_cli('Парсер верхнего блока КПСЦ', kpsc_parse_kpsc_header_build_payload)
 # END_PARSE_KPSC_HEADER
 
 # START_PARSE_KPSC_TABLE1
@@ -544,34 +629,18 @@ def kpsc_parse_kpsc_table1_compute_col_bounds(ws, header_row: int) -> Tuple[int,
     return (left, right)
 
 def kpsc_parse_kpsc_table1_build_merged_lookup(ws):
-    lookup = {}
-    for merge in ws.merged_cells.ranges:
-        coord = merge.coord
-        min_row, min_col, max_row, max_col = (merge.min_row, merge.min_col, merge.max_row, merge.max_col)
-        for r in range(min_row, max_row + 1):
-            for c in range(min_col, max_col + 1):
-                lookup[r, c] = coord
-    return lookup
+    return _build_merged_lookup(ws)
 
 def kpsc_parse_kpsc_table1_extract_table(ws, top_row: int, bottom_row: int, left_col: int, right_col: int):
-    merged_lookup = kpsc_parse_kpsc_table1_build_merged_lookup(ws)
-    rows = []
-    for r in range(top_row, bottom_row + 1):
-        row_cells = []
-        for c in range(left_col, right_col + 1):
-            cell = ws.cell(row=r, column=c)
-            coord = f'{get_column_letter(c)}{r}'
-            merge_range = merged_lookup.get((r, c))
-            if merge_range:
-                min_col_m, min_row_m, max_col_m, max_row_m = range_boundaries(merge_range)
-                anchor = r == min_row_m and c == min_col_m
-                value = ws.cell(row=min_row_m, column=min_col_m).value
-            else:
-                anchor = True
-                value = cell.value
-            row_cells.append({'coord': coord, 'col': c, 'row': r, 'value': value, 'merge_range': merge_range, 'merge_anchor': anchor if merge_range else False})
-        rows.append({'row': r, 'cells': row_cells})
-    return rows
+    return _extract_table_rows(
+        ws,
+        top_row,
+        bottom_row,
+        left_col,
+        right_col,
+        kpsc_parse_kpsc_table1_build_merged_lookup(ws),
+        col_before_row=True,
+    )
 
 def kpsc_parse_kpsc_table1_build_payload(xlsx_path: Path, sheet_name: Optional[str]=None):
     wb = load_workbook(xlsx_path, data_only=True)
@@ -590,30 +659,23 @@ def kpsc_parse_kpsc_table1_build_payload(xlsx_path: Path, sheet_name: Optional[s
     bottom_row = kpsc_parse_kpsc_table1_find_bottom_row(ws, header_row, anchor_col)
     left_col, right_col = kpsc_parse_kpsc_table1_compute_col_bounds(ws, header_row)
     table_rows = kpsc_parse_kpsc_table1_extract_table(ws, header_row, bottom_row, left_col, right_col)
-    payload = {'meta': {'workbook': str(xlsx_path), 'sheet': actual_sheet, 'section_title_cell': f'{get_column_letter(anchor_col)}{anchor_row}'}, 'bounds': {'top_row': header_row, 'bottom_row': bottom_row, 'left_col': left_col, 'right_col': right_col, 'left_letter': get_column_letter(left_col), 'right_letter': get_column_letter(right_col), 'height': bottom_row - header_row + 1, 'width': right_col - left_col + 1}, 'rows': table_rows}
+    payload = {'meta': {'workbook': str(xlsx_path), 'sheet': actual_sheet, 'section_title_cell': f'{get_column_letter(anchor_col)}{anchor_row}'}, 'bounds': _build_bounds(header_row, bottom_row, left_col, right_col), 'rows': table_rows}
     return payload
 
 def parse_kpsc_table1(xlsx_path: Path, output_dir: Path) -> KpscTable1Document:
     """Парсит таблицу '1. Определение показателей потока' и сохраняет в kpsc_table1_v2.json."""
-    output_dir.mkdir(parents=True, exist_ok=True)
     payload = kpsc_parse_kpsc_table1_build_payload(xlsx_path)
-    output_path = output_dir / 'kpsc_table1_v2.json'
-    output_path.write_text(json.dumps(payload, ensure_ascii=False, indent=2, default=str), encoding='utf-8')
+    _save_parser_payload(output_dir, 'kpsc_table1_v2.json', payload)
     return payload
 
 def kpsc_parse_kpsc_table1_main():
-    parser = argparse.ArgumentParser(description="Парсер таблицы '1. Определение показателей потока'")
-    parser.add_argument('-i', '--input', required=True, help='XLSX файл')
-    parser.add_argument('-s', '--sheet', default=None, help='Лист (default: auto)')
-    parser.add_argument('-o', '--output', default=None, help='JSON файл вывода (stdout если не указан)')
-    args = parser.parse_args()
-    payload = kpsc_parse_kpsc_table1_build_payload(Path(args.input), args.sheet)
-    data = json.dumps(payload, ensure_ascii=False, indent=2, default=str)
-    if args.output:
-        Path(args.output).write_text(data, encoding='utf-8')
-        print(f'Wrote {args.output}')
-    else:
-        print(data)
+    _run_parser_cli(
+        "Парсер таблицы '1. Определение показателей потока'",
+        kpsc_parse_kpsc_table1_build_payload,
+        input_help='XLSX файл',
+        sheet_help='Лист (default: auto)',
+        output_help='JSON файл вывода (stdout если не указан)',
+    )
 
 # END_PARSE_KPSC_TABLE1
 
@@ -697,25 +759,12 @@ def kpsc_parse_legend_build_payload(xlsx: Path, sheet_name: Optional[str]=None):
 
 def parse_legend(xlsx_path: Path, output_dir: Path) -> LegendDocument:
     """Парсит лист 'Условные обозначения' и сохраняет в legend_v2.json."""
-    output_dir.mkdir(parents=True, exist_ok=True)
     payload = kpsc_parse_legend_build_payload(xlsx_path)
-    output_path = output_dir / 'legend_v2.json'
-    output_path.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding='utf-8')
+    _save_parser_payload(output_dir, 'legend_v2.json', payload, default_str=False)
     return payload
 
 def kpsc_parse_legend_main():
-    ap = argparse.ArgumentParser(description="Парсер листа 'Условные обозначения'")
-    ap.add_argument('-i', '--input', required=True)
-    ap.add_argument('-s', '--sheet', default=None)
-    ap.add_argument('-o', '--output')
-    args = ap.parse_args()
-    payload = kpsc_parse_legend_build_payload(Path(args.input), args.sheet)
-    data = json.dumps(payload, ensure_ascii=False, indent=2)
-    if args.output:
-        Path(args.output).write_text(data, encoding='utf-8')
-        print(f'Wrote {args.output}')
-    else:
-        print(data)
+    _run_parser_cli("Парсер листа 'Условные обозначения'", kpsc_parse_legend_build_payload, default_str=False)
 # END_PARSE_LEGEND
 
 # START_PARSE_LOSS_DIGITIZATION
@@ -758,32 +807,17 @@ def kpsc_parse_loss_digitization_find_bottom_row(ws, header_row: int, left_col: 
     return ws.max_row
 
 def kpsc_parse_loss_digitization_build_merged_lookup(ws):
-    lookup = {}
-    for merge in ws.merged_cells.ranges:
-        coord = merge.coord
-        for r in range(merge.min_row, merge.max_row + 1):
-            for c in range(merge.min_col, merge.max_col + 1):
-                lookup[r, c] = coord
-    return lookup
+    return _build_merged_lookup(ws)
 
 def kpsc_parse_loss_digitization_extract_table(ws, top_row: int, bottom_row: int, left_col: int, right_col: int):
-    merged_lookup = kpsc_parse_loss_digitization_build_merged_lookup(ws)
-    rows = []
-    for r in range(top_row, bottom_row + 1):
-        row_cells = []
-        for c in range(left_col, right_col + 1):
-            coord = f'{get_column_letter(c)}{r}'
-            merge_range = merged_lookup.get((r, c))
-            if merge_range:
-                min_col_m, min_row_m, max_col_m, max_row_m = range_boundaries(merge_range)
-                anchor = r == min_row_m and c == min_col_m
-                value = ws.cell(row=min_row_m, column=min_col_m).value
-            else:
-                anchor = True
-                value = ws.cell(row=r, column=c).value
-            row_cells.append({'coord': coord, 'row': r, 'col': c, 'value': value, 'merge_range': merge_range, 'merge_anchor': anchor if merge_range else False})
-        rows.append({'row': r, 'cells': row_cells})
-    return rows
+    return _extract_table_rows(
+        ws,
+        top_row,
+        bottom_row,
+        left_col,
+        right_col,
+        kpsc_parse_loss_digitization_build_merged_lookup(ws),
+    )
 
 def kpsc_parse_loss_digitization_build_payload(xlsx_path: Path, sheet_name: Optional[str]=None):
     wb = load_workbook(xlsx_path, data_only=True)
@@ -801,29 +835,22 @@ def kpsc_parse_loss_digitization_build_payload(xlsx_path: Path, sheet_name: Opti
     left_col, right_col = kpsc_parse_loss_digitization_compute_col_bounds(ws, header_row)
     bottom_row = kpsc_parse_loss_digitization_find_bottom_row(ws, header_row, left_col, right_col)
     rows = kpsc_parse_loss_digitization_extract_table(ws, header_row, bottom_row, left_col, right_col)
-    return {'meta': {'workbook': str(xlsx_path), 'sheet': actual_sheet, 'header_row': header_row}, 'bounds': {'top_row': header_row, 'bottom_row': bottom_row, 'left_col': left_col, 'right_col': right_col, 'left_letter': get_column_letter(left_col), 'right_letter': get_column_letter(right_col), 'height': bottom_row - header_row + 1, 'width': right_col - left_col + 1}, 'rows': rows}
+    return {'meta': {'workbook': str(xlsx_path), 'sheet': actual_sheet, 'header_row': header_row}, 'bounds': _build_bounds(header_row, bottom_row, left_col, right_col), 'rows': rows}
 
 def parse_loss_digitization(xlsx_path: Path, output_dir: Path) -> LossDigitizationDocument:
     """Парсит лист 'Оцифровка потерь КПСЦ' и сохраняет в ocifrovka_poteri_v2.json."""
-    output_dir.mkdir(parents=True, exist_ok=True)
     payload = kpsc_parse_loss_digitization_build_payload(xlsx_path)
-    output_path = output_dir / 'ocifrovka_poteri_v2.json'
-    output_path.write_text(json.dumps(payload, ensure_ascii=False, indent=2, default=str), encoding='utf-8')
+    _save_parser_payload(output_dir, 'ocifrovka_poteri_v2.json', payload)
     return payload
 
 def kpsc_parse_loss_digitization_main():
-    ap = argparse.ArgumentParser(description="Парсер листа 'Оцифровка потерь КПСЦ'")
-    ap.add_argument('-i', '--input', required=True, help='Путь к XLSX файлу')
-    ap.add_argument('-s', '--sheet', default=None, help='Имя листа (default: auto)')
-    ap.add_argument('-o', '--output', help='JSON файл вывода (stdout если не указан)')
-    args = ap.parse_args()
-    payload = kpsc_parse_loss_digitization_build_payload(Path(args.input), args.sheet)
-    data = json.dumps(payload, ensure_ascii=False, indent=2, default=str)
-    if args.output:
-        Path(args.output).write_text(data, encoding='utf-8')
-        print(f'Wrote {args.output}')
-    else:
-        print(data)
+    _run_parser_cli(
+        "Парсер листа 'Оцифровка потерь КПСЦ'",
+        kpsc_parse_loss_digitization_build_payload,
+        input_help='Путь к XLSX файлу',
+        sheet_help='Имя листа (default: auto)',
+        output_help='JSON файл вывода (stdout если не указан)',
+    )
 # END_PARSE_LOSS_DIG
 
 # START_PARSE_PA1_CHART
@@ -956,25 +983,17 @@ def kpsc_parse_pa1_chart_build_payload(xlsx_path: Path, sheet_name: Optional[str
 
 def parse_pa1_chart(xlsx_path: Path, output_dir: Path) -> Pa1ChartDocument:
     """Парсит диаграммы на листе 'ПА-1' и сохраняет в pa1_chart_v3.json."""
-    output_dir.mkdir(parents=True, exist_ok=True)
     payload = kpsc_parse_pa1_chart_build_payload(xlsx_path)
-    output_path = output_dir / 'pa1_chart_v3.json'
-    output_path.write_text(json.dumps(payload, ensure_ascii=False, indent=2, default=str), encoding='utf-8')
+    _save_parser_payload(output_dir, 'pa1_chart_v3.json', payload)
     return payload
 
 def kpsc_parse_pa1_chart_main():
-    ap = argparse.ArgumentParser(description="Парсер диаграмм на листе 'ПА-1' (после таблицы)")
-    ap.add_argument('-i', '--input', required=True, help='Путь к XLSX')
-    ap.add_argument('-s', '--sheet', default=None)
-    ap.add_argument('-o', '--output', help='JSON вывод (stdout если не указан)')
-    args = ap.parse_args()
-    payload = kpsc_parse_pa1_chart_build_payload(Path(args.input), args.sheet)
-    data = json.dumps(payload, ensure_ascii=False, indent=2, default=str)
-    if args.output:
-        Path(args.output).write_text(data, encoding='utf-8')
-        print(f'Wrote {args.output}')
-    else:
-        print(data)
+    _run_parser_cli(
+        "Парсер диаграмм на листе 'ПА-1' (после таблицы)",
+        kpsc_parse_pa1_chart_build_payload,
+        input_help='Путь к XLSX',
+        output_help='JSON вывод (stdout если не указан)',
+    )
 
 # END_PARSE_PA1_CHART
 
@@ -1016,32 +1035,17 @@ def kpsc_parse_pa1_table_find_bottom_row(ws, header_row: int, left_col: int, rig
     return ws.max_row
 
 def kpsc_parse_pa1_table_build_merged_lookup(ws):
-    lookup = {}
-    for m in ws.merged_cells.ranges:
-        coord = m.coord
-        for r in range(m.min_row, m.max_row + 1):
-            for c in range(m.min_col, m.max_col + 1):
-                lookup[r, c] = coord
-    return lookup
+    return _build_merged_lookup(ws)
 
 def kpsc_parse_pa1_table_extract_table(ws, top_row: int, bottom_row: int, left_col: int, right_col: int):
-    merged_lookup = kpsc_parse_pa1_table_build_merged_lookup(ws)
-    rows = []
-    for r in range(top_row, bottom_row + 1):
-        row_cells = []
-        for c in range(left_col, right_col + 1):
-            coord = f'{get_column_letter(c)}{r}'
-            merge_range = merged_lookup.get((r, c))
-            if merge_range:
-                min_col_m, min_row_m, max_col_m, max_row_m = range_boundaries(merge_range)
-                anchor = r == min_row_m and c == min_col_m
-                value = ws.cell(row=min_row_m, column=min_col_m).value
-            else:
-                anchor = True
-                value = ws.cell(row=r, column=c).value
-            row_cells.append({'coord': coord, 'row': r, 'col': c, 'value': value, 'merge_range': merge_range, 'merge_anchor': anchor if merge_range else False})
-        rows.append({'row': r, 'cells': row_cells})
-    return rows
+    return _extract_table_rows(
+        ws,
+        top_row,
+        bottom_row,
+        left_col,
+        right_col,
+        kpsc_parse_pa1_table_build_merged_lookup(ws),
+    )
 
 def kpsc_parse_pa1_table_build_payload(xlsx_path: Path, sheet_name: Optional[str]=None):
     wb = load_workbook(xlsx_path, data_only=True)
@@ -1059,29 +1063,16 @@ def kpsc_parse_pa1_table_build_payload(xlsx_path: Path, sheet_name: Optional[str
     left_col, right_col = kpsc_parse_pa1_table_compute_col_bounds(ws, header_row)
     bottom_row = kpsc_parse_pa1_table_find_bottom_row(ws, header_row, left_col, right_col)
     rows = kpsc_parse_pa1_table_extract_table(ws, header_row, bottom_row, left_col, right_col)
-    return {'meta': {'workbook': str(xlsx_path), 'sheet': actual_sheet, 'header_row': header_row}, 'bounds': {'top_row': header_row, 'bottom_row': bottom_row, 'left_col': left_col, 'right_col': right_col, 'left_letter': get_column_letter(left_col), 'right_letter': get_column_letter(right_col), 'height': bottom_row - header_row + 1, 'width': right_col - left_col + 1}, 'rows': rows}
+    return {'meta': {'workbook': str(xlsx_path), 'sheet': actual_sheet, 'header_row': header_row}, 'bounds': _build_bounds(header_row, bottom_row, left_col, right_col), 'rows': rows}
 
 def parse_pa1_table(xlsx_path: Path, output_dir: Path) -> Pa1TableDocument:
     """Парсит стартовую таблицу на листе 'ПА-1' и сохраняет в pa1_table_v1.json."""
-    output_dir.mkdir(parents=True, exist_ok=True)
     payload = kpsc_parse_pa1_table_build_payload(xlsx_path)
-    output_path = output_dir / 'pa1_table_v1.json'
-    output_path.write_text(json.dumps(payload, ensure_ascii=False, indent=2, default=str), encoding='utf-8')
+    _save_parser_payload(output_dir, 'pa1_table_v1.json', payload)
     return payload
 
 def kpsc_parse_pa1_table_main():
-    ap = argparse.ArgumentParser(description="Парсер стартовой таблицы на листе 'ПА-1'")
-    ap.add_argument('-i', '--input', required=True)
-    ap.add_argument('-s', '--sheet', default=None)
-    ap.add_argument('-o', '--output')
-    args = ap.parse_args()
-    payload = kpsc_parse_pa1_table_build_payload(Path(args.input), args.sheet)
-    data = json.dumps(payload, ensure_ascii=False, indent=2, default=str)
-    if args.output:
-        Path(args.output).write_text(data, encoding='utf-8')
-        print(f'Wrote {args.output}')
-    else:
-        print(data)
+    _run_parser_cli("Парсер стартовой таблицы на листе 'ПА-1'", kpsc_parse_pa1_table_build_payload)
 
 # END_PARSE_PA1_TABLE
 
@@ -1135,32 +1126,17 @@ def kpsc_parse_pokazateli_compute_col_bounds(ws, header_row: int) -> Tuple[int, 
     return (left, right)
 
 def kpsc_parse_pokazateli_build_merged_lookup(ws):
-    lookup = {}
-    for m in ws.merged_cells.ranges:
-        min_col, min_row, max_col, max_row = (m.min_col, m.min_row, m.max_col, m.max_row)
-        for r in range(min_row, max_row + 1):
-            for c in range(min_col, max_col + 1):
-                lookup[r, c] = m.coord
-    return lookup
+    return _build_merged_lookup(ws)
 
 def kpsc_parse_pokazateli_extract_table(ws, top_row: int, bottom_row: int, left_col: int, right_col: int):
-    merged_lookup = kpsc_parse_pokazateli_build_merged_lookup(ws)
-    rows = []
-    for r in range(top_row, bottom_row + 1):
-        row_cells = []
-        for c in range(left_col, right_col + 1):
-            coord = f'{get_column_letter(c)}{r}'
-            merge_range = merged_lookup.get((r, c))
-            if merge_range:
-                min_col_m, min_row_m, max_col_m, max_row_m = range_boundaries(merge_range)
-                anchor = r == min_row_m and c == min_col_m
-                value = ws.cell(row=min_row_m, column=min_col_m).value
-            else:
-                anchor = True
-                value = ws.cell(row=r, column=c).value
-            row_cells.append({'coord': coord, 'row': r, 'col': c, 'value': value, 'merge_range': merge_range, 'merge_anchor': anchor if merge_range else False})
-        rows.append({'row': r, 'cells': row_cells})
-    return rows
+    return _extract_table_rows(
+        ws,
+        top_row,
+        bottom_row,
+        left_col,
+        right_col,
+        kpsc_parse_pokazateli_build_merged_lookup(ws),
+    )
 
 def kpsc_parse_pokazateli_build_payload(xlsx: Path, sheet_name: Optional[str]=None):
     wb = load_workbook(xlsx, data_only=True)
@@ -1181,29 +1157,16 @@ def kpsc_parse_pokazateli_build_payload(xlsx: Path, sheet_name: Optional[str]=No
     bottom_row = kpsc_parse_pokazateli_find_bottom_row(ws, header_row)
     left_col, right_col = kpsc_parse_pokazateli_compute_col_bounds(ws, header_row)
     table_rows = kpsc_parse_pokazateli_extract_table(ws, header_row, bottom_row, left_col, right_col)
-    return {'meta': {'workbook': str(xlsx), 'sheet': actual_sheet, 'title_row': title_row}, 'bounds': {'top_row': header_row, 'bottom_row': bottom_row, 'left_col': left_col, 'right_col': right_col}, 'rows': table_rows}
+    return {'meta': {'workbook': str(xlsx), 'sheet': actual_sheet, 'title_row': title_row}, 'bounds': _build_bounds(header_row, bottom_row, left_col, right_col, with_letters=False), 'rows': table_rows}
 
 def parse_pokazateli(xlsx_path: Path, output_dir: Path) -> PokazateliDocument:
     """Парсит 'Текущие показатели потока' и сохраняет в pokazateli_v3.json."""
-    output_dir.mkdir(parents=True, exist_ok=True)
     payload = kpsc_parse_pokazateli_build_payload(xlsx_path)
-    output_path = output_dir / 'pokazateli_v3.json'
-    output_path.write_text(json.dumps(payload, ensure_ascii=False, indent=2, default=str), encoding='utf-8')
+    _save_parser_payload(output_dir, 'pokazateli_v3.json', payload)
     return payload
 
 def kpsc_parse_pokazateli_main():
-    ap = argparse.ArgumentParser(description="Парсер 'Текущие показатели потока'")
-    ap.add_argument('-i', '--input', required=True)
-    ap.add_argument('-s', '--sheet', default=None)
-    ap.add_argument('-o', '--output')
-    args = ap.parse_args()
-    payload = kpsc_parse_pokazateli_build_payload(Path(args.input), args.sheet)
-    data = json.dumps(payload, ensure_ascii=False, indent=2, default=str)
-    if args.output:
-        Path(args.output).write_text(data, encoding='utf-8')
-        print(f'Wrote {args.output}')
-    else:
-        print(data)
+    _run_parser_cli("Парсер 'Текущие показатели потока'", kpsc_parse_pokazateli_build_payload)
 # END_PARSE_POKAZATELI
 
 # START_PARSE_SPAGHETTI_PROBLEMS
@@ -1239,32 +1202,17 @@ def kpsc_parse_spaghetti_problems_find_bottom_row(ws, header_row: int, left_col:
     return ws.max_row
 
 def kpsc_parse_spaghetti_problems_build_merged_lookup(ws):
-    lookup = {}
-    for m in ws.merged_cells.ranges:
-        coord = m.coord
-        for r in range(m.min_row, m.max_row + 1):
-            for c in range(m.min_col, m.max_col + 1):
-                lookup[r, c] = coord
-    return lookup
+    return _build_merged_lookup(ws)
 
 def kpsc_parse_spaghetti_problems_extract_table(ws, top_row: int, bottom_row: int, left_col: int, right_col: int):
-    merged_lookup = kpsc_parse_spaghetti_problems_build_merged_lookup(ws)
-    rows = []
-    for r in range(top_row, bottom_row + 1):
-        row_cells = []
-        for c in range(left_col, right_col + 1):
-            coord = f'{get_column_letter(c)}{r}'
-            merge_range = merged_lookup.get((r, c))
-            if merge_range:
-                min_col_m, min_row_m, max_col_m, max_row_m = range_boundaries(merge_range)
-                anchor = r == min_row_m and c == min_col_m
-                value = ws.cell(row=min_row_m, column=min_col_m).value
-            else:
-                anchor = True
-                value = ws.cell(row=r, column=c).value
-            row_cells.append({'coord': coord, 'row': r, 'col': c, 'value': value, 'merge_range': merge_range, 'merge_anchor': anchor if merge_range else False})
-        rows.append({'row': r, 'cells': row_cells})
-    return rows
+    return _extract_table_rows(
+        ws,
+        top_row,
+        bottom_row,
+        left_col,
+        right_col,
+        kpsc_parse_spaghetti_problems_build_merged_lookup(ws),
+    )
 
 def kpsc_parse_spaghetti_problems_build_payload(xlsx_path: Path, sheet_name: Optional[str]=None):
     wb = load_workbook(xlsx_path, data_only=True)
@@ -1282,29 +1230,16 @@ def kpsc_parse_spaghetti_problems_build_payload(xlsx_path: Path, sheet_name: Opt
     left_col, right_col = kpsc_parse_spaghetti_problems_compute_col_bounds(ws, header_row)
     bottom_row = kpsc_parse_spaghetti_problems_find_bottom_row(ws, header_row, left_col, right_col)
     rows = kpsc_parse_spaghetti_problems_extract_table(ws, header_row, bottom_row, left_col, right_col)
-    return {'meta': {'workbook': str(xlsx_path), 'sheet': actual_sheet, 'header_row': header_row}, 'bounds': {'top_row': header_row, 'bottom_row': bottom_row, 'left_col': left_col, 'right_col': right_col, 'left_letter': get_column_letter(left_col), 'right_letter': get_column_letter(right_col), 'height': bottom_row - header_row + 1, 'width': right_col - left_col + 1}, 'rows': rows}
+    return {'meta': {'workbook': str(xlsx_path), 'sheet': actual_sheet, 'header_row': header_row}, 'bounds': _build_bounds(header_row, bottom_row, left_col, right_col), 'rows': rows}
 
 def parse_spaghetti_problems(xlsx_path: Path, output_dir: Path) -> SpaghettiProblemsDocument:
     """Парсит лист 'Перечень проблем по спагетти' и сохраняет в spaghetti_problems_v1.json."""
-    output_dir.mkdir(parents=True, exist_ok=True)
     payload = kpsc_parse_spaghetti_problems_build_payload(xlsx_path)
-    output_path = output_dir / 'spaghetti_problems_v1.json'
-    output_path.write_text(json.dumps(payload, ensure_ascii=False, indent=2, default=str), encoding='utf-8')
+    _save_parser_payload(output_dir, 'spaghetti_problems_v1.json', payload)
     return payload
 
 def kpsc_parse_spaghetti_problems_main():
-    ap = argparse.ArgumentParser(description="Парсер листа 'Перечень проблем по спагетти'")
-    ap.add_argument('-i', '--input', required=True)
-    ap.add_argument('-s', '--sheet', default=None)
-    ap.add_argument('-o', '--output')
-    args = ap.parse_args()
-    payload = kpsc_parse_spaghetti_problems_build_payload(Path(args.input), args.sheet)
-    data = json.dumps(payload, ensure_ascii=False, indent=2, default=str)
-    if args.output:
-        Path(args.output).write_text(data, encoding='utf-8')
-        print(f'Wrote {args.output}')
-    else:
-        print(data)
+    _run_parser_cli("Парсер листа 'Перечень проблем по спагетти'", kpsc_parse_spaghetti_problems_build_payload)
 # END_PARSE_SPAGHETTI_PROB
 
 # START_PARSE_SPAGHETTI_SHEET
@@ -1349,32 +1284,17 @@ def kpsc_parse_spaghetti_sheet_find_bottom_row(ws, header_row: int, left_col: in
     return ws.max_row
 
 def kpsc_parse_spaghetti_sheet_build_merged_lookup(ws):
-    lookup = {}
-    for m in ws.merged_cells.ranges:
-        coord = m.coord
-        for r in range(m.min_row, m.max_row + 1):
-            for c in range(m.min_col, m.max_col + 1):
-                lookup[r, c] = coord
-    return lookup
+    return _build_merged_lookup(ws)
 
 def kpsc_parse_spaghetti_sheet_extract_table(ws, top_row: int, bottom_row: int, left_col: int, right_col: int):
-    merged_lookup = kpsc_parse_spaghetti_sheet_build_merged_lookup(ws)
-    rows = []
-    for r in range(top_row, bottom_row + 1):
-        row_cells = []
-        for c in range(left_col, right_col + 1):
-            coord = f'{get_column_letter(c)}{r}'
-            merge_range = merged_lookup.get((r, c))
-            if merge_range:
-                min_col_m, min_row_m, max_col_m, max_row_m = range_boundaries(merge_range)
-                anchor = r == min_row_m and c == min_col_m
-                value = ws.cell(row=min_row_m, column=min_col_m).value
-            else:
-                anchor = True
-                value = ws.cell(row=r, column=c).value
-            row_cells.append({'coord': coord, 'row': r, 'col': c, 'value': value, 'merge_range': merge_range, 'merge_anchor': anchor if merge_range else False})
-        rows.append({'row': r, 'cells': row_cells})
-    return rows
+    return _extract_table_rows(
+        ws,
+        top_row,
+        bottom_row,
+        left_col,
+        right_col,
+        kpsc_parse_spaghetti_sheet_build_merged_lookup(ws),
+    )
 
 def kpsc_parse_spaghetti_sheet_extract_pre_table(ws, header_row: int):
     cells = []
@@ -1402,27 +1322,14 @@ def kpsc_parse_spaghetti_sheet_build_payload(xlsx_path: Path, sheet_name: Option
     bottom_row = kpsc_parse_spaghetti_sheet_find_bottom_row(ws, header_row, left_col, right_col)
     pre_table = kpsc_parse_spaghetti_sheet_extract_pre_table(ws, header_row)
     table_rows = kpsc_parse_spaghetti_sheet_extract_table(ws, header_row, bottom_row, left_col, right_col)
-    return {'meta': {'workbook': str(xlsx_path), 'sheet': actual_sheet, 'header_row': header_row}, 'bounds': {'top_row': header_row, 'bottom_row': bottom_row, 'left_col': left_col, 'right_col': right_col, 'left_letter': get_column_letter(left_col), 'right_letter': get_column_letter(right_col), 'height': bottom_row - header_row + 1, 'width': right_col - left_col + 1}, 'pre_table_cells': pre_table, 'rows': table_rows}
+    return {'meta': {'workbook': str(xlsx_path), 'sheet': actual_sheet, 'header_row': header_row}, 'bounds': _build_bounds(header_row, bottom_row, left_col, right_col), 'pre_table_cells': pre_table, 'rows': table_rows}
 
 def parse_spaghetti_sheet(xlsx_path: Path, output_dir: Path) -> SpaghettiSheetDocument:
     """Парсит лист 'Диаграмма Спагетти' и сохраняет в spaghetti_sheet_v2.json."""
-    output_dir.mkdir(parents=True, exist_ok=True)
     payload = kpsc_parse_spaghetti_sheet_build_payload(xlsx_path)
-    output_path = output_dir / 'spaghetti_sheet_v2.json'
-    output_path.write_text(json.dumps(payload, ensure_ascii=False, indent=2, default=str), encoding='utf-8')
+    _save_parser_payload(output_dir, 'spaghetti_sheet_v2.json', payload)
     return payload
 
 def kpsc_parse_spaghetti_sheet_main():
-    ap = argparse.ArgumentParser(description="Парсер листа 'Диаграмма Спагетти' (без диаграммы)")
-    ap.add_argument('-i', '--input', required=True)
-    ap.add_argument('-s', '--sheet', default=None)
-    ap.add_argument('-o', '--output')
-    args = ap.parse_args()
-    payload = kpsc_parse_spaghetti_sheet_build_payload(Path(args.input), args.sheet)
-    data = json.dumps(payload, ensure_ascii=False, indent=2, default=str)
-    if args.output:
-        Path(args.output).write_text(data, encoding='utf-8')
-        print(f'Wrote {args.output}')
-    else:
-        print(data)
+    _run_parser_cli("Парсер листа 'Диаграмма Спагетти' (без диаграммы)", kpsc_parse_spaghetti_sheet_build_payload)
 # END_PARSE_SPAGHETTI_SHEET
