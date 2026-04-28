@@ -11,6 +11,7 @@ from __future__ import annotations
 
 # START_IMPORTS
 import json
+import os
 import sys
 from typing import Any, Dict, List, Optional
 
@@ -18,6 +19,19 @@ from openai import OpenAI
 
 from config.llm import LLM_CONFIG
 # END_IMPORTS
+
+
+# START_OPENAI_DEFAULTS
+# PURPOSE: Защита от висящих LLM-запросов и принудительное `enable_thinking=False`
+# для Qwen-thinking моделей на Spark-vLLM. Эти параметры применяются ВСЕГДА ко
+# всем `call_llm`-вызовам (раньше делалось через monkey-patch в main.py — теперь
+# inline в клиенте).
+# - OPENAI_TIMEOUT_SEC: дефолтный таймаут запроса (сек), env-override.
+# - DISABLE_THINKING_EXTRA_BODY: всегда добавляется в `extra_body` чтобы Qwen
+#   не уходил в thinking-mode (он ломает строгий JSON, обёртывает в markdown).
+OPENAI_TIMEOUT_SEC = float(os.environ.get("OPENAI_TIMEOUT_SEC", "45"))
+DISABLE_THINKING_EXTRA_BODY: Dict[str, Any] = {"chat_template_kwargs": {"enable_thinking": False}}
+# END_OPENAI_DEFAULTS
 
 
 # START_MODEL_RESOLVER
@@ -198,23 +212,31 @@ def call_llm(
 
     Логика:
         1. Если `base_url` задан — создаём OpenAI клиент для Spark-vLLM; иначе облачный.
+           Клиент создаётся с `timeout=OPENAI_TIMEOUT_SEC` (защита от висящих запросов).
         2. Спускаем стейл-имена моделей через `resolve_runtime_llm_model` — только когда
            работаем с локальным сервисом (иначе облачный API знает свои имена).
         3. Собираем kwargs только с непустыми опциональными полями.
-        4. Делаем `chat.completions.create`, возвращаем content.
+        4. ВСЕГДА добавляем в `extra_body` `chat_template_kwargs={'enable_thinking': False}`
+           — иначе Qwen3.5 на Spark уходит в thinking-mode и обёртывает строгий JSON в
+           markdown ` ```json ... ``` `, ломая `json.loads`. Мерджится с reasoning_effort.
+        5. Делаем `chat.completions.create`, возвращаем content.
     """
     if base_url:
         model = resolve_runtime_llm_model(model)
-        client = OpenAI(base_url=base_url, api_key="none")
+        client = OpenAI(base_url=base_url, api_key="none", timeout=OPENAI_TIMEOUT_SEC)
     else:
-        client = OpenAI()
+        client = OpenAI(timeout=OPENAI_TIMEOUT_SEC)
     kwargs: Dict[str, Any] = {"model": model, "messages": messages, "temperature": temperature}
     if max_tokens is not None:
         kwargs["max_tokens"] = max_tokens
     if seed is not None:
         kwargs["seed"] = seed
+    # extra_body всегда содержит chat_template_kwargs.enable_thinking=False;
+    # reasoning_effort (если задан) добавляется поверх.
+    extra_body: Dict[str, Any] = {"chat_template_kwargs": dict(DISABLE_THINKING_EXTRA_BODY["chat_template_kwargs"])}
     if reasoning_effort:
-        kwargs["extra_body"] = {"reasoning_effort": reasoning_effort}
+        extra_body["reasoning_effort"] = reasoning_effort
+    kwargs["extra_body"] = extra_body
     if response_format is not None:
         kwargs["response_format"] = response_format
     response = client.chat.completions.create(**kwargs)

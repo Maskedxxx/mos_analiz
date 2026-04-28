@@ -19,6 +19,7 @@ from typing import Any, Dict, List, Optional
 from openai import OpenAI
 
 from config.llm import LLM_CONFIG
+from src.llm.client import OPENAI_TIMEOUT_SEC
 # END_IMPORTS
 
 
@@ -465,7 +466,7 @@ def run_multi_rule_audit(
         (session_dir / f"{prefix}_system_prompt.txt").write_text(SYSTEM_PROMPT, encoding="utf-8")
         (session_dir / f"{prefix}_user_prompt.txt").write_text(user_prompt, encoding="utf-8")
 
-    client = OpenAI(base_url=llm_base_url, api_key=LLM_CONFIG.api_key)
+    client = OpenAI(base_url=llm_base_url, api_key=LLM_CONFIG.api_key, timeout=OPENAI_TIMEOUT_SEC)
     response = client.chat.completions.create(
         model=llm_model,
         messages=[
