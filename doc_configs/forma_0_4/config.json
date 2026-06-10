@@ -1,0 +1,14 @@
+{
+  "doc_type": "forma_0_4",
+  "doc_title": "0.4 Форма «О проекте в цифрах»",
+  "engine": "forma_0_4",
+  "model": "Qwen3.5-35B-A3B",
+  "temperature": 0.0,
+  "max_workers": 5,
+  "filename_keywords": ["0.4"],
+  "filename_keywords_alt": ["о проекте в цифрах", "опроектевцифрах"],
+  "min_period_months": 4.5,
+  "min_workdays": 137,
+  "min_production_growth_pct": 52,
+  "expected_appendix": "Приложение № 5"
+}

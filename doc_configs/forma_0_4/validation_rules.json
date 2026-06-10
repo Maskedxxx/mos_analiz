@@ -1,0 +1,20 @@
+{
+  "doc_type": "forma_0_4",
+  "rules": [
+    {"rule_index": "1",  "section": "Метаданные", "rule_title": "Имя файла", "description": "Имя файла содержит '0.4' и тематические слова 'о проекте в цифрах'.", "phase": "deterministic"},
+    {"rule_index": "2",  "section": "Шапка", "rule_title": "Шапка соглашения (G2:G4)", "description": "Заполнены: Приложение №5 (G2), номер соглашения (G3) формата 'Nº...-...-YYYY/ППТ', дата соглашения (G4).", "phase": "deterministic"},
+    {"rule_index": "3",  "section": "Общая информация", "rule_title": "Общая информация о потоке заполнена", "description": "B8 (предприятие), C8 (регион), D8 (поток), E8 (доля в выручке), F8 (направления оптимизации), H8 (дата старта) — все заполнены.", "phase": "deterministic"},
+    {"rule_index": "4",  "section": "Общая информация", "rule_title": "Дата старта проекта (H8)", "description": "В H8 — валидная дата (формат datetime или дд.мм.гггг).", "phase": "deterministic"},
+    {"rule_index": "5",  "section": "Целевые показатели", "rule_title": "Три показателя присутствуют", "description": "В B11, B12, B13 — наименования показателей. Хотя бы один из них «Выработка» (главное требование ФЦК 0.4-3).", "phase": "deterministic"},
+    {"rule_index": "6",  "section": "Целевые показатели", "rule_title": "Единицы измерения из справочника листа 3", "description": "E11, E12, E13 содержат единицы из соответствующих категорий справочника листа 3 (время / выработка / запасы).", "phase": "deterministic"},
+    {"rule_index": "7",  "section": "Целевые показатели", "rule_title": "Период измерений ≥ 4.5 месяцев", "description": "F10 и G10 — валидные даты, G10 > F10, разница ≥ 137 дней (4.5 месяца).", "phase": "deterministic"},
+    {"rule_index": "8",  "section": "Целевые показатели", "rule_title": "Числовые значения F11:G13", "description": "Все 6 ячеек значений (F11, G11, F12, G12, F13, G13) — числа.", "phase": "deterministic"},
+    {"rule_index": "9",  "section": "Целевые показатели", "rule_title": "Время процесса убывает", "description": "G11 < F11 — время протекания процесса должно сокращаться.", "phase": "deterministic"},
+    {"rule_index": "10", "section": "Целевые показатели", "rule_title": "Прирост Выработки ≥ 52%", "description": "ГЛАВНОЕ ПРАВИЛО ТЗ: (G12 - F12) / F12 ≥ 0.52.", "phase": "deterministic"},
+    {"rule_index": "11", "section": "Целевые показатели", "rule_title": "Запасы убывают", "description": "G13 < F13 — запасы в потоке должны сокращаться.", "phase": "deterministic"},
+    {"rule_index": "12", "section": "Лист 2 формул", "rule_title": "Все 6 формул заполнены", "description": "На листе «Формулы расчета показателей» ячейки B2:B7 содержат текст формул.", "phase": "deterministic"},
+    {"rule_index": "13", "section": "Подписи", "rule_title": "Согласие на публикацию (D39)", "description": "В D39 текст про согласие на публикацию на ИТ-платформе.", "phase": "deterministic"},
+    {"rule_index": "14", "section": "Подписи", "rule_title": "Дата подписи (G41) и дата документа (B46)", "description": "G41 — заполнена; B46 — заполнена реальной датой, а не плейсхолдером '«___» ___________ 20___ г.'.", "phase": "deterministic"},
+    {"rule_index": "15", "section": "Подписи", "rule_title": "ФИО подписанта (B44)", "description": "B44 — заполнено реальное ФИО, не плейсхолдер с подчёркиваниями '__________________ /_______________/'.", "phase": "deterministic"}
+  ]
+}

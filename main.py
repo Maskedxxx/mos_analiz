@@ -28,6 +28,7 @@ from src.audit.engine import AuditEngine
 from src.doc_type_parsers.kpsc import kpsc_parse_kpsc_header_build_payload
 from src.doc_type_validators.drivers import run_drivers_special
 from src.doc_type_validators.forma_0_3 import run_forma_0_3_special
+from src.doc_type_validators.forma_0_4 import run_forma_0_4_special
 from src.doc_type_validators.kartochka_proekta import run_kartochka_proekta_special
 from src.doc_type_validators.kpsc import _run_kpsc_parsers, run_kpsc_special
 from src.doc_type_validators.plan_grafik import run_plan_grafik_special
@@ -47,6 +48,7 @@ DOC_CONFIGS_DIR = PROJECT_ROOT / "doc_configs"
 SPECIAL_ENGINE_RUNNERS = {
     "drivers": run_drivers_special,
     "forma_0_3": run_forma_0_3_special,
+    "forma_0_4": run_forma_0_4_special,
     "kpsc": run_kpsc_special,
     "kartochka_proekta_2_4": run_kartochka_proekta_special,
     "kartochka_proekta_0_2": run_kartochka_proekta_special,
