@@ -1,0 +1,12 @@
+{
+  "doc_type": "forma_0_3",
+  "doc_title": "0.3 Форма «О предприятии в цифрах»",
+  "engine": "forma_0_3",
+  "model": "Qwen3.5-35B-A3B",
+  "temperature": 0.0,
+  "max_workers": 5,
+  "filename_keywords": ["0.3"],
+  "filename_keywords_alt": ["о предприятии в цифрах", "опредприятиивцифрах"],
+  "target_index_value": 0.05,
+  "expected_appendix": "Приложение № 4"
+}
