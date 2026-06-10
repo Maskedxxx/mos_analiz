@@ -90,3 +90,6 @@ docs/testing/notes/24_experiment/user_prompt*.txt
 
 # Бэкапы
 *.bak*
+
+# pytest runtime cache
+.pytest_cache/
