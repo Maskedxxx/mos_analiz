@@ -1,0 +1,24 @@
+{
+  "doc_type": "list_prisutstviya_modul_1",
+  "doc_title": "3.1 Лист присутствия (Модуль 1)",
+  "engine": "list_prisutstviya",
+  "module": 1,
+  "model": "Qwen3.5-35B-A3B",
+  "llm_base_url": "http://172.16.10.35:11437/v1/",
+  "max_workers": 5,
+  "temperature": 0.0,
+  "allowed_trainings": [
+    "5С",
+    "Картирование",
+    "Основы бережливого производства",
+    "ОБП",
+    "Производственный анализ",
+    "ПА",
+    "Реализация проекта по улучшению",
+    "РПпУ"
+  ],
+  "filename_keywords": [
+    "3.1"
+  ],
+  "expected_region": "г. Москва"
+}

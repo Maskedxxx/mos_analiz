@@ -31,6 +31,7 @@ from src.doc_type_validators.forma_0_3 import run_forma_0_3_special
 from src.doc_type_validators.forma_0_4 import run_forma_0_4_special
 from src.doc_type_validators.kartochka_proekta import run_kartochka_proekta_special
 from src.doc_type_validators.kpsc import _run_kpsc_parsers, run_kpsc_special
+from src.doc_type_validators.list_prisutstviya import run_list_prisutstviya_special
 from src.doc_type_validators.plan_grafik import run_plan_grafik_special
 # END_IMPORTS
 
@@ -52,6 +53,7 @@ SPECIAL_ENGINE_RUNNERS = {
     "kpsc": run_kpsc_special,
     "kartochka_proekta_2_4": run_kartochka_proekta_special,
     "kartochka_proekta_0_2": run_kartochka_proekta_special,
+    "list_prisutstviya": run_list_prisutstviya_special,
     "plan_grafik": run_plan_grafik_special,
 }
 

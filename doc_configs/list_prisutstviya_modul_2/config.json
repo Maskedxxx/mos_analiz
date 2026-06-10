@@ -1,0 +1,28 @@
+{
+  "doc_type": "list_prisutstviya_modul_2",
+  "doc_title": "3.4 Лист присутствия (Модуль 2)",
+  "engine": "list_prisutstviya",
+  "module": 2,
+  "model": "Qwen3.5-35B-A3B",
+  "llm_base_url": "http://172.16.10.35:11437/v1/",
+  "max_workers": 5,
+  "temperature": 0.0,
+  "allowed_trainings": [
+    "Стандартизированная работа",
+    "СР",
+    "ОЕЕ",
+    "OEE",
+    "SMED",
+    "Быстрая переналадка",
+    "Автономное обслуживание",
+    "АО",
+    "ТПМ",
+    "TPM",
+    "Методика решения проблем",
+    "МРП"
+  ],
+  "filename_keywords": [
+    "3.4"
+  ],
+  "expected_region": "г. Москва"
+}
