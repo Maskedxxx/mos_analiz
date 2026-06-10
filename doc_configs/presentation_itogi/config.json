@@ -1,0 +1,14 @@
+{
+  "doc_type": "presentation_itogi",
+  "doc_title": "2.8 Отчётная презентация по итогам реализации проекта",
+  "model": "Qwen3.6-35B-A3B",
+  "filename_pattern": "2.8 Итоги программы",
+  "max_workers": 1,
+  "temperature": 0.0,
+  "parser_by_ext": {
+    ".pptx": "pptx"
+  },
+  "llm_base_url": "http://172.16.10.35:11437/v1/",
+  "llm_max_tokens": 16384,
+  "llm_seed": 42
+}
