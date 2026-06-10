@@ -701,9 +701,10 @@ def run_kartochka_validator_module(module_ns: SimpleNamespace, parser_outputs_di
 # ==============================================================================
 
 # START_KARTOCHKA_HELPERS
-def _load_kartochka_config() -> Dict[str, Any]:
-    """Читает doc_configs/kartochka_proekta/config.json."""
-    with open(_DOC_CONFIGS_DIR / "kartochka_proekta" / "config.json", "r", encoding="utf-8") as f:
+def _load_kartochka_config(doc_type: str = "kartochka_proekta") -> Dict[str, Any]:
+    """Читает doc_configs/<doc_type>/config.json. doc_type задаёт вариант карточки
+    (kartochka_proekta_2_4 — полный, kartochka_proekta_0_2 — предварительный)."""
+    with open(_DOC_CONFIGS_DIR / doc_type / "config.json", "r", encoding="utf-8") as f:
         return json.load(f)
 
 
@@ -835,12 +836,16 @@ def run_kartochka_proekta_special(args):
     """
     start_time = time.time()
     target_path = Path(args.target)
-    config = _load_kartochka_config()
+    # doc_type задаёт вариант карточки: kartochka_proekta_2_4 (полный, 11 правил)
+    # или kartochka_proekta_0_2 (предварительный, подмножество 6 правил). Общий код,
+    # набор правил различается через validation_rules.json соответствующего doc_type.
+    doc_type = getattr(args, "doc_type", None) or "kartochka_proekta"
+    config = _load_kartochka_config(doc_type)
     max_workers = config.get("max_workers", 5)
-    rules_path = _DOC_CONFIGS_DIR / "kartochka_proekta" / "validation_rules.json"
+    rules_path = _DOC_CONFIGS_DIR / doc_type / "validation_rules.json"
     session_dir = (
         Path(args.session_dir) if args.session_dir
-        else _LOGS_RESULT_DIR / "kartochka_proekta" / f"session_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+        else _LOGS_RESULT_DIR / doc_type / f"session_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
     )
     session_dir.mkdir(parents=True, exist_ok=True)
     parser_outputs_dir = session_dir / "parser_outputs"
@@ -857,7 +862,7 @@ def run_kartochka_proekta_special(args):
 
     if getattr(args, "parse_only", False):
         return AuditResult(
-            doc_type="kartochka_proekta", session_dir=session_dir,
+            doc_type=doc_type, session_dir=session_dir,
             target_path=str(target_path), duration_sec=time.time() - start_time,
         )
 
@@ -886,7 +891,7 @@ def run_kartochka_proekta_special(args):
                 "discrepancy": result_data.get("discrepancy", ""),
             })
     return AuditResult(
-        violations=violations, doc_type="kartochka_proekta", session_dir=session_dir,
+        violations=violations, doc_type=doc_type, session_dir=session_dir,
         duration_sec=time.time() - start_time, rules_checked=len(df),
         target_path=str(target_path),
     )

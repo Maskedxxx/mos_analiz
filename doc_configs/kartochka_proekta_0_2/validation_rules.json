@@ -1,0 +1,109 @@
+{
+  "rules": [
+    {
+      "rule_index": "1",
+      "rule_title": "Название файла",
+      "section": "МЕТАДАННЫЕ",
+      "requirement_expert": "Название проверяемого файла соответствует заданному тексту из БД 'список документов': '2.4 Утвержденная карточка проекта «наименование предприятия»'",
+      "technical_description": "Имя файла (без расширения) должно начинаться с '0.2 Карточка проекта' и содержать наименование предприятия.",
+      "source_files": [
+        "kartochka_main.json"
+      ],
+      "source_path": "meta.workbook",
+      "validation_criteria": {
+        "what_to_check": "Имя XLSX-файла соответствует паттерну из БД",
+        "success_condition": "Имя файла содержит '0.2 Карточка проекта' и наименование предприятия",
+        "error_condition": "Имя файла не соответствует ожидаемому шаблону"
+      },
+      "mock_note": "Ожидаемое имя файла захардкожено; в Этапе 2 — из БД через API"
+    },
+    {
+      "rule_index": "2",
+      "rule_title": "Вид организации и название предприятия",
+      "section": "ЗАГОЛОВОК",
+      "requirement_expert": "Проверка наличия юридической формы (ООО, ЗАО, АО) и наименования предприятия",
+      "technical_description": "Ячейка B2 должна содержать юридическую форму и наименование. Формат: '<ЮР_ФОРМА> \"НАЗВАНИЕ\"'.",
+      "source_files": [
+        "kartochka_main.json"
+      ],
+      "source_path": "header.org_name",
+      "validation_criteria": {
+        "what_to_check": "Наличие юридической формы (ООО|ЗАО|АО|ПАО|ИП) и наименования предприятия",
+        "success_condition": "Юридическая форма найдена И за ней следует непустое название",
+        "error_condition": "Юридическая форма отсутствует или наименование пустое"
+      },
+      "deferred_conditions": [
+        "Условие 2: сверка с Соглашением (cross_file, Этап 2)"
+      ]
+    },
+    {
+      "rule_index": "3",
+      "rule_title": "Название потока",
+      "section": "ЗАГОЛОВОК",
+      "requirement_expert": "Проверка на наличие названия потока в названии проекта",
+      "technical_description": "Ячейка B4 должна содержать непустое название проекта (потока).",
+      "source_files": [
+        "kartochka_main.json"
+      ],
+      "source_path": "header.project_name",
+      "validation_criteria": {
+        "what_to_check": "Наличие непустого названия проекта/потока",
+        "success_condition": "Поле project_name не пустое и содержит осмысленный текст",
+        "error_condition": "Поле project_name пустое или содержит placeholder"
+      },
+      "deferred_conditions": [
+        "Условие 2: сверка с 'Протокол выбора потока' (cross_file, Этап 2)"
+      ]
+    },
+    {
+      "rule_index": "9",
+      "rule_title": "Единицы измерения (карточка)",
+      "section": "СЕКЦИЯ 3: ЕДИНИЦЫ ИЗМЕРЕНИЯ",
+      "requirement_expert": "Единицы измерения присутствуют для каждого показателя и соответствуют справочнику",
+      "technical_description": "Для каждого indicators[].unit: (1) не пустое, (2) входит в допустимый список из листа 'выпадающий список'.",
+      "source_files": [
+        "kartochka_main.json",
+        "dropdown_units.json"
+      ],
+      "source_path": "indicators[].unit vs dropdown_units.categories",
+      "validation_criteria": {
+        "what_to_check": "Каждая единица измерения заполнена И входит в справочник допустимых",
+        "success_condition": "Все единицы заполнены И каждая найдена в соответствующей категории справочника",
+        "error_condition": "Единица пустая ИЛИ не найдена в справочнике"
+      }
+    },
+    {
+      "rule_index": "10",
+      "rule_title": "Единицы измерения (методика расчета)",
+      "section": "МЕТОДИКА РАСЧЁТА",
+      "requirement_expert": "Единицы измерения в методике присутствуют и совпадают с единицами в карточке",
+      "technical_description": "Для каждого показателя в metodika.json: (1) unit не пустое, (2) unit совпадает с соответствующим indicators[].unit из kartochka_main.json.",
+      "source_files": [
+        "kartochka_main.json",
+        "metodika.json"
+      ],
+      "source_path": "metodika.indicators[].unit vs kartochka.indicators[].unit",
+      "validation_criteria": {
+        "what_to_check": "Единицы в методике заполнены И совпадают с единицами в карточке",
+        "success_condition": "Все единицы заполнены И совпадают попарно с карточкой",
+        "error_condition": "Единица пустая ИЛИ не совпадает с соответствующей единицей в карточке"
+      }
+    },
+    {
+      "rule_index": "11",
+      "rule_title": "Способ расчёта и источник данных",
+      "section": "МЕТОДИКА РАСЧЁТА",
+      "requirement_expert": "Проверка наличия способа расчёта и источника данных для каждого показателя",
+      "technical_description": "Для каждого показателя в metodika.json: calc_method и data_source не пустые.",
+      "source_files": [
+        "metodika.json"
+      ],
+      "source_path": "metodika.indicators[].calc_method, data_source",
+      "validation_criteria": {
+        "what_to_check": "Способ расчёта и источник данных заполнены для каждого показателя",
+        "success_condition": "Оба поля заполнены для всех показателей, у которых есть единица измерения",
+        "error_condition": "Хотя бы одно поле пустое при наличии единицы измерения"
+      }
+    }
+  ]
+}

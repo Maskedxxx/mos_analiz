@@ -20,7 +20,7 @@ SAMPLE_XLSX = "docs/classification_result.xlsx"
     [
         ("drivers", "run_drivers_special", "03_report.xlsx", None),
         ("kpsc", "run_kpsc_special", "validation_report.xlsx", "1.1"),
-        ("kartochka_proekta", "run_kartochka_proekta_special", "validation_report.xlsx", "3"),
+        ("kartochka_proekta_2_4", "run_kartochka_proekta_special", "validation_report.xlsx", "3"),
         ("plan_grafik", "run_plan_grafik_special", "validation_report.xlsx", None),
     ],
 )
@@ -29,6 +29,7 @@ def test_special_xlsx_runtime_no_crash(doc_type, runner_name, report_name, rule_
 
     runner = getattr(main, runner_name)
     args = SimpleNamespace(
+        doc_type=doc_type,
         target=SAMPLE_XLSX,
         parse_only=False,
         rule_filter=rule_filter,

@@ -46,7 +46,8 @@ DOC_CONFIGS_DIR = PROJECT_ROOT / "doc_configs"
 SPECIAL_ENGINE_RUNNERS = {
     "drivers": run_drivers_special,
     "kpsc": run_kpsc_special,
-    "kartochka_proekta": run_kartochka_proekta_special,
+    "kartochka_proekta_2_4": run_kartochka_proekta_special,
+    "kartochka_proekta_0_2": run_kartochka_proekta_special,
     "plan_grafik": run_plan_grafik_special,
 }
 
