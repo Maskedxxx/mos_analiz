@@ -1,9 +1,9 @@
 # START_MODULE_CONTRACT
 # PURPOSE: Аудит документа «План-график» (xlsx). 9 детерминистских non-LLM проверок (имя файла, блок УТВЕРЖДАЮ, заголовки, даты, ответственные, расчётные колонки, подпись, формулы) + публичный entrypoint `run_plan_grafik_special` для регистрации в `SPECIAL_ENGINE_RUNNERS`.
 # INPUTS: xlsx-файл; парсинг через `parse_plan_grafik` (src/doc_type_parsers/plan_grafik.py); конфиг отсутствует (правила захардкожены в валидаторах).
-# OUTPUTS: `run_plan_grafik_special(args) -> AuditResult`. Также пишет в session_dir: `parsed.json` + `validation_report.xlsx`.
+# OUTPUTS: `run_plan_grafik_special(args) -> AuditResult`. Пишет в session_dir: `parsed.json`, `validation_outputs/validate_N.json` (per-rule), `validation_report.xlsx` (6 колонок — формат special-типов).
 # KEYWORDS: validators, plan-grafik, non-llm, deterministic, runner.
-# LINKS: src/doc_type_parsers/plan_grafik.py (parse_plan_grafik), main.py (save_to_excel + AuditResult — лениво импортируются).
+# LINKS: src/doc_type_parsers/plan_grafik.py (parse_plan_grafik), src/audit/models.py (AuditResult). Отчёт — локальный `_create_excel_report` (как forma/kartochka), НЕ generic save_to_excel.
 # RATIONALE:
 #   План-график — xlsx со структурированными ячейками. Проверки простые (regex,
 #   наличие полей, сравнение дат) — не требуют LLM. По симметрии с drivers.py
@@ -19,9 +19,11 @@ import re
 import time
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Tuple
 
-from src.audit.excel_reporter import save_to_excel
+import pandas as pd
+from openpyxl.utils import get_column_letter
+
 from src.audit.models import AuditResult
 from src.doc_type_parsers.plan_grafik import parse_plan_grafik
 # END_IMPORTS
@@ -32,27 +34,6 @@ from src.doc_type_parsers.plan_grafik import parse_plan_grafik
 _LOGS_RESULT_DIR = Path(__file__).resolve().parents[2] / "logs_result"
 # END_PATHS
 
-
-def run_all_validators(parsed: Dict[str, Any], target_path: str) -> List[Dict[str, Any]]:
-    """
-    Запускает все 9 валидаторов последовательно.
-
-    Args:
-        parsed: результат парсинга из parser.py
-        target_path: путь к файлу (для проверки имени)
-
-    Returns:
-        Список нарушений
-    """
-    violations = []
-    validators = [validate_1_filename, validate_2_approval, validate_3_simple_headers, validate_4_complex_headers, validate_5_dates, validate_6_responsible, validate_7_calc_columns, validate_8_signature, validate_9_formulas]
-    for validator in validators:
-        try:
-            result = validator(parsed, target_path)
-            violations.extend(result)
-        except Exception as e:
-            violations.append({'rule_index': 0, 'rule_title': f'Ошибка валидатора {validator.__name__}', 'Целевой документ': str(e), 'Различие': 'Внутренняя ошибка валидатора'})
-    return violations
 
 def validate_1_filename(parsed: Dict, target_path: str) -> List[Dict]:
     """Rule 1: Проверка имени файла."""
@@ -221,6 +202,51 @@ def validate_9_formulas(parsed: Dict, target_path: str) -> List[Dict]:
     return violations
 
 
+# START_RULES
+# PURPOSE: Метаданные 9 правил plan_grafik. Правила захардкожены в валидаторах
+# (validation_rules.json у типа НЕТ) — индекс/заголовок/функция заданы здесь.
+# `section` пуст: источника секций нет, не выдумываем (правило #0).
+_RULES: List[Dict[str, Any]] = [
+    {"rule_index": "1", "rule_title": "Проверка названия файла", "section": "", "fn": validate_1_filename},
+    {"rule_index": "2", "rule_title": "Проверка блока УТВЕРЖДАЮ", "section": "", "fn": validate_2_approval},
+    {"rule_index": "3", "rule_title": "Проверка заголовков таблицы", "section": "", "fn": validate_3_simple_headers},
+    {"rule_index": "4", "rule_title": "Проверка структуры заголовков", "section": "", "fn": validate_4_complex_headers},
+    {"rule_index": "5", "rule_title": "Проверка дат мероприятий", "section": "", "fn": validate_5_dates},
+    {"rule_index": "6", "rule_title": "Проверка заполненности ответственных", "section": "", "fn": validate_6_responsible},
+    {"rule_index": "7", "rule_title": "Проверка расчётных столбцов", "section": "", "fn": validate_7_calc_columns},
+    {"rule_index": "8", "rule_title": "Проверка блока подписи", "section": "", "fn": validate_8_signature},
+    {"rule_index": "9", "rule_title": "Проверка целостности формул", "section": "", "fn": validate_9_formulas},
+]
+# END_RULES
+
+
+# START_REPORT
+def _create_excel_report(results: List[Tuple[Dict, Dict, float]], report_path: Path) -> Any:
+    """Собирает validation_report.xlsx (6 колонок) — единый формат special-типов (как forma/kartochka)."""
+    rows = []
+    for rule, res, dur in results:
+        rows.append({
+            "rule_index": rule["rule_index"],
+            "section": rule.get("section", ""),
+            "rule_title": rule.get("rule_title", ""),
+            "status": res.get("status", "UNKNOWN"),
+            "discrepancy": res.get("discrepancy", ""),
+            "duration_sec": round(dur, 2),
+        })
+    df = pd.DataFrame(rows)
+    df["_sort"] = df["rule_index"].apply(lambda x: int(x) if str(x).isdigit() else 999)
+    df = df.sort_values("_sort").drop(columns=["_sort"])
+    report_path.parent.mkdir(parents=True, exist_ok=True)
+    with pd.ExcelWriter(report_path, engine="openpyxl") as writer:
+        df.to_excel(writer, sheet_name="Validation Results", index=False)
+        ws = writer.sheets["Validation Results"]
+        for idx, col in enumerate(df.columns):
+            max_len = max(df[col].astype(str).apply(len).max(), len(col))
+            ws.column_dimensions[get_column_letter(idx + 1)].width = min(max_len + 2, 60)
+    return df
+# END_REPORT
+
+
 # START_RUNNER
 def run_plan_grafik_special(args):
     """
@@ -238,8 +264,8 @@ def run_plan_grafik_special(args):
         1. Создаёт session_dir.
         2. parse_plan_grafik(target). Если падает — пишет ERROR.txt и возвращает пустой AuditResult.
         3. Сохраняет parsed.json. Если parse_only — выходит.
-        4. run_all_validators(parsed, target_path) → нарушения.
-        5. save_to_excel — отчёт.
+        4. Прогон 9 правил по одному → per-rule результат (PASS/FAIL/ERROR).
+        5. validation_outputs/validate_N.json + validation_report.xlsx (6 колонок).
     """
 
     start_time = time.time()
@@ -265,10 +291,43 @@ def run_plan_grafik_special(args):
             doc_type="plan_grafik", session_dir=session_dir,
             duration_sec=time.time() - start_time, target_path=target_path,
         )
-    violations = run_all_validators(parsed, target_path)
-    save_to_excel(violations, str(session_dir / "validation_report.xlsx"))
+    # Прогон 9 правил по одному: PASS / FAIL / ERROR + per-rule validate_N.json (формат special-типов).
+    validation_outputs_dir = session_dir / "validation_outputs"
+    validation_outputs_dir.mkdir(parents=True, exist_ok=True)
+    results: List[Tuple[Dict, Dict, float]] = []
+    for rule in _RULES:
+        t0 = time.time()
+        try:
+            viols = rule["fn"](parsed, target_path)
+            if viols:
+                status = "FAIL"
+                # discrepancy = сводка нарушений (ячейка/маркер — суть проблемы).
+                discrepancy = "; ".join(
+                    " — ".join(p for p in (v.get("Целевой документ", ""), v.get("Различие", "")) if p)
+                    for v in viols
+                )
+            else:
+                status = "PASS"
+                discrepancy = ""
+        except Exception as e:
+            status, discrepancy = "ERROR", f"Исключение: {e}"
+        dur = time.time() - t0
+        res = {
+            "rule_index": rule["rule_index"], "rule_title": rule["rule_title"],
+            "status": status, "discrepancy": discrepancy,
+        }
+        results.append((rule, res, dur))
+        with open(validation_outputs_dir / f"validate_{rule['rule_index']}.json", "w", encoding="utf-8") as f:
+            json.dump(res, f, ensure_ascii=False, indent=2)
+
+    _create_excel_report(results, session_dir / "validation_report.xlsx")
+
+    violations = [
+        {"rule_index": res["rule_index"], "rule_title": res["rule_title"], "Различие": res["discrepancy"]}
+        for _, res, _ in results if res["status"] == "FAIL"
+    ]
     return AuditResult(
         violations=violations, doc_type="plan_grafik", session_dir=session_dir,
-        duration_sec=time.time() - start_time, rules_checked=9, target_path=target_path,
+        duration_sec=time.time() - start_time, rules_checked=len(_RULES), target_path=target_path,
     )
 # END_RUNNER
