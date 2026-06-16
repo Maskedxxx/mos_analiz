@@ -21,7 +21,7 @@ from openpyxl.utils import get_column_letter
 
 # START_STYLE_CONSTANTS
 # PURPOSE: Стили оформления Excel-таблицы (приватные, не экспортируются).
-_DISPLAY_HEADERS = ["№", "Проверка", "Тип проверки", "Статус", "Целевой документ", "Различие"]
+_DISPLAY_HEADERS = ["№", "Проверка", "Тип проверки", "Статус", "Источник (МР/МУ)", "Целевой документ", "Различие", "Обоснование"]
 _FONT_SIZE = 14
 _HEADER_FONT = Font(name="Calibri", size=_FONT_SIZE, bold=True, color="FFFFFF")
 _HEADER_FILL = PatternFill(start_color="2F5496", end_color="2F5496", fill_type="solid")
@@ -32,8 +32,8 @@ _THIN_BORDER = Border(
     left=Side(style="thin"), right=Side(style="thin"),
     top=Side(style="thin"), bottom=Side(style="thin"),
 )
-_MIN_WIDTHS = [6, 35, 18, 10, 40, 40]
-_MAX_WIDTHS = [6, 50, 18, 10, 60, 60]
+_MIN_WIDTHS = [6, 35, 18, 10, 30, 40, 40, 50]
+_MAX_WIDTHS = [6, 50, 18, 10, 45, 60, 60, 70]
 _OK_FILL = PatternFill(start_color="E2EFDA", end_color="E2EFDA", fill_type="solid")
 _FAIL_FILL = PatternFill(start_color="FCE4EC", end_color="FCE4EC", fill_type="solid")
 _OK_FONT = Font(name="Calibri", size=_FONT_SIZE, bold=True, color="1F7A1F")
@@ -48,6 +48,22 @@ def _layer_label(layer: str) -> str:
     if layer == "methodology":
         return "Методическая"
     return "Базовая"
+
+
+def _format_source(source_ref: str, nature: str) -> str:
+    """Собирает строку источника для столбца «Источник (МР/МУ)» в Excel (порт из прода)."""
+    if not source_ref and not nature:
+        return ""
+    nature_label = ""
+    if nature:
+        n = nature.strip().lower()
+        if n.startswith("обяз"):
+            nature_label = " (обязательно)"
+        elif n.startswith("реком"):
+            nature_label = " (рекомендательно)"
+        else:
+            nature_label = f" ({nature})"
+    return f"{source_ref}{nature_label}".strip()
 
 
 # START_SAVE_TO_EXCEL
@@ -107,24 +123,29 @@ def save_to_excel(
             idx = rule.get("index", 0)
             layer = rule.get("layer", "base")
             key = (idx, layer)
+            source = _format_source(rule.get("source_ref", ""), rule.get("nature", ""))
             rule_violations = violations_by_rule.get(key, [])
             if rule_violations:
                 for v in rule_violations:
                     rows_data.append({
                         "index": idx, "title": rule.get("title", ""), "layer": layer,
-                        "status": "FAIL", "target": v.get("Целевой документ", ""), "diff": v.get("Различие", ""),
+                        "status": "FAIL", "source": source,
+                        "target": v.get("Целевой документ", ""), "diff": v.get("Различие", ""),
+                        "reasoning": v.get("Обоснование", ""),
                     })
             else:
                 rows_data.append({
                     "index": idx, "title": rule.get("title", ""), "layer": layer,
-                    "status": "ОК", "target": "", "diff": "",
+                    "status": "ОК", "source": source, "target": "", "diff": "", "reasoning": "",
                 })
     else:
         for v in sorted(violations, key=lambda v: v.get("rule_index", 0)):
             rows_data.append({
                 "index": v.get("rule_index", ""), "title": v.get("правило", ""),
                 "layer": v.get("layer", "base"), "status": "FAIL",
+                "source": _format_source(v.get("Источник", ""), v.get("Природа", "")),
                 "target": v.get("Целевой документ", ""), "diff": v.get("Различие", ""),
+                "reasoning": v.get("Обоснование", ""),
             })
 
     # Раскраска ячеек
@@ -136,7 +157,8 @@ def save_to_excel(
         else:
             fill = _OK_FILL if is_ok else _FAIL_FILL
         values = [row["index"], row["title"], _layer_label(row.get("layer", "base")),
-                  row["status"], row["target"], row["diff"]]
+                  row["status"], row.get("source", ""), row["target"], row["diff"],
+                  row.get("reasoning", "")]
         for col_idx, value in enumerate(values, start=1):
             cell = ws.cell(row=row_idx, column=col_idx, value=value)
             cell.font = _CELL_FONT

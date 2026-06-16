@@ -440,6 +440,13 @@ def _verdict_to_violations(verdicts: List[Dict[str, Any]], rules: List[Dict[str,
         nature = rule.get("nature", "")
         verdict_obj = v.get("verdict", {}) if isinstance(v.get("verdict"), dict) else {}
         status = verdict_obj.get("status", "?")
+        # reasoning модели — для колонки «Обоснование» в Excel; хвост «[Источник: …]» срезаем,
+        # т.к. источник уже выводится в отдельной колонке «Источник (МР/МУ)».
+        reasoning = v.get("reasoning", "") or ""
+        if isinstance(reasoning, str):
+            _pos = reasoning.rfind("[Источник:")
+            if _pos != -1:
+                reasoning = reasoning[:_pos].rstrip()
         if status == "fail":
             for violation in verdict_obj.get("нарушения", []):
                 violations.append({
@@ -450,6 +457,7 @@ def _verdict_to_violations(verdicts: List[Dict[str, Any]], rules: List[Dict[str,
                     "Природа": nature,
                     "Целевой документ": violation.get("Целевой документ", "отсутствует"),
                     "Различие": violation.get("Различие", "?"),
+                    "Обоснование": reasoning,
                 })
     return violations
 # END_VERDICT_TO_VIOLATIONS
