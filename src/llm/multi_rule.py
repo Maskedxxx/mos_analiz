@@ -524,29 +524,70 @@ def run_multi_rule_audit(
         (session_dir / f"{prefix}_user_prompt.txt").write_text(user_prompt, encoding="utf-8")
 
     client = OpenAI(base_url=llm_base_url, api_key=LLM_CONFIG.api_key, timeout=OPENAI_TIMEOUT_SEC)
-    response = client.chat.completions.create(
-        model=llm_model,
-        messages=[
-            {"role": "system", "content": SYSTEM_PROMPT},
-            {"role": "user", "content": user_prompt},
-        ],
-        temperature=0.7,
-        top_p=0.8,
-        max_tokens=64000,
-        seed=42,
-        extra_body={
-            "chat_template_kwargs": {"enable_thinking": False},
-            "top_k": 20,
-            "min_p": 0.0,
-            "repetition_penalty": 1.0,
-        },
-    )
-    response_text = response.choices[0].message.content or ""
+    # Ретрай при «каше» ответа LLM: модель иногда возвращает не JSON-массив вердиктов,
+    # а одиночный объект/ошибку → парсер даёт < N годных вердиктов и весь слой молча обнуляется.
+    # Переспрашиваем модель, меняя seed (иначе повтор даст тот же результат), берём лучшую попытку.
+    max_attempts = 3  # число попыток при неполном ответе
+
+    def _valid_count(vs: List[Dict[str, Any]]) -> int:
+        # Годный вердикт = dict с распознаваемым rule_index (int/строка-цифра)
+        # И непустым verdict.status (ok/fail/error). Пустой/битый verdict (напр. null) —
+        # тоже «каша» ответа и должен триггерить ретрай, а не считаться годным.
+        n = 0
+        for v in vs:
+            if not isinstance(v, dict):
+                continue
+            ri = v.get("rule_index")
+            has_ri = isinstance(ri, int) or (isinstance(ri, str) and ri.strip().isdigit())
+            verd = v.get("verdict")
+            status = verd.get("status") if isinstance(verd, dict) else None
+            has_status = isinstance(status, str) and status.strip() != ""
+            if has_ri and has_status:
+                n += 1
+        return n
+
+    expected = len(rules)
+    best_verdicts: List[Dict[str, Any]] = []
+    best_text = ""
+    best_response = None
+    response = None
+    for attempt in range(max_attempts):
+        response = client.chat.completions.create(
+            model=llm_model,
+            messages=[
+                {"role": "system", "content": SYSTEM_PROMPT},
+                {"role": "user", "content": user_prompt},
+            ],
+            temperature=0.7,
+            top_p=0.8,
+            max_tokens=64000,
+            seed=42 + attempt,
+            extra_body={
+                "chat_template_kwargs": {"enable_thinking": False},
+                "top_k": 20,
+                "min_p": 0.0,
+                "repetition_penalty": 1.0,
+            },
+        )
+        response_text = response.choices[0].message.content or ""
+        verdicts = _parse_response(response_text)
+        if _valid_count(verdicts) > _valid_count(best_verdicts):
+            best_verdicts = verdicts
+            best_text = response_text
+            best_response = response
+        if _valid_count(verdicts) >= expected:
+            break
+        logger.warning(
+            f"multi_rule[{layer}]: попытка {attempt + 1}/{max_attempts} дала "
+            f"{_valid_count(verdicts)}/{expected} годных вердиктов (каша ответа) — ретрай со сменой seed"
+        )
+
+    verdicts = best_verdicts
+    response_text = best_text
+    if best_response is not None:
+        response = best_response
     if session_dir:
         (session_dir / f"{prefix}_response_raw.txt").write_text(response_text, encoding="utf-8")
-
-    verdicts = _parse_response(response_text)
-    if session_dir:
         (session_dir / f"{prefix}_response_parsed.json").write_text(
             json.dumps(verdicts, ensure_ascii=False, indent=2),
             encoding="utf-8",
