@@ -1,6 +1,7 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { LogOut } from 'lucide-react';
 import ScreenLogin from './ScreenLogin';
+import { fetchDocTypes } from './api';
 import ScreenUpload from './ScreenUpload';
 import ScreenProgress from './ScreenProgress';
 import ScreenResults from './ScreenResults';
@@ -31,10 +32,17 @@ function Header({ onLogout }) {
 }
 
 export default function App() {
-  const [screen, setScreen] = useState('login'); // login | upload | progress | results
+  const [screen, setScreen] = useState('checking'); // checking | login | upload | progress | results
   const [sessionId, setSessionId] = useState(null);
   const [filename, setFilename] = useState('');
   const [result, setResult] = useState(null);
+
+  // Проба сессии при монтировании: жива ли кука
+  useEffect(() => {
+    fetchDocTypes()
+      .then(() => setScreen('upload'))
+      .catch(() => setScreen('login'));
+  }, []);
 
   const handleLoginSuccess = useCallback(() => {
     setScreen('upload');
@@ -68,6 +76,15 @@ export default function App() {
     setResult(null);
     setScreen('login');
   }, []);
+
+  // Пока идёт проба сессии — лёгкий лоадер, не мигаем логином
+  if (screen === 'checking') {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50 text-gray-500">
+        Загрузка…
+      </div>
+    );
+  }
 
   // Экран логина — без хедера
   if (screen === 'login') {

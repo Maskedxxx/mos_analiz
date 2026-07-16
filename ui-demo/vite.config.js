@@ -8,7 +8,17 @@ export default defineConfig({
     allowedHosts: true,
     proxy: {
       '/api': {
-        target: 'http://localhost:8080',
+        target: 'http://localhost:8081',
+        changeOrigin: true,
+      },
+    },
+  },
+  // прод-сборка через `vite preview`: те же allowedHosts и проксирование /api, что и в dev
+  preview: {
+    allowedHosts: true,
+    proxy: {
+      '/api': {
+        target: 'http://localhost:8081',
         changeOrigin: true,
       },
     },

@@ -42,7 +42,6 @@ export default function ScreenProgress({ sessionId, filename, onComplete, onErro
 
         if (type === 'audit_start') {
           next[0] = 'active';
-          setRulesProgress({ current: 0, total: data.total_rules || 0 });
         }
         if (type === 'parsing_target') {
           next[0] = 'done';
@@ -50,20 +49,17 @@ export default function ScreenProgress({ sessionId, filename, onComplete, onErro
         }
         if (type === 'parsing_target_done') {
           next[1] = 'done';
-        }
-        if (type === 'parsing_template') {
-          next[2] = 'active';
-        }
-        if (type === 'parsing_template_done') {
           next[2] = 'done';
-          next[3] = 'active';
         }
-        if (type === 'rule_done') {
+        if (type === 'checking_rules') {
           next[3] = 'active';
-          setRulesProgress({ current: data.current, total: data.total });
+          setRulesProgress({ current: 0, total: data.total || 0 });
+        }
+        if (type === 'checking_rules_done') {
+          next[3] = 'done';
+          next[4] = 'active';
         }
         if (type === 'complete') {
-          next[3] = 'done';
           next[4] = 'done';
           clearInterval(timerRef.current);
 
@@ -179,7 +175,7 @@ export default function ScreenProgress({ sessionId, filename, onComplete, onErro
                   {step.label}
                   {step.id === 'rules' && rulesProgress.total > 0 && (
                     <span className="text-sm font-normal ml-2">
-                      {rulesProgress.current} / {rulesProgress.total}
+                      {rulesProgress.total} правил
                     </span>
                   )}
                 </p>

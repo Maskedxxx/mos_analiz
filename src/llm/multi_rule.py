@@ -636,9 +636,20 @@ def load_multi_rule_config(doc_configs_dir: Path, doc_type: str) -> Optional[Dic
         return None
     sections_data = json.loads(sections_path.read_text(encoding="utf-8"))
     rules_data = json.loads(rules_path.read_text(encoding="utf-8"))
+    rules = list(rules_data["rules"])
+    # Overlay: пользовательские правила (rules_custom.json) добавляются к базовому слою,
+    # если файл есть. Индексы кастома — с 200 (не пересекаются с base 1-99). Читается
+    # заново на каждый аудит → правки в UI применяются без рестарта сервиса.
+    custom_path = base / "rules_custom.json"
+    if custom_path.exists():
+        try:
+            custom_data = json.loads(custom_path.read_text(encoding="utf-8"))
+            rules.extend(custom_data.get("rules", []))
+        except (json.JSONDecodeError, KeyError):
+            pass
     return {
         "sections": sections_data["sections"],
-        "rules": rules_data["rules"],
+        "rules": rules,
         "include_scopes": rules_data.get("include_scopes"),
     }
 
