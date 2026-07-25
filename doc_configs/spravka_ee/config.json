@@ -1,0 +1,20 @@
+{
+  "doc_type": "spravka_ee",
+  "doc_title": "1.6 Справка о расчёте экономического эффекта (факт)",
+  "model": "Qwen3.5-35B-A3B",
+  "filename_pattern": "spravka_ee",
+  "filename_keywords": [
+    "справка",
+    "эконом",
+    "эффект"
+  ],
+  "max_workers": 4,
+  "temperature": 0.0,
+  "parser_by_ext": {
+    ".pdf": "paddle",
+    ".docx": "docx"
+  },
+  "llm_base_url": "http://172.16.10.35:11437/v1/",
+  "llm_max_tokens": 4096,
+  "llm_seed": 42
+}
