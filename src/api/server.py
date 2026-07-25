@@ -499,7 +499,7 @@ async def get_type_rules(doc_type: str, request: Request):
         return {"editable": False, "sections": [], "rules": []}
     sections_map = _load_sections_map(doc_type)
     sections_list = [
-        {"name": k, "description": v.get("description", "")}
+        {"name": k, "description": v.get("description", ""), "start": v.get("start", ""), "end": v.get("end", "")}
         for k, v in sections_map.items() if k != "filename"
     ]
     base = [_serialize_rule(r, sections_map, False) for r in _load_base_rules(doc_type)]

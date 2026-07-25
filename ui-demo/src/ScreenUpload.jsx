@@ -5,6 +5,40 @@ import {
 } from 'lucide-react';
 import { fetchDocTypes, startAudit, fetchRules, draftRule, createRule, updateRule, deleteRule } from './api';
 
+// Чип секции с кастомным тултипом (появляется через 0.5 с): описание + границы блока (start/end)
+function SectionChip({ section, selected, onToggle }) {
+  const [show, setShow] = useState(false);
+  const timerRef = useRef(null);
+  const enter = () => { timerRef.current = setTimeout(() => setShow(true), 500); };
+  const leave = () => { clearTimeout(timerRef.current); setShow(false); };
+  const hasHint = section.description || section.start || section.end;
+  return (
+    <div className="relative" onMouseEnter={enter} onMouseLeave={leave}>
+      <button
+        type="button"
+        onClick={onToggle}
+        className={`text-sm rounded-full px-3 py-1.5 border transition-colors cursor-pointer ${
+          selected ? 'bg-blue-50 border-blue-300 text-blue-700' : 'bg-white border-gray-200 text-gray-600 hover:border-gray-300'
+        }`}
+      >
+        {section.name.replace(/_/g, ' ')}
+      </button>
+      {show && hasHint && (
+        <div className="absolute z-50 bottom-full left-0 mb-2 w-64 rounded-xl bg-gray-900 text-white text-xs leading-relaxed px-3 py-2.5 shadow-xl">
+          {section.description && <p className="mb-1.5">{section.description}</p>}
+          {(section.start || section.end) && (
+            <p className="text-gray-300">
+              <span className="text-gray-500">Начало:</span> {section.start || '—'}<br />
+              <span className="text-gray-500">Конец:</span> {section.end || '—'}
+            </p>
+          )}
+          <span className="absolute top-full left-4 border-4 border-transparent border-t-gray-900" />
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function ScreenUpload({ onAuditStarted }) {
   const [docTypes, setDocTypes] = useState([]);
   const [selectedType, setSelectedType] = useState('');
@@ -376,22 +410,14 @@ export default function ScreenUpload({ onAuditStarted }) {
                     >
                       Весь документ
                     </button>
-                    {sections.map((s) => {
-                      const on = fSections.includes(s.name);
-                      return (
-                        <button
-                          key={s.name}
-                          type="button"
-                          onClick={() => toggleSection(s.name)}
-                          title={s.description}
-                          className={`text-sm rounded-full px-3 py-1.5 border transition-colors cursor-pointer ${
-                            on ? 'bg-blue-50 border-blue-300 text-blue-700' : 'bg-white border-gray-200 text-gray-600 hover:border-gray-300'
-                          }`}
-                        >
-                          {s.name.replace(/_/g, ' ')}
-                        </button>
-                      );
-                    })}
+                    {sections.map((s) => (
+                      <SectionChip
+                        key={s.name}
+                        section={s}
+                        selected={fSections.includes(s.name)}
+                        onToggle={() => toggleSection(s.name)}
+                      />
+                    ))}
                   </div>
                 </div>
 
