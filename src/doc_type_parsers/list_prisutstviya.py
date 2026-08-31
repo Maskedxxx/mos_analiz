@@ -50,6 +50,10 @@ def _normalize_date(v: Any) -> Optional[str]:
     return None
 
 
+# Колонки таблицы участников (№, ФИО, должность, организация, ИНН, регион, e-mail, телефон, подпись)
+_TABLE_COLUMNS = "ABCDEFGHI"
+
+
 def _pick_sheet(wb: openpyxl.Workbook):
     """Выбирает лист с реальными данными: предпочитаем «Пример ЛП»/«Лист присутствия»,
     игнорируем «Шаблон ЛП». Иначе первый непустой (max_row > 5), иначе первый."""
@@ -79,10 +83,15 @@ def parse_list_prisutstviya(xlsx_path: Path, output_dir: Path) -> Dict[str, Any]
     date_raw = ws["I5"].value
     date_iso = _normalize_date(date_raw)
 
-    # Участники: строки 6..15 (стандартный размер — 10 человек).
+    # Участники: таблица начинается со строки 6 и идёт подряд — сколько бы строк в бланк ни добавили
+    # (стандартная форма на 10 человек, но её регулярно расширяют: встречались листы на 17).
+    # Конец таблицы — первая ПОЛНОСТЬЮ пустая строка: ниже неё в части бланков лежит служебный блок
+    # с подсказками («ПРОВЕРЬ: …»), который нельзя принимать за участников.
     participants = []
-    last_row = min(ws.max_row, 15)
-    for row_idx in range(6, last_row + 1):
+    for row_idx in range(6, ws.max_row + 1):
+        row_values = [_cell(ws, f"{col}{row_idx}") for col in _TABLE_COLUMNS]
+        if not any(v is not None for v in row_values):
+            break
         b = _cell(ws, f"B{row_idx}")
         c = _cell(ws, f"C{row_idx}")
         d = _cell(ws, f"D{row_idx}")
