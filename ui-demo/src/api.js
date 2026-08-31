@@ -110,6 +110,23 @@ export async function startAudit(file, docType) {
   return res.json();
 }
 
+/** POST /api/audit/cross — запуск сквозной сверки (3 файла под одним полем files) */
+export async function startCrossAudit(files) {
+  const form = new FormData();
+  files.forEach((f) => form.append('files', f));
+
+  const res = await fetch(`${BASE}/audit/cross`, {
+    method: 'POST',
+    body: form,
+    credentials: 'include',
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.detail || 'Ошибка запуска сквозной проверки');
+  }
+  return res.json();
+}
+
 /**
  * GET /api/audit/{id}/events — SSE-подписка на прогресс.
  * Возвращает EventSource. Вызывает onEvent(type, data) для каждого события.
@@ -152,4 +169,44 @@ export function subscribeToProgress(sessionId, onEvent) {
 /** URL для скачивания Excel */
 export function getDownloadUrl(sessionId) {
   return `${BASE}/audit/${sessionId}/download`;
+}
+
+/* ───────────── Генерация документов (бэкенд :8090 через прокси /gen) ───────────── */
+
+// Префикс /gen срезается прокси: оба бэкенда отдают /api/types/*, без него была бы коллизия
+const GEN_BASE = '/gen/api';
+
+/** GET /gen/api/graph — узлы графа генерации: {doc_type, title, code, position} */
+export async function fetchGenTypes() {
+  const res = await fetch(`${GEN_BASE}/graph`, { credentials: 'include' });
+  if (!res.ok) throw new Error('Не удалось загрузить типы документов для генерации');
+  const data = await res.json();
+  return data.nodes || [];
+}
+
+/** GET /gen/api/types/{docType}/schema — {title, fields:[{key,label,required,source,hint}]} */
+export async function fetchGenSchema(docType) {
+  const res = await fetch(`${GEN_BASE}/types/${docType}/schema`, { credentials: 'include' });
+  if (!res.ok) throw new Error('Не удалось загрузить форму документа');
+  return res.json();
+}
+
+/** GET /gen/api/orgs — список известных организаций (подсказки для поля ООО) */
+export async function fetchOrgs() {
+  const res = await fetch(`${GEN_BASE}/orgs`, { credentials: 'include' });
+  if (!res.ok) throw new Error('Не удалось загрузить список организаций');
+  return res.json();
+}
+
+/** GET /gen/api/org/suggest?org=… — {field_key: [values]} ранее введённых значений по этому ООО */
+export async function fetchOrgSuggest(org) {
+  const res = await fetch(`${GEN_BASE}/org/suggest?org=${encodeURIComponent(org)}`, { credentials: 'include' });
+  if (!res.ok) throw new Error('Не удалось загрузить подсказки по организации');
+  return res.json();
+}
+
+/** URL нативного скачивания .docx (грузится через скрытый iframe — браузер сохраняет сам) */
+export function getGenDownloadUrl(docType, params) {
+  const qs = new URLSearchParams(params).toString();
+  return `${GEN_BASE}/types/${docType}/download?${qs}`;
 }

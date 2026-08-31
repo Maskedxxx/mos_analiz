@@ -2,9 +2,11 @@ import { useState, useCallback, useEffect } from 'react';
 import { LogOut } from 'lucide-react';
 import ScreenLogin from './ScreenLogin';
 import { fetchDocTypes } from './api';
+import Sidebar from './Sidebar';
 import ScreenUpload from './ScreenUpload';
 import ScreenProgress from './ScreenProgress';
 import ScreenResults from './ScreenResults';
+import ScreenGeneration from './ScreenGeneration';
 import './App.css';
 
 function Header({ onLogout }) {
@@ -15,7 +17,7 @@ function Header({ onLogout }) {
           AI
         </div>
         <span className="font-bold text-xl text-gray-800 tracking-tight">
-          ИИ-АУДИТ ДОКУМЕНТОВ
+          МосМониторинг <span className="font-normal text-gray-400">· Платформа</span>
         </span>
       </div>
       {onLogout && (
@@ -33,6 +35,8 @@ function Header({ onLogout }) {
 
 export default function App() {
   const [screen, setScreen] = useState('checking'); // checking | login | upload | progress | results
+  const [mode, setMode] = useState('audit');        // audit | generation — пункт сайдбара
+  const [genVisited, setGenVisited] = useState(false); // генерация монтируется при первом заходе
   const [sessionId, setSessionId] = useState(null);
   const [filename, setFilename] = useState('');
   const [result, setResult] = useState(null);
@@ -75,6 +79,13 @@ export default function App() {
     setFilename('');
     setResult(null);
     setScreen('login');
+    setMode('audit');
+  }, []);
+
+  // Переключение режима: генерацию монтируем один раз и дальше только прячем
+  const handleModeSelect = useCallback((next) => {
+    setMode(next);
+    if (next === 'generation') setGenVisited(true);
   }, []);
 
   // Пока идёт проба сессии — лёгкий лоадер, не мигаем логином
@@ -86,35 +97,46 @@ export default function App() {
     );
   }
 
-  // Экран логина — без хедера
+  // Экран логина — без хедера и сайдбара
   if (screen === 'login') {
     return <ScreenLogin onLoginSuccess={handleLoginSuccess} />;
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 font-sans text-gray-900 pb-20">
+    <div className="min-h-screen bg-gray-50 font-sans text-gray-900">
       <Header onLogout={handleLogout} />
-      <main>
-        {screen === 'upload' && (
-          <ScreenUpload onAuditStarted={handleAuditStarted} />
-        )}
-        {screen === 'progress' && (
-          <ScreenProgress
-            sessionId={sessionId}
-            filename={filename}
-            onComplete={handleComplete}
-            onError={handleError}
-          />
-        )}
-        {screen === 'results' && result && (
-          <ScreenResults
-            result={result}
-            sessionId={sessionId}
-            filename={filename}
-            onReset={handleReset}
-          />
-        )}
-      </main>
+      <div className="flex flex-col md:flex-row">
+        <Sidebar mode={mode} onSelect={handleModeSelect} />
+        <main className="flex-1 min-w-0 pb-20">
+          {/* Аудит остаётся смонтированным при уходе на генерацию: не рвём SSE и не теряем прогресс */}
+          <div className={mode === 'audit' ? '' : 'hidden'}>
+            {screen === 'upload' && (
+              <ScreenUpload onAuditStarted={handleAuditStarted} />
+            )}
+            {screen === 'progress' && (
+              <ScreenProgress
+                sessionId={sessionId}
+                filename={filename}
+                onComplete={handleComplete}
+                onError={handleError}
+              />
+            )}
+            {screen === 'results' && result && (
+              <ScreenResults
+                result={result}
+                sessionId={sessionId}
+                filename={filename}
+                onReset={handleReset}
+              />
+            )}
+          </div>
+          {genVisited && (
+            <div className={mode === 'generation' ? '' : 'hidden'}>
+              <ScreenGeneration />
+            </div>
+          )}
+        </main>
+      </div>
     </div>
   );
 }

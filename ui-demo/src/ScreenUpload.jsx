@@ -3,7 +3,7 @@ import {
   Upload, FileText, X, Play, Loader2, AlertCircle, ChevronDown,
   ListChecks, Search, MapPin, Plus, Pencil, Trash2, ChevronLeft, Sparkles, Check,
 } from 'lucide-react';
-import { fetchDocTypes, startAudit, fetchRules, draftRule, createRule, updateRule, deleteRule } from './api';
+import { fetchDocTypes, startAudit, startCrossAudit, fetchRules, draftRule, createRule, updateRule, deleteRule } from './api';
 
 // Чип секции с кастомным тултипом (появляется через 0.5 с): описание + границы блока (start/end)
 function SectionChip({ section, selected, onToggle }) {
@@ -39,10 +39,46 @@ function SectionChip({ section, selected, onToggle }) {
   );
 }
 
+const CROSS_TYPE = 'crosscheck_2_4_0_6_0_5';
+const CROSS_SLOTS = [
+  { role: 'kartochka', label: '2.4 Карточка проекта', hint: '.xlsx' },
+  { role: 'protokol', label: '0.6 Протокол выполнения', hint: '.docx / .pdf' },
+  { role: 'tirazh', label: '0.5 Приказ о тираже', hint: '.docx / .pdf' },
+];
+
+// Слот загрузки одного из трёх документов сквозной сверки.
+function CrossSlot({ slot, file, onPick }) {
+  const ref = useRef(null);
+  return (
+    <div className="border border-gray-200 rounded-xl px-4 py-3 flex items-center justify-between bg-white">
+      <div className="min-w-0 mr-3">
+        <p className="text-sm font-medium text-gray-900">{slot.label}</p>
+        {file
+          ? <p className="text-xs text-gray-500 truncate">{file.name}</p>
+          : <p className="text-xs text-gray-400">{slot.hint}</p>}
+      </div>
+      <div className="flex items-center gap-2 shrink-0">
+        {file && (
+          <button onClick={() => onPick(null)} className="p-1 hover:bg-gray-100 rounded-lg cursor-pointer">
+            <X className="w-4 h-4 text-gray-400" />
+          </button>
+        )}
+        <button onClick={() => ref.current?.click()}
+          className="text-sm px-3 py-1.5 rounded-lg border border-gray-200 hover:border-gray-300 text-gray-600 cursor-pointer">
+          {file ? 'Заменить' : 'Выбрать'}
+        </button>
+        <input ref={ref} type="file" accept=".xlsx,.docx,.pdf"
+          onChange={(e) => e.target.files[0] && onPick(e.target.files[0])} className="hidden" />
+      </div>
+    </div>
+  );
+}
+
 export default function ScreenUpload({ onAuditStarted }) {
   const [docTypes, setDocTypes] = useState([]);
   const [selectedType, setSelectedType] = useState('');
   const [file, setFile] = useState(null);
+  const [crossFiles, setCrossFiles] = useState({ kartochka: null, protokol: null, tirazh: null });
   const [isDragging, setIsDragging] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -110,8 +146,14 @@ export default function ScreenUpload({ onAuditStarted }) {
     setLoading(true);
     setError('');
     try {
-      const { session_id } = await startAudit(file, selectedType);
-      onAuditStarted(session_id, file.name);
+      if (selectedType === CROSS_TYPE) {
+        const files = [crossFiles.kartochka, crossFiles.protokol, crossFiles.tirazh].filter(Boolean);
+        const { session_id } = await startCrossAudit(files);
+        onAuditStarted(session_id, files.map((f) => f.name).join(', '));
+      } else {
+        const { session_id } = await startAudit(file, selectedType);
+        onAuditStarted(session_id, file.name);
+      }
     } catch (err) {
       setError(err.message);
     } finally {
@@ -182,7 +224,10 @@ export default function ScreenUpload({ onAuditStarted }) {
     setFSections(allSelected ? [] : sections.map((s) => s.name));
   };
 
-  const canStart = file && selectedType && !loading;
+  const isCross = selectedType === CROSS_TYPE;
+  const canStart = !loading && selectedType && (isCross
+    ? (crossFiles.kartochka && crossFiles.protokol && crossFiles.tirazh)
+    : file);
 
   return (
     <div className="animate-fade-in max-w-5xl mx-auto px-4 py-12">
@@ -211,7 +256,14 @@ export default function ScreenUpload({ onAuditStarted }) {
           </div>
 
           {/* Drag-drop зона / выбранный файл */}
-          {!file ? (
+          {isCross ? (
+            <div className="space-y-3">
+              {CROSS_SLOTS.map((slot) => (
+                <CrossSlot key={slot.role} slot={slot} file={crossFiles[slot.role]}
+                  onPick={(f) => setCrossFiles((p) => ({ ...p, [slot.role]: f }))} />
+              ))}
+            </div>
+          ) : !file ? (
             <div
               onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
               onDragLeave={() => setIsDragging(false)}
