@@ -1,0 +1,12 @@
+{
+  "doc_type": "crosscheck_2_4_0_6_0_5",
+  "doc_title": "Сквозная сверка 3 документов (2.4 + 0.6 + 0.5)",
+  "engine": "crosscheck_2_4_0_6_0_5",
+  "model": "Qwen3.5-35B-A3B",
+  "temperature": 0.0,
+  "required_docs": [
+    {"role": "kartochka", "code": "2.4", "keywords": ["карточка"]},
+    {"role": "protokol",  "code": "0.6", "keywords": ["протокол", "выполнени"]},
+    {"role": "tirazh",    "code": "0.5", "keywords": ["приказ", "тиражир"]}
+  ]
+}
