@@ -38,9 +38,13 @@ from openai import OpenAI
 from config.llm import LLM_CONFIG
 from src.audit.engine import AuditEngine
 from src.doc_type_validators.drivers import run_drivers_special
+from src.doc_type_validators.forma_0_3 import run_forma_0_3_special
+from src.doc_type_validators.forma_0_4 import run_forma_0_4_special
+from src.doc_type_validators.list_prisutstviya import run_list_prisutstviya_special
 from src.doc_type_validators.kartochka_proekta import run_kartochka_proekta_special
 from src.doc_type_validators.kpsc import run_kpsc_special
 from src.doc_type_validators.plan_grafik import run_plan_grafik_special
+from src.doc_type_validators.crosscheck import run_crosscheck_special
 from src.llm.client import OPENAI_TIMEOUT_SEC
 # END_IMPORTS
 
@@ -128,9 +132,14 @@ sessions: Dict[str, Dict[str, Any]] = {}
 # `_run_audit_thread` для выбора пайплайна по doc_type.
 SPECIAL_ENGINE_RUNNERS = {
     "drivers": run_drivers_special,
+    "forma_0_3": run_forma_0_3_special,
+    "forma_0_4": run_forma_0_4_special,
     "kpsc": run_kpsc_special,
-    "kartochka_proekta": run_kartochka_proekta_special,
+    "kartochka_proekta_2_4": run_kartochka_proekta_special,
+    "kartochka_proekta_0_2": run_kartochka_proekta_special,
+    "list_prisutstviya": run_list_prisutstviya_special,
     "plan_grafik": run_plan_grafik_special,
+    "crosscheck_2_4_0_6_0_5": run_crosscheck_special,
 }
 
 
@@ -155,10 +164,12 @@ def _get_allowed_extensions(doc_type: str) -> set:
         Возвращает допустимые расширения файлов для данного doc_type.
 
     Логика:
-        - Спецдвижки (drivers, kpsc, kartochka_proekta, plan_grafik) → .xlsx
-        - parser: "pptx" → .pptx
-        - secondary_file → стандартные + .{secondary.type}
-        - Остальные → стандартные (.docx/.doc/.pdf/.odt/.rtf)
+        - Спецдвижки (движок из SPECIAL_ENGINE_RUNNERS) → .xlsx (все они читают Excel)
+        - Остальные → берём из parser_by_ext конфига: тип принимает ровно то,
+          что реально умеет распарсить (иначе файл упал бы уже в середине аудита)
+        - parser: "pptx" (старый формат конфига) → .pptx
+        - secondary_file → плюс .{secondary.type}
+        - Конфига/parser_by_ext нет → стандартные (.docx/.doc/.pdf/.odt/.rtf)
     """
     config_path = _DOC_CONFIGS_DIR / doc_type / "config.json"
     if not config_path.exists():
@@ -168,10 +179,11 @@ def _get_allowed_extensions(doc_type: str) -> set:
     engine = data.get("engine", "standard")
     if engine in SPECIAL_ENGINE_RUNNERS:
         return _XLSX_EXTENSIONS
-    parser = data.get("parser", "paddle")
-    if parser == "pptx":
+    if data.get("parser") == "pptx":
         return _PPTX_EXTENSIONS
-    allowed = set(_STANDARD_EXTENSIONS)
+    allowed = {e.lower() for e in (data.get("parser_by_ext") or {})}
+    if not allowed:
+        allowed = set(_STANDARD_EXTENSIONS)
     if data.get("secondary_file"):
         sec_type = data["secondary_file"].get("type", "")
         if sec_type:
@@ -187,7 +199,7 @@ def _run_special_engine(engine_type: str, doc_type: str, target_path: str, sessi
     from types import SimpleNamespace
     runner = SPECIAL_ENGINE_RUNNERS[engine_type]
     args = SimpleNamespace(
-        target=target_path, parse_only=False, rule_filter=None,
+        target=target_path, doc_type=doc_type, parse_only=False, rule_filter=None,
         model=None, temperature=None, session_dir=session_dir,
     )
     return runner(args)
@@ -609,6 +621,39 @@ async def start_audit(request: Request, file: UploadFile = File(...), doc_type: 
     }
     thread = threading.Thread(
         target=_run_audit_thread, args=(session_id, doc_type, str(upload_path)), daemon=True,
+    )
+    thread.start()
+    return {"session_id": session_id}
+
+
+@app.post("/api/audit/cross")
+async def start_cross_audit(request: Request, files: List[UploadFile] = File(...)):
+    """Запуск сквозной сверки 3 документов (2.4 Карточка + 0.6 Протокол + 0.5 Приказ о тираже)."""
+    _check_auth(request)
+    doc_type = "crosscheck_2_4_0_6_0_5"
+    if not files or len(files) < 2:
+        raise HTTPException(
+            status_code=400,
+            detail="Нужно загрузить 3 документа: 2.4 Карточка проекта, 0.6 Протокол выполнения, 0.5 Приказ о тираже",
+        )
+    session_id = uuid.uuid4().hex[:8]
+    folder = UPLOAD_DIR / session_id
+    folder.mkdir(parents=True, exist_ok=True)
+    names = []
+    for f in files:
+        dest = folder / (f.filename or uuid.uuid4().hex)
+        with open(dest, "wb") as out:
+            shutil.copyfileobj(f.file, out)
+        names.append(f.filename)
+    event_queue = asyncio.Queue()
+    loop = asyncio.get_event_loop()
+    sessions[session_id] = {
+        "status": "running", "events": event_queue, "loop": loop,
+        "result": None, "doc_type": doc_type, "filename": ", ".join(names),
+        "upload_path": str(folder), "session_dir": None,
+    }
+    thread = threading.Thread(
+        target=_run_audit_thread, args=(session_id, doc_type, str(folder)), daemon=True,
     )
     thread.start()
     return {"session_id": session_id}

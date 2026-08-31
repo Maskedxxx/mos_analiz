@@ -27,6 +27,7 @@ from src.api.server import app  # noqa: F401
 from src.audit.engine import AuditEngine
 from src.doc_type_parsers.kpsc import kpsc_parse_kpsc_header_build_payload
 from src.doc_type_validators.drivers import run_drivers_special
+from src.doc_type_validators.crosscheck import run_crosscheck_special
 from src.doc_type_validators.forma_0_3 import run_forma_0_3_special
 from src.doc_type_validators.forma_0_4 import run_forma_0_4_special
 from src.doc_type_validators.kartochka_proekta import run_kartochka_proekta_special
@@ -55,6 +56,7 @@ SPECIAL_ENGINE_RUNNERS = {
     "kartochka_proekta_0_2": run_kartochka_proekta_special,
     "list_prisutstviya": run_list_prisutstviya_special,
     "plan_grafik": run_plan_grafik_special,
+    "crosscheck_2_4_0_6_0_5": run_crosscheck_special,
 }
 
 
