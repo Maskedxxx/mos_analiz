@@ -1,0 +1,47 @@
+# Весь стенд одной командой:  docker compose up -d --build
+# Сервисы: api — проверка документов (:8081), gen — генерация документов (:8090, репозиторий
+# ../mos_generated рядом), ui — веб-интерфейс (:5174 → nginx, проксирует /api и /gen).
+# Переменные бэкенда (логин/пароль, адреса модели и OCR) — из .env в корне (образец .env.example).
+# Правила и типы документов монтируются томом: правка doc_configs/ не требует пересборки,
+# нужен только перезапуск api:  docker compose restart api
+
+services:
+  api:
+    build: .
+    image: mosaudit-api
+    env_file: .env
+    environment:
+      API_HOST: 0.0.0.0
+    volumes:
+      - ./doc_configs:/app/doc_configs
+      - ./logs_result:/app/logs_result
+      - ./uploads:/app/uploads
+    ports:
+      - "${API_PORT:-8081}:8081"
+    restart: unless-stopped
+
+  gen:
+    build: ../mos_generated
+    image: mosgen-api
+    volumes:
+      - ../mos_generated/logs_generated:/app/logs_generated
+      - ../mos_generated/templates:/app/templates
+      - gen_org_store:/app/data
+    environment:
+      GEN_ORG_STORE: /app/data/_org_store.json
+    ports:
+      - "${GEN_PORT:-8090}:8090"
+    restart: unless-stopped
+
+  ui:
+    build: ./ui-demo
+    image: mosaudit-ui
+    depends_on:
+      - api
+      - gen
+    ports:
+      - "${UI_PORT:-5174}:80"
+    restart: unless-stopped
+
+volumes:
+  gen_org_store:

@@ -98,6 +98,7 @@ test_docs/                образцы документов (не в git)
 
 ```bash
 bash scripts/restart_all.sh       # бэкенд :8081 + фронт :5174 (screen `backend`, `frontend`) + healthcheck
+docker compose up -d --build      # то же в Docker: api, gen (../mos_generated), ui с nginx-прокси
 python main.py --doc-type protokol_vypolneniya --target <файл>   # проверка из CLI
 ```
 

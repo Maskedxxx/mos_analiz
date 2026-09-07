@@ -60,6 +60,25 @@ bash scripts/restart_all.sh      # бэкенд :8081 + фронт :5174 в scre
 
 Открыть `http://localhost:5174/`, войти логином и паролем из `.env`.
 
+## Запуск в Docker (весь стенд одной командой)
+
+Нужен Docker 24+ с Compose v2. Репозиторий генерации должен лежать рядом: `../mos_generated`
+(compose собирает его образ сервисом `gen`).
+
+```bash
+cp .env.example .env             # AUDIT_*, LLM_BASE_URL, LLM_MODEL, при необходимости OCR_*/LAYOUT_*
+docker compose up -d --build     # api :8081, gen :8090, ui :5174 (nginx: /api → api, /gen → gen)
+docker compose ps                # все три — healthy
+curl -s http://localhost:5174/api/health
+```
+
+Что монтируется томами (правится без пересборки): `doc_configs/` (типы и правила — после правки
+`docker compose restart api`), `logs_result/`, `uploads/`, у генерации — `templates/`,
+`logs_generated/` и стор значений по организациям. Адреса модели и OCR внутри контейнера — те же
+`LLM_BASE_URL`/`OCR_BASE_URL` из `.env`: если модель на хосте, укажите `http://host.docker.internal:<порт>/v1/`
+(Docker Desktop) или адрес хоста в сети. Порты наружу меняются переменными `API_PORT`, `GEN_PORT`, `UI_PORT`.
+Остановить: `docker compose down` (тома с данными остаются).
+
 ## Конфигурация — переменные окружения
 
 Все значения — в `.env` в корне проекта (образец `.env.example`), приоритет: переменная
