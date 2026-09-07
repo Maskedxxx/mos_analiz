@@ -6,7 +6,8 @@
 .idea/
 
 # Claude Code
-.claude/
+.claude/*
+!.claude/skills/
 
 # Python
 *.pyc
