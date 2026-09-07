@@ -8,28 +8,40 @@
 
 | Что нужно | Где |
 |---|---|
+| Как запустить, конфигурация, API, структура | `README.md` |
+| Как устроен пайплайн, узлы, решения (ADR) | `docs/ARCHITECTURE.md` |
+| Как добавить тип документа / спецдвижок | `docs/ADD_DOC_TYPE.md` |
 | Состояние проекта, история работ, открытые долги | `ДОВОДКА_ПРАВИЛ_состояние.md` — **§0 читать первым** |
-| Задачи по обоим сервисам | `~/projects/ТРЕКЕР_МосМониторинг.md` |
-| Соответствие типов каталогу заказчика | `~/Downloads/МАППИНГ_типов_МосМониторинг.md` |
-| Методики заказчика (первоисточник правил) | `docs/методички/` — 18 PDF |
+| Задачи по обоим сервисам | `~/projects/ТРЕКЕР_МосМониторинг.md` (стенд) |
+| Соответствие типов каталогу заказчика | `~/Downloads/МАППИНГ_типов_МосМониторинг.md` (у владельца на Маке) |
+| Методики заказчика (первоисточник правил) | `docs/методички/` — 18 PDF (не в git) |
 | Расхождения экспертной разметки с файлами | `MISMARK_реестр.md` |
-| Историческое сравнение с прод-версией | `~/projects/GAP_mos_analiz_vs_refactor.md` |
+| Механики обоих сервисов | скил `mosmonitoring-mechanics` |
 
 ## Жёсткие правила
 
-1. **После правок кода или правил перезапустить `:8081`** — Python не подхватывает изменения
-   на лету, uvicorn без `--reload`. Команда: `bash ~/wf_restart_backend.sh`.
+1. **После правок кода или правил перезапустить бэкенд** — Python не подхватывает изменения
+   на лету, uvicorn без `--reload`. Команда: `bash scripts/restart_backend.sh`
+   (`~/wf_restart_backend.sh` на стенде — симлинк на неё). Фронт: `bash scripts/restart_frontend.sh`.
    Исключение — прогоны бенчмарка: они каждый раз запускают `main.py` заново.
 2. **Реестр спецдвижков `SPECIAL_ENGINE_RUNNERS` — только в `src/engines.py`.** CLI и веб-бэкенд
    импортируют его оттуда. Новый движок = строка в реестре + поле `engine` в config.json типа;
    `tests/test_registry.py` проверяет, что реестр и конфиги согласованы. (До 07.09.2026 реестр
    был продублирован в `main.py` и `server.py` — так терялись 6 типов.)
-3. **Не коммитить и не пушить без слова владельца.** Идентичность коммитов:
+3. **Адреса модели и OCR, логин/пароль — только через `.env`** (`config/llm.py`, `config/parsers.py`,
+   `.env.example`). В коде и в `doc_configs/*/config.json` адресов и имён модели быть не должно;
+   поля `model`/`llm_base_url` в конфиге типа — осознанный override, по умолчанию не нужны.
+4. **Не коммитить и не пушить без слова владельца.** Идентичность коммитов:
    `Maskedxxx <aangers07@gmail.com>`, без постфикса Claude.
-4. **Факты — только чтением кода и артефактов**, не по памяти и не по документации:
+5. **Факты — только чтением кода и артефактов**, не по памяти и не по документации:
    документы устаревают, проверять текущее состояние инструментом.
-5. **Кастомные правила пользователя** живут в `doc_configs/<тип>/rules_custom.json`
+6. **Кастомные правила пользователя** живут в `doc_configs/<тип>/rules_custom.json`
    с индексами от 200. Базовые `rules_multi.json` НЕ трогать — движок мёрджит их на каждом прогоне.
+7. **Клиент к модели создаётся только в `src/llm/client.py`** (`make_llm_client`). Параметры
+   вызова в `multi_rule.py` (temperature 0.7, top_p, top_k, ретраи со сменой seed) — калиброваны,
+   не менять без бенчмарка.
+8. **Тесты после правок:** `.venv/bin/pytest -q --ignore=tests/test_kpsc_parsers.py` (~3 мин).
+   Фикстуры спецдвижков — `tests/data/` (в git нет, см. `tests/data/README.md`).
 
 ## Как устроено
 
@@ -46,8 +58,8 @@
 у спецдвижков — всегда `.xlsx`. Зашитых списков расширений быть не должно: так уже ломались
 презентации (не принимали `.pptx`) и текстовые типы (принимали `.doc` без парсера и падали).
 
-**Парсинг:** PDF — всегда через OCR постранично (PaddleOCR-VL `:11438` + layout Heron `:11439`
-на хосте `172.16.10.35`); DOCX — python-docx плюс OCR только для картинок шапки; XLSX — openpyxl.
+**Парсинг:** PDF — всегда через OCR постранично (VLM `OCR_BASE_URL` + layout `LAYOUT_BASE_URL`);
+DOCX — python-docx плюс OCR только для картинок шапки; XLSX — openpyxl.
 
 **Артефакты прогона** — каталог `logs_result/<тип>/session_<время>/`: промпты, сырой и разобранный
 ответ модели, вердикт по каждому правилу (включая пройденные), `final_results.json` только
@@ -55,40 +67,47 @@
 
 ## Стек
 
-Python 3.12, FastAPI + uvicorn, openpyxl, python-docx, PyMuPDF; фронт — React + Vite + Tailwind
-в `ui-demo/`. Языковая модель — Qwen на `172.16.10.35:11437` (llama.cpp/GGUF; имя модели
-в запросе игнорируется, отвечает загруженная). Рассуждения модели отключены через
-`chat_template_kwargs: {"enable_thinking": false}`.
+Python 3.12, FastAPI + uvicorn, pydantic-settings, openpyxl, python-docx, PyMuPDF; фронт —
+React + Vite + Tailwind в `ui-demo/` (Node 22). Языковая модель — Qwen через OpenAI-совместимый
+API (на стенде llama.cpp/GGUF: имя модели в запросе игнорируется, отвечает загруженная).
+Рассуждения модели отключены через `chat_template_kwargs: {"enable_thinking": false}`.
 
 ## Дерево проекта
 
 ```
+config/                   llm.py, parsers.py — конфигурация из .env поверх дефолтов
 doc_configs/<тип>/        config.json, rules_multi.json, rules_methodology.json,
                           sections.json, rules_custom.json, validation_rules.json
-src/audit/                движок generic-проверки, модели результата
+docs/                     ARCHITECTURE.md, ADD_DOC_TYPE.md, методички/ (PDF, не в git)
+scripts/                  restart_backend.sh, restart_frontend.sh, restart_all.sh, healthcheck.sh
+src/engines.py            реестр спецдвижков + detect_engine
+src/audit/                движок generic-проверки, модели результата, Excel-отчёт
 src/api/server.py         веб-бэкенд: авторизация, SSE-прогресс, правила, эндпоинты аудита
+src/llm/                  client.py (клиент к модели), multi_rule.py (промпт, разбор ответа)
 src/doc_type_validators/  спецдвижки (карточки, формы, КПСЦ, листы присутствия, сквозная сверка)
 src/doc_type_parsers/     парсеры под конкретные таблицы
+src/format_parsers/       docx, pptx, pdf (OCR + layout)
 main.py                   CLI: python main.py --doc-type <тип> --target <файл>
+tests/                    pytest; tests/data/ — фикстуры спецдвижков (не в git)
 ui-demo/                  React-фронт: сайдбар «Аудит» / «Генерация»
-logs_result/              артефакты прогонов
-test_docs/                образцы документов
+logs_result/, uploads/    артефакты прогонов и загрузки (не в git)
+test_docs/                образцы документов (не в git)
 ```
 
 ## Запуск
 
 ```bash
-bash ~/wf_restart_backend.sh      # перезапуск бэкенда :8081
-bash ~/wf_rebuild_frontend.sh     # сборка фронта + перезапуск preview :5174
+bash scripts/restart_all.sh       # бэкенд :8081 + фронт :5174 (screen `backend`, `frontend`) + healthcheck
 python main.py --doc-type protokol_vypolneniya --target <файл>   # проверка из CLI
 ```
 
-Домен: `https://mosaudit.ru.tuna.am` — объединённый интерфейс, слева переключатель
+Домен: `https://mosaudit.ru.tuna.am` (tuna → :5174) — объединённый интерфейс, слева переключатель
 «Аудит» / «Генерация». Генерация ходит на `:8090` через прокси `/gen` с rewrite
 (префикс обязателен: оба бэкенда отдают `/api/types/*`).
 
 ## Доступы
 
 Стенд `ms-llm-dev` — команда `dev` (SSH `nemovm@172.16.10.64`, корпоративный OpenVPN).
-Вход в интерфейс: `guest` / пароль у владельца.
-Ветка `refactor/repo-cleanup`, origin — локальный прод-репо `~/projects/mos_analiz`, GitHub нет.
+Вход в интерфейс: `guest` / пароль в `.env` стенда (у владельца).
+Репозиторий: `git@github.com:Maskedxxx/mos_analiz.git`, разработка в ветке `dev`
+(`main` — старый прод, заморожен).
