@@ -51,15 +51,18 @@ _SYSTEM_PROMPT = """Ты — эксперт по перекрёстной (ск�
 
 # START_HELPERS
 def _load_config() -> Dict[str, Any]:
+    """Читает doc_configs/<_DOC_TYPE>/config.json (required_docs, llm_base_url?, model?) в dict."""
     return json.loads((_DOC_CONFIGS_DIR / _DOC_TYPE / "config.json").read_text(encoding="utf-8"))
 
 
 def _load_rules() -> List[Dict[str, Any]]:
+    """Читает doc_configs/<_DOC_TYPE>/rules.json и возвращает список из ключа "rules" (пустой список, если ключа нет)."""
     p = _DOC_CONFIGS_DIR / _DOC_TYPE / "rules.json"
     return json.loads(p.read_text(encoding="utf-8")).get("rules", [])
 
 
 def _norm(s: Any) -> str:
+    """Нормализует строку для сравнения: str(s or "") → lower → убрать кавычки («»"'`) → схлопнуть пробелы → strip."""
     t = str(s or "").lower()
     t = re.sub(r"[«»\"'`]", "", t)
     return re.sub(r"\s+", " ", t).strip()
@@ -133,6 +136,19 @@ def _parse_verdicts(text: str) -> List[Dict[str, Any]]:
 
 
 def _write_report(results: List[Dict[str, Any]], path: Path) -> None:
+    """
+    Назначение:
+        Пишет Excel-отчёт по результатам проверки: один лист «Отчёт», строка заголовка
+        (rule_index, rule_title, status, Обоснование, duration_sec) и по строке на каждое правило.
+
+    Вход:
+        results: список dict-результатов из _emit ({rule_index, rule_title, status, discrepancy, duration_sec}).
+        path: путь к сохраняемому .xlsx (validation_report.xlsx в session_dir).
+
+    Выход:
+        None; файл сохраняется на диск. В колонку «Обоснование» идёт discrepancy (по умолчанию ""),
+        duration_sec округляется до 3 знаков (по умолчанию 0.0).
+    """
     wb = openpyxl.Workbook()
     ws = wb.active
     ws.title = "Отчёт"
@@ -144,7 +160,7 @@ def _write_report(results: List[Dict[str, Any]], path: Path) -> None:
 
 
 # START_ENTRY
-def run_crosscheck_special(args) -> AuditResult:
+def run_crosscheck_special(args: Any) -> AuditResult:
     """
     Назначение:
         Публичный entrypoint сквозной LLM-проверки. R1 (комплектность) — Python-гейт;
@@ -168,6 +184,20 @@ def run_crosscheck_special(args) -> AuditResult:
     results: List[Dict[str, Any]] = []
 
     def _emit(idx: Any, title: str, status: str, disc: str) -> None:
+        """
+        Назначение:
+            Фиксирует результат по одному правилу: добавляет dict в замыкание `results`
+            и пишет validation_outputs/validate_<idx>.json (без duration_sec).
+
+        Вход:
+            idx: индекс правила (кладётся как str(idx) в rule_index и в имя файла).
+            title: заголовок правила.
+            status: "PASS" / "FAIL" / "ERROR".
+            disc: текст обоснования/расхождения (для PASS может быть пустым).
+
+        Выход:
+            None; побочные эффекты — results.append и запись JSON-файла (duration_sec всегда 0.0).
+        """
         res = {"rule_index": str(idx), "rule_title": title, "status": status, "discrepancy": disc, "duration_sec": 0.0}
         results.append(res)
         (val_dir / f"validate_{idx}.json").write_text(

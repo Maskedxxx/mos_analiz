@@ -1,1 +1,1 @@
-"""Runtime extraction modules for the audit monolith."""
+"""Пакет исходного кода сервиса проверки документов: парсеры форматов (format_parsers), парсеры и валидаторы спецтипов (doc_type_parsers, doc_type_validators), ядро аудита (audit), вызов модели (llm), реестр движков (engines), HTTP API (api)."""

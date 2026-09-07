@@ -63,6 +63,24 @@ def _make_result(rule_index: str, rule_title: str, status: str, discrepancy: str
 # RULE 1 — Имя файла содержит '0.3' и тематические слова
 # ==============================================================================
 def _rule_1_validate(data: dict, rule: dict) -> dict:
+    """
+    Назначение:
+        Правило 1 — имя файла книги (meta.workbook) содержит код мероприятия и тему.
+
+    Вход:
+        data: словарь forma_0_3_main.json (выдача парсера src/doc_type_parsers/forma_0_3.py).
+        rule: запись правила из validation_rules.json (используется rule_title).
+
+    Выход:
+        dict формата _make_result: rule_index, rule_title, status (PASS/FAIL), discrepancy.
+
+    Логика:
+        1. Имя приводится к нижнему регистру.
+        2. FAIL, если в имени нет подстроки '0.3'.
+        3. FAIL, если нет ни одного из ключевых слов: 'о предприятии в цифрах',
+           'опредприятиивцифрах', 'предприятии в цифр'.
+        4. Иначе PASS.
+    """
     title = rule["rule_title"]
     fname = data.get("meta", {}).get("workbook", "")
     fl = fname.lower()
@@ -79,6 +97,25 @@ def _rule_1_validate(data: dict, rule: dict) -> dict:
 # RULE 2 — Структура разделов (заголовки B1, B6, B11)
 # ==============================================================================
 def _rule_2_validate(data: dict, rule: dict) -> dict:
+    """
+    Назначение:
+        Правило 2 — структура разделов: заголовки B1, B6, B11 (headers.title,
+        headers.section_general, headers.section_indicators) присутствуют и содержат ожидаемые фразы.
+
+    Вход:
+        data: словарь forma_0_3_main.json (выдача парсера src/doc_type_parsers/forma_0_3.py).
+        rule: запись правила из validation_rules.json (используется rule_title).
+
+    Выход:
+        dict формата _make_result: rule_index, rule_title, status (PASS/FAIL), discrepancy.
+
+    Логика:
+        1. Для каждой из трёх ячеек ожидается фраза (без учёта регистра, вхождение подстроки):
+           B1 → 'Информация о показателях', B6 → 'Общая информация',
+           B11 → 'Информация о целевых показателях'.
+        2. Замечание, если ячейка пуста или фраза в ней не найдена.
+        3. FAIL при хотя бы одном замечании (все перечисляются через '; '), иначе PASS.
+    """
     title = rule["rule_title"]
     h = data.get("headers", {}) or {}
     expected = {
@@ -105,6 +142,24 @@ _LEGAL_RE = re.compile(r"\b(" + "|".join(_LEGAL_FORMS) + r")\b")
 
 
 def _rule_3_validate(data: dict, rule: dict) -> dict:
+    """
+    Назначение:
+        Правило 3 — в B9 (general_info.name) указана юридическая форма и само наименование предприятия.
+
+    Вход:
+        data: словарь forma_0_3_main.json (выдача парсера src/doc_type_parsers/forma_0_3.py).
+        rule: запись правила из validation_rules.json (используется rule_title).
+
+    Выход:
+        dict формата _make_result: rule_index, rule_title, status (PASS/FAIL), discrepancy.
+
+    Логика:
+        1. FAIL, если B9 пуста.
+        2. FAIL, если регекс _LEGAL_RE не находит ни одной формы из _LEGAL_FORMS
+           (ООО/ЗАО/АО/ПАО/ИП/ОАО/ФГУП/ГУП/МУП/АНО/ОДО как отдельное слово).
+        3. FAIL, если после удаления юр. формы остаток короче 2 символов (форма есть, наименования нет).
+        4. Иначе PASS.
+    """
     title = rule["rule_title"]
     name = (data.get("general_info", {}).get("name") or "").strip()
     if not name:
@@ -125,6 +180,22 @@ _INN_RE = re.compile(r"^\d{10}$")
 
 
 def _rule_4_validate(data: dict, rule: dict) -> dict:
+    """
+    Назначение:
+        Правило 4 — ИНН в C9 (general_info.inn) состоит ровно из 10 цифр (юрлицо).
+
+    Вход:
+        data: словарь forma_0_3_main.json (выдача парсера src/doc_type_parsers/forma_0_3.py).
+        rule: запись правила из validation_rules.json (используется rule_title).
+
+    Выход:
+        dict формата _make_result: rule_index, rule_title, status (PASS/FAIL), discrepancy.
+
+    Логика:
+        1. FAIL, если C9 пуста.
+        2. Хвост '.0' (артефакт числовой ячейки Excel) отбрасывается.
+        3. FAIL, если значение не соответствует _INN_RE (^\\d{10}$); иначе PASS.
+    """
     title = rule["rule_title"]
     inn = (data.get("general_info", {}).get("inn") or "").strip()
     if not inn:
@@ -143,6 +214,24 @@ _OKVED_CODE_RE = re.compile(r"^\d{2,3}(?:\.\d{1,2}){1,2}\b")
 
 
 def _rule_5_validate(data: dict, rule: dict) -> dict:
+    """
+    Назначение:
+        Правило 5 — ОКВЭД-2 в D9 (general_info.okved) в формате '<код> <описание>'.
+
+    Вход:
+        data: словарь forma_0_3_main.json (выдача парсера src/doc_type_parsers/forma_0_3.py).
+        rule: запись правила из validation_rules.json (используется rule_title).
+
+    Выход:
+        dict формата _make_result: rule_index, rule_title, status (PASS/FAIL), discrepancy.
+
+    Логика:
+        1. FAIL, если D9 пуста.
+        2. FAIL, если длина значения <= 10 символов (только код без описания).
+        3. FAIL, если строка не начинается с кода по _OKVED_CODE_RE
+           (2–3 цифры и 1–2 группы '.NN', т.е. 'NN.NN' или 'NN.NN.NN').
+        4. Иначе PASS.
+    """
     title = rule["rule_title"]
     okved = (data.get("general_info", {}).get("okved") or "").strip()
     if not okved:
@@ -160,6 +249,22 @@ def _rule_5_validate(data: dict, rule: dict) -> dict:
 # RULE 6 — Регион в E9 (не пустой)
 # ==============================================================================
 def _rule_6_validate(data: dict, rule: dict) -> dict:
+    """
+    Назначение:
+        Правило 6 — регион в E9 (general_info.region) заполнен.
+
+    Вход:
+        data: словарь forma_0_3_main.json (выдача парсера src/doc_type_parsers/forma_0_3.py).
+        rule: запись правила из validation_rules.json (используется rule_title).
+
+    Выход:
+        dict формата _make_result: rule_index, rule_title, status (PASS/FAIL), discrepancy.
+
+    Логика:
+        1. FAIL, если E9 пуста.
+        2. FAIL, если значение короче 2 символов (похоже на плейсхолдер).
+        3. Иначе PASS.
+    """
     title = rule["rule_title"]
     region = (data.get("general_info", {}).get("region") or "").strip()
     if not region:
@@ -173,6 +278,22 @@ def _rule_6_validate(data: dict, rule: dict) -> dict:
 # RULE 7 — Дата соглашения с ФЦК/РЦК в G9 (валидная дата)
 # ==============================================================================
 def _rule_7_validate(data: dict, rule: dict) -> dict:
+    """
+    Назначение:
+        Правило 7 — дата соглашения с ФЦК/РЦК в G9 задана и распознана как дата.
+
+    Вход:
+        data: словарь forma_0_3_main.json (выдача парсера src/doc_type_parsers/forma_0_3.py).
+        rule: запись правила из validation_rules.json (используется rule_title).
+
+    Выход:
+        dict формата _make_result: rule_index, rule_title, status (PASS/FAIL), discrepancy.
+
+    Логика:
+        1. Берётся general_info.agreement_date_fck — ISO-дата, которую парсер выставляет только
+           если ячейку G9 удалось распознать как дату (иначе None).
+        2. FAIL, если значение пусто (ячейка пуста или дата невалидна); иначе PASS.
+    """
     title = rule["rule_title"]
     d = (data.get("general_info", {}).get("agreement_date_fck") or "").strip()
     if not d:
@@ -184,11 +305,34 @@ def _rule_7_validate(data: dict, rule: dict) -> dict:
 # RULE 8 — Базовый год соответствует дате соглашения (правило 1 апреля)
 # ==============================================================================
 def _expected_base_year(iso_date: str) -> int:
+    """
+    Вычисляет ожидаемый базовый год по дате соглашения (правило 1 апреля):
+    месяц < 4 → год-1, иначе → текущий год даты. Бросает ValueError при неверном формате ISO-даты.
+    """
     d = datetime.strptime(iso_date, "%Y-%m-%d").date()
     return d.year - 1 if d.month < 4 else d.year
 
 
 def _rule_8_validate(data: dict, rule: dict) -> dict:
+    """
+    Назначение:
+        Правило 8 — базовый год в H9 (general_info.base_year) соответствует дате соглашения G9
+        по правилу 1 апреля.
+
+    Вход:
+        data: словарь forma_0_3_main.json (выдача парсера src/doc_type_parsers/forma_0_3.py).
+        rule: запись правила из validation_rules.json (используется rule_title).
+
+    Выход:
+        dict формата _make_result: rule_index, rule_title, status (PASS/FAIL), discrepancy.
+
+    Логика:
+        1. FAIL, если дата G9 (agreement_date_fck) не задана — вычислить БГ невозможно.
+        2. FAIL, если H9 (base_year) пуста.
+        3. Ожидаемый год считается через _expected_base_year; FAIL, если дата не парсится (ValueError).
+        4. FAIL, если int(H9) != ожидаемому (в discrepancy — оба значения и формулировка правила).
+        5. Иначе PASS.
+    """
     title = rule["rule_title"]
     gi = data.get("general_info", {}) or {}
     iso = gi.get("agreement_date_fck")
@@ -212,6 +356,25 @@ def _rule_8_validate(data: dict, rule: dict) -> dict:
 # RULE 9 — Структура годов в G12:K12 (БГ-1, БГ, БГ+1, БГ+2, БГ+3)
 # ==============================================================================
 def _rule_9_validate(data: dict, rule: dict) -> dict:
+    """
+    Назначение:
+        Правило 9 — в G12:K12 (data.years) пять последовательных годов, привязанных к базовому:
+        БГ-1, БГ, БГ+1, БГ+2, БГ+3.
+
+    Вход:
+        data: словарь forma_0_3_main.json (выдача парсера src/doc_type_parsers/forma_0_3.py).
+        rule: запись правила из validation_rules.json (используется rule_title).
+
+    Выход:
+        dict формата _make_result: rule_index, rule_title, status (PASS/FAIL), discrepancy.
+
+    Логика:
+        1. FAIL, если H9 (base_year) пуст — сравнивать не с чем.
+        2. FAIL, если список years не из 5 элементов.
+        3. FAIL, если years != [БГ-1, БГ, БГ+1, БГ+2, БГ+3]; в discrepancy перечисляются
+           только расходящиеся ячейки (ожидался/получен).
+        4. Иначе PASS.
+    """
     title = rule["rule_title"]
     bg = (data.get("general_info") or {}).get("base_year")
     years = data.get("years") or []
@@ -240,6 +403,25 @@ _RULE_10_ROWS = {
 
 
 def _rule_10_validate(data: dict, rule: dict) -> dict:
+    """
+    Назначение:
+        Правило 10 — базовые данные за БГ-1 и БГ (колонки G и H) заполнены в исходных строках 15–22
+        (выручка, прямые/косвенные расходы, амортизация, оплата труда, страховые взносы,
+        налоги в себестоимости, численность).
+
+    Вход:
+        data: словарь forma_0_3_main.json (выдача парсера src/doc_type_parsers/forma_0_3.py).
+        rule: запись правила из validation_rules.json (используется rule_title).
+
+    Выход:
+        dict формата _make_result: rule_index, rule_title, status (PASS/FAIL), discrepancy.
+
+    Логика:
+        1. Для каждой пары (строка из _RULE_10_ROWS, колонка G/H) берётся indicators_data[coord].value.
+        2. Замечание, если value is None (пусто).
+        3. Замечание, если value == 0 — кроме строки 21 «Налоги в себестоимости», где ноль допустим.
+        4. FAIL при хотя бы одном замечании (в discrepancy — первые 10), иначе PASS.
+    """
     title = rule["rule_title"]
     ind = data.get("indicators_data") or {}
     issues = []
@@ -261,6 +443,25 @@ def _rule_10_validate(data: dict, rule: dict) -> dict:
 # RULE 11 — Формулы прогноза в I/J/K для производных показателей
 # ==============================================================================
 def _rule_11_validate(data: dict, rule: dict) -> dict:
+    """
+    Назначение:
+        Правило 11 — производные показатели считаются формулами, а не вбиты числами:
+        добавленная стоимость (строка 13), прибыль (14), производительность труда (23),
+        индекс производительности (24).
+
+    Вход:
+        data: словарь forma_0_3_main.json (выдача парсера src/doc_type_parsers/forma_0_3.py).
+        rule: запись правила из validation_rules.json (используется rule_title).
+
+    Выход:
+        dict формата _make_result: rule_index, rule_title, status (PASS/FAIL), discrepancy.
+
+    Логика:
+        1. G13..K13 и G14..K14 — проверяется поле formula в indicators_data[coord].
+        2. G23..K23 — проверяется performance.formulas[coord].
+        3. I24, J24, K24 — проверяется index.formulas[coord].
+        4. FAIL, если хотя бы одна формула отсутствует (в discrepancy — первые 10 ячеек), иначе PASS.
+    """
     title = rule["rule_title"]
     ind = data.get("indicators_data") or {}
     perf = (data.get("performance") or {}).get("formulas") or {}
@@ -293,6 +494,24 @@ _RULE_12_TOLERANCE = 0.0001
 
 
 def _rule_12_validate(data: dict, rule: dict) -> dict:
+    """
+    Назначение:
+        Правило 12 — ГЛАВНЫЙ КРИТЕРИЙ ФЦК: индекс производительности труда (index.values
+        в I24, J24, K24) не ниже целевых 5% в каждом прогнозном году.
+
+    Вход:
+        data: словарь forma_0_3_main.json (выдача парсера src/doc_type_parsers/forma_0_3.py).
+        rule: запись правила из validation_rules.json (используется rule_title).
+
+    Выход:
+        dict формата _make_result: rule_index, rule_title, status (PASS/FAIL), discrepancy.
+
+    Логика:
+        1. Для каждой из I24/J24/K24 берётся вычисленное значение (доля, 0.05 = 5%).
+        2. Замечание, если значение None (не вычислено).
+        3. Замечание, если value + _RULE_12_TOLERANCE (0.0001) < _RULE_12_TARGET (0.05).
+        4. FAIL при хотя бы одном замечании, иначе PASS.
+    """
     title = rule["rule_title"]
     idx_values = (data.get("index") or {}).get("values") or {}
     issues = []
@@ -317,6 +536,23 @@ _RULE_13_TOLERANCE = 0.0001
 
 
 def _rule_13_validate(data: dict, rule: dict) -> dict:
+    """
+    Назначение:
+        Правило 13 — целевые показатели в I25, J25, K25 (data.target_index) равны ровно 5% (0.05).
+
+    Вход:
+        data: словарь forma_0_3_main.json (выдача парсера src/doc_type_parsers/forma_0_3.py).
+        rule: запись правила из validation_rules.json (используется rule_title).
+
+    Выход:
+        dict формата _make_result: rule_index, rule_title, status (PASS/FAIL), discrepancy.
+
+    Логика:
+        1. Для каждой из I25/J25/K25 берётся значение из target_index.
+        2. Замечание, если значение None (не указано).
+        3. Замечание, если |value - _RULE_13_TARGET| > _RULE_13_TOLERANCE (0.0001).
+        4. FAIL при хотя бы одном замечании, иначе PASS.
+    """
     title = rule["rule_title"]
     targets = data.get("target_index") or {}
     issues = []
@@ -339,6 +575,28 @@ _PLACEHOLDER_RE = re.compile(r"^[\s_*\.\-]+$")
 
 
 def _rule_14_validate(data: dict, rule: dict) -> dict:
+    """
+    Назначение:
+        Правило 14 — блок подписей (data.signatures): согласие на публикацию G27, ФИО подписанта B31,
+        совпадение даты подписи J28 и даты документа B33.
+
+    Вход:
+        data: словарь forma_0_3_main.json (выдача парсера src/doc_type_parsers/forma_0_3.py).
+        rule: запись правила из validation_rules.json (используется rule_title).
+
+    Выход:
+        dict формата _make_result: rule_index, rule_title, status (PASS/FAIL), discrepancy.
+
+    Логика:
+        1. G27 (consent): замечание, если пусто; замечание, если в тексте нет подстроки 'соглас'.
+        2. B31 (signer_fio): замечание, если пусто; из строки удаляются '_' и '/' — замечание,
+           если остаток пуст или состоит только из пробелов/_/*/./- (_PLACEHOLDER_RE, плейсхолдер);
+           замечание, если остаток короче 5 символов.
+        3. J28 (signature_date_iso): замечание, если пусто или не распарсилось.
+        4. B33 (doc_date_iso): замечание, если пусто или не распарсилось (в discrepancy — сырой doc_date_raw).
+        5. Если обе даты есть и не равны — замечание о несовпадении.
+        6. FAIL при хотя бы одном замечании, иначе PASS.
+    """
     title = rule["rule_title"]
     sig = data.get("signatures") or {}
     issues = []
@@ -408,7 +666,7 @@ def _create_excel_report(results: List[Tuple[Dict, Dict, float]], report_path: P
 
 
 # START_FORMA_0_3_RUNNER
-def run_forma_0_3_special(args) -> AuditResult:
+def run_forma_0_3_special(args: Any) -> AuditResult:
     """
     Публичный entrypoint для forma_0_3. Регистрируется в SPECIAL_ENGINE_RUNNERS.
     Оркестрирует: 1 парсер → load rules → прогон 14 python-валидаторов → Excel.

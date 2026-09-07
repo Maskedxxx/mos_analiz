@@ -15,7 +15,7 @@ import json
 import re
 import xml.etree.ElementTree as ET
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple, TypedDict
+from typing import Any, Callable, Dict, List, Optional, Tuple, TypedDict, Union
 
 import posixpath
 import zipfile
@@ -27,6 +27,11 @@ from openpyxl.worksheet.worksheet import Worksheet
 
 
 def _write_json_payload(output_path: Path, payload: Any, *, default_str: bool=True) -> None:
+    """
+    Назначение: записать payload в JSON-файл (ensure_ascii=False, indent=2, utf-8).
+    Вход: output_path — путь файла; payload — сериализуемый объект; default_str — если True, несериализуемые значения приводятся через str.
+    Выход: None — файл перезаписывается.
+    """
     output_path.write_text(
         json.dumps(
             payload,
@@ -39,19 +44,29 @@ def _write_json_payload(output_path: Path, payload: Any, *, default_str: bool=Tr
 
 
 def _save_parser_payload(output_dir: Path, filename: str, payload: Any, *, default_str: bool=True) -> None:
+    """
+    Назначение: сохранить результат парсера в output_dir/filename, создав каталог при необходимости.
+    Вход: output_dir — каталог вывода; filename — имя JSON-файла; payload — результат парсера; default_str — см. `_write_json_payload`.
+    Выход: None.
+    """
     output_dir.mkdir(parents=True, exist_ok=True)
     _write_json_payload(output_dir / filename, payload, default_str=default_str)
 
 
 def _run_parser_cli(
     description: str,
-    build_payload_fn,
+    build_payload_fn: Callable[[Path, Optional[str]], Any],
     *,
     default_str: bool=True,
     input_help: Optional[str]=None,
     sheet_help: Optional[str]=None,
     output_help: Optional[str]=None,
 ) -> None:
+    """
+    Назначение: общий CLI-обёртка для всех KPSC-парсеров (аргументы -i/--input, -s/--sheet, -o/--output).
+    Вход: description — описание для argparse; build_payload_fn — функция (xlsx_path, sheet_name) -> payload; default_str — приводить ли несериализуемое к str; *_help — тексты подсказок аргументов.
+    Выход: None — JSON печатается в stdout или пишется в --output.
+    """
     ap = argparse.ArgumentParser(description=description)
     ap.add_argument('-i', '--input', required=True, help=input_help)
     ap.add_argument('-s', '--sheet', default=None, help=sheet_help)
@@ -67,6 +82,11 @@ def _run_parser_cli(
 
 
 def _build_bounds(top_row: int, bottom_row: int, left_col: int, right_col: int, *, with_letters: bool=True) -> Dict[str, Any]:
+    """
+    Назначение: собрать словарь границ таблицы (`KpscBounds`).
+    Вход: top_row/bottom_row/left_col/right_col — 1-based границы; with_letters — добавлять ли left_letter/right_letter/height/width.
+    Выход: dict с ключами top_row, bottom_row, left_col, right_col (+ буквы колонок и размеры, если with_letters).
+    """
     bounds = {'top_row': top_row, 'bottom_row': bottom_row, 'left_col': left_col, 'right_col': right_col}
     if with_letters:
         bounds.update(
@@ -80,7 +100,12 @@ def _build_bounds(top_row: int, bottom_row: int, left_col: int, right_col: int, 
     return bounds
 
 
-def _build_merged_lookup(ws):
+def _build_merged_lookup(ws: Worksheet) -> Dict[Tuple[int, int], str]:
+    """
+    Назначение: построить карту merged-ячеек листа.
+    Вход: ws — лист openpyxl.
+    Выход: dict {(row, col): coord-диапазона} — каждая ячейка внутри объединения указывает на строку диапазона (напр. 'A1:C3').
+    """
     lookup = {}
     for merge in ws.merged_cells.ranges:
         coord = merge.coord
@@ -91,7 +116,7 @@ def _build_merged_lookup(ws):
 
 
 def _extract_table_rows(
-    ws,
+    ws: Worksheet,
     top_row: int,
     bottom_row: int,
     left_col: int,
@@ -99,7 +124,15 @@ def _extract_table_rows(
     merged_lookup: Optional[Dict[Tuple[int, int], str]]=None,
     *,
     col_before_row: bool=False,
-):
+) -> List[Dict[str, Any]]:
+    """
+    Назначение: выгрузить прямоугольную область листа в список строк с учётом merged-ячеек.
+    Вход: ws — лист; top_row/bottom_row/left_col/right_col — 1-based границы области; merged_lookup — карта из `_build_merged_lookup` (если None — строится здесь); col_before_row — порядок ключей col/row в словаре ячейки.
+    Выход: список {'row': r, 'cells': [...]}, где каждая ячейка — {coord, row, col, value, merge_range, merge_anchor}.
+    Логика:
+      1. Для ячейки внутри объединения значение берётся из верхней-левой ячейки диапазона; merge_anchor=True только для неё.
+      2. Для обычной ячейки merge_range=None, merge_anchor=False.
+    """
     if merged_lookup is None:
         merged_lookup = _build_merged_lookup(ws)
     rows = []
@@ -365,7 +398,7 @@ def find_sheet(wb: Workbook, keywords: List[str], *, exclude_keywords: Optional[
             best_sheet = sn
     return wb[best_sheet] if best_sheet else None
 
-def find_sheet_or_raise(wb: Workbook, keywords: List[str], parser_name: str, **kwargs) -> Worksheet:
+def find_sheet_or_raise(wb: Workbook, keywords: List[str], parser_name: str, **kwargs: Any) -> Worksheet:
     """
     find_sheet() с выбросом исключения если лист не найден.
 
@@ -391,7 +424,7 @@ def find_sheet_or_raise(wb: Workbook, keywords: List[str], parser_name: str, **k
 # PURPOSE: Парсер шапки листа «КПСЦ» — название, компания, поток, ответственные, даты.
 kpsc_parse_kpsc_header_HEADER_SCAN_MAX_ROW = 15
 
-def kpsc_parse_kpsc_header_collect_cells(ws, max_row: int=kpsc_parse_kpsc_header_HEADER_SCAN_MAX_ROW, max_col: Optional[int]=None):
+def kpsc_parse_kpsc_header_collect_cells(ws: Worksheet, max_row: int=kpsc_parse_kpsc_header_HEADER_SCAN_MAX_ROW, max_col: Optional[int]=None) -> Tuple[List[Dict[str, Any]], List[Dict[str, Any]]]:
     """Собираем все непустые ячейки в заголовочном регионе."""
     if max_col is None:
         max_col = ws.max_column or 50
@@ -407,7 +440,7 @@ def kpsc_parse_kpsc_header_collect_cells(ws, max_row: int=kpsc_parse_kpsc_header
                 comments.append({'coord': f'{get_column_letter(c)}{r}', 'row': r, 'col': c, 'author': cell.comment.author, 'text': cell.comment.text})
     return (cells, comments)
 
-def kpsc_parse_kpsc_header_collect_merged(ws, max_row: int=kpsc_parse_kpsc_header_HEADER_SCAN_MAX_ROW, max_col: Optional[int]=None):
+def kpsc_parse_kpsc_header_collect_merged(ws: Worksheet, max_row: int=kpsc_parse_kpsc_header_HEADER_SCAN_MAX_ROW, max_col: Optional[int]=None) -> List[Dict[str, Any]]:
     """Собираем merged-диапазоны в заголовочном регионе."""
     if max_col is None:
         max_col = ws.max_column or 50
@@ -417,7 +450,7 @@ def kpsc_parse_kpsc_header_collect_merged(ws, max_row: int=kpsc_parse_kpsc_heade
             merged.append({'coord': m.coord, 'min_row': m.min_row, 'max_row': m.max_row, 'min_col': m.min_col, 'max_col': m.max_col})
     return merged
 
-def kpsc_parse_kpsc_header__find_label_value(ws, label_keywords: List[str], max_row: int=kpsc_parse_kpsc_header_HEADER_SCAN_MAX_ROW) -> Optional[Any]:
+def kpsc_parse_kpsc_header__find_label_value(ws: Worksheet, label_keywords: List[str], max_row: int=kpsc_parse_kpsc_header_HEADER_SCAN_MAX_ROW) -> Optional[Any]:
     """
     Динамический поиск значения по лейблу.
 
@@ -448,7 +481,7 @@ def kpsc_parse_kpsc_header__find_label_value(ws, label_keywords: List[str], max_
                 return None
     return None
 
-def kpsc_parse_kpsc_header__find_title(ws, max_row: int=kpsc_parse_kpsc_header_HEADER_SCAN_MAX_ROW) -> Optional[str]:
+def kpsc_parse_kpsc_header__find_title(ws: Worksheet, max_row: int=kpsc_parse_kpsc_header_HEADER_SCAN_MAX_ROW) -> Optional[str]:
     """
     Извлекает заголовок карты потока.
 
@@ -470,7 +503,7 @@ def kpsc_parse_kpsc_header__find_title(ws, max_row: int=kpsc_parse_kpsc_header_H
                 return v.strip()
     return None
 
-def kpsc_parse_kpsc_header__find_organization(ws, max_row: int=3) -> Optional[str]:
+def kpsc_parse_kpsc_header__find_organization(ws: Worksheet, max_row: int=3) -> Optional[str]:
     """
     Ищем название организации (ООО/АО/ПАО + наименование) во всех ячейках первых строк.
 
@@ -489,7 +522,7 @@ def kpsc_parse_kpsc_header__find_organization(ws, max_row: int=3) -> Optional[st
                     return m.group(0)
     return None
 
-def kpsc_parse_kpsc_header_extract_fields(ws) -> Dict[str, Any]:
+def kpsc_parse_kpsc_header_extract_fields(ws: Worksheet) -> Dict[str, Any]:
     """
     Динамическое извлечение полей заголовка КПСЦ.
 
@@ -498,7 +531,7 @@ def kpsc_parse_kpsc_header_extract_fields(ws) -> Dict[str, Any]:
     """
     return {'title': kpsc_parse_kpsc_header__find_title(ws), 'organization': kpsc_parse_kpsc_header__find_organization(ws), 'flow_name': kpsc_parse_kpsc_header__find_label_value(ws, ['поток:', 'наименование потока']), 'responsible': kpsc_parse_kpsc_header__find_label_value(ws, ['ответственн']), 'date_developed': kpsc_parse_kpsc_header__find_label_value(ws, ['дата разработ']), 'date_implementation': kpsc_parse_kpsc_header__find_label_value(ws, ['дата реализ', 'дата достиж']), 'compiled_by': kpsc_parse_kpsc_header__find_label_value(ws, ['составил', 'разработал']), 'takt_time': kpsc_parse_kpsc_header__find_label_value(ws, ['такт', 'время такта', 'takt'])}
 
-def kpsc_parse_kpsc_header__find_takt_time_in_pokazateli(wb) -> Optional[Any]:
+def kpsc_parse_kpsc_header__find_takt_time_in_pokazateli(wb: Workbook) -> Optional[Any]:
     """
     Fallback: ищет 'Время такта' на листе Показатели если не найдено в шапке КПСЦ.
     Сканирует весь лист, ищет строку-лейбл и берёт значение из соседней ячейки справа.
@@ -518,7 +551,7 @@ def kpsc_parse_kpsc_header__find_takt_time_in_pokazateli(wb) -> Optional[Any]:
                         return val
     return None
 
-def kpsc_parse_kpsc_header_build_payload(xlsx: Path, sheet_name: Optional[str]=None):
+def kpsc_parse_kpsc_header_build_payload(xlsx: Path, sheet_name: Optional[str]=None) -> Dict[str, Any]:
     """Строит payload из данных header-блока КПСЦ."""
     wb = load_workbook(xlsx, data_only=True)
     if sheet_name:
@@ -541,13 +574,16 @@ def parse_kpsc_header(xlsx_path: Path, output_dir: Path) -> KpscHeaderDocument:
     _save_parser_payload(output_dir, 'kpsc_header_v2.json', payload)
     return payload
 
-def kpsc_parse_kpsc_header_main():
+def kpsc_parse_kpsc_header_main() -> None:
+    """
+    CLI-точка входа парсера шапки КПСЦ (см. `_run_parser_cli`).
+    """
     _run_parser_cli('Парсер верхнего блока КПСЦ', kpsc_parse_kpsc_header_build_payload)
 # END_PARSE_KPSC_HEADER
 
 # START_PARSE_KPSC_TABLE1
 # PURPOSE: Парсер основной таблицы листа «КПСЦ».
-def kpsc_parse_kpsc_table1_find_section_anchor(ws, phrase: str) -> Optional[Tuple[int, int]]:
+def kpsc_parse_kpsc_table1_find_section_anchor(ws: Worksheet, phrase: str) -> Optional[Tuple[int, int]]:
     """
     Ищем начало секции таблицы КПСЦ с показателями потока.
 
@@ -582,13 +618,18 @@ def kpsc_parse_kpsc_table1_find_section_anchor(ws, phrase: str) -> Optional[Tupl
             return (max(1, r - 1), first_col or 1)
     return None
 
-def kpsc_parse_kpsc_table1_find_header_row(ws, anchor_row: int) -> int:
+def kpsc_parse_kpsc_table1_find_header_row(ws: Worksheet, anchor_row: int) -> int:
+    """
+    Назначение: найти строку заголовков таблицы под якорем секции.
+    Вход: ws — лист КПСЦ; anchor_row — строка заголовка секции из `find_section_anchor`.
+    Выход: номер первой непустой строки в диапазоне anchor_row+1..anchor_row+4; если все пустые — anchor_row + 1.
+    """
     for r in range(anchor_row + 1, anchor_row + 5):
         if any((c.value not in (None, '') for c in ws[r])):
             return r
     return anchor_row + 1
 
-def kpsc_parse_kpsc_table1_find_bottom_row(ws, header_row: int, section_col: int) -> int:
+def kpsc_parse_kpsc_table1_find_bottom_row(ws: Worksheet, header_row: int, section_col: int) -> int:
     """Ищем конец таблицы: первую строку, где в колонке section_col начинается следующая секция ("2.")."""
     r = header_row + 1
     while r <= ws.max_row:
@@ -601,7 +642,7 @@ def kpsc_parse_kpsc_table1_find_bottom_row(ws, header_row: int, section_col: int
         r += 1
     return ws.max_row
 
-def kpsc_parse_kpsc_table1_compute_col_bounds(ws, header_row: int) -> Tuple[int, int]:
+def kpsc_parse_kpsc_table1_compute_col_bounds(ws: Worksheet, header_row: int) -> Tuple[int, int]:
     """
     Границы по строке заголовков:
       left  — первый непустой столбец,
@@ -628,10 +669,18 @@ def kpsc_parse_kpsc_table1_compute_col_bounds(ws, header_row: int) -> Tuple[int,
         right = left
     return (left, right)
 
-def kpsc_parse_kpsc_table1_build_merged_lookup(ws):
+def kpsc_parse_kpsc_table1_build_merged_lookup(ws: Worksheet) -> Dict[Tuple[int, int], str]:
+    """
+    Обёртка над `_build_merged_lookup` для парсера таблицы 1 КПСЦ: {(row, col): coord-диапазона}.
+    """
     return _build_merged_lookup(ws)
 
-def kpsc_parse_kpsc_table1_extract_table(ws, top_row: int, bottom_row: int, left_col: int, right_col: int):
+def kpsc_parse_kpsc_table1_extract_table(ws: Worksheet, top_row: int, bottom_row: int, left_col: int, right_col: int) -> List[Dict[str, Any]]:
+    """
+    Назначение: выгрузить область таблицы 1 КПСЦ через `_extract_table_rows` (порядок ключей col/row — col_before_row=True).
+    Вход: ws — лист; top_row/bottom_row/left_col/right_col — границы таблицы.
+    Выход: список строк {'row', 'cells': [...]} с учётом merged-ячеек.
+    """
     return _extract_table_rows(
         ws,
         top_row,
@@ -642,7 +691,15 @@ def kpsc_parse_kpsc_table1_extract_table(ws, top_row: int, bottom_row: int, left
         col_before_row=True,
     )
 
-def kpsc_parse_kpsc_table1_build_payload(xlsx_path: Path, sheet_name: Optional[str]=None):
+def kpsc_parse_kpsc_table1_build_payload(xlsx_path: Path, sheet_name: Optional[str]=None) -> Dict[str, Any]:
+    """
+    Назначение: собрать payload таблицы '1. Определение показателей потока' листа КПСЦ.
+    Вход: xlsx_path — путь к книге; sheet_name — явное имя листа (иначе поиск через `find_sheet` по 'кпсц', исключая спагетти/укрупн/оцифровк).
+    Выход: {'meta': {workbook, sheet, section_title_cell}, 'bounds': KpscBounds | None, 'rows': [...]}.
+    Логика:
+      1. Лист не найден → ValueError; якорь секции не найден → bounds=None, rows=[].
+      2. Иначе: строка заголовков → нижняя граница → границы колонок → выгрузка строк.
+    """
     wb = load_workbook(xlsx_path, data_only=True)
     if sheet_name:
         ws = wb[sheet_name]
@@ -668,7 +725,10 @@ def parse_kpsc_table1(xlsx_path: Path, output_dir: Path) -> KpscTable1Document:
     _save_parser_payload(output_dir, 'kpsc_table1_v2.json', payload)
     return payload
 
-def kpsc_parse_kpsc_table1_main():
+def kpsc_parse_kpsc_table1_main() -> None:
+    """
+    CLI-точка входа парсера таблицы '1. Определение показателей потока' (см. `_run_parser_cli`).
+    """
     _run_parser_cli(
         "Парсер таблицы '1. Определение показателей потока'",
         kpsc_parse_kpsc_table1_build_payload,
@@ -683,7 +743,16 @@ def kpsc_parse_kpsc_table1_main():
 # PURPOSE: Парсер листа «Легенда» — условные обозначения с картинками.
 kpsc_parse_legend_NS = {'wb': 'http://schemas.openxmlformats.org/spreadsheetml/2006/main', 'r': 'http://schemas.openxmlformats.org/officeDocument/2006/relationships', 'xdr': 'http://schemas.openxmlformats.org/drawingml/2006/spreadsheetDrawing', 'a': 'http://schemas.openxmlformats.org/drawingml/2006/main'}
 
-def kpsc_parse_legend_read_sheet_drawing(xlsx: Path, sheet_name: str):
+def kpsc_parse_legend_read_sheet_drawing(xlsx: Path, sheet_name: str) -> Tuple[ET.Element, Dict[str, str]]:
+    """
+    Назначение: достать XML drawing-части листа напрямую из zip-архива xlsx (openpyxl картинки не читает).
+    Вход: xlsx — путь к книге; sheet_name — точное имя листа.
+    Выход: (корень XML drawingN.xml, {rId: путь к медиа-файлу картинки}).
+    Логика:
+      1. workbook.xml + workbook.xml.rels → путь к sheetN.xml по имени листа.
+      2. sheetN.xml.rels → путь к drawingN.xml (relationship типа drawing).
+      3. drawingN.xml.rels (если есть) → карта rId → Target медиа.
+    """
     with zipfile.ZipFile(xlsx) as z:
         wb_xml = ET.fromstring(z.read('xl/workbook.xml'))
         wb_rels = ET.fromstring(z.read('xl/_rels/workbook.xml.rels'))
@@ -706,7 +775,12 @@ def kpsc_parse_legend_read_sheet_drawing(xlsx: Path, sheet_name: str):
         drawing_root = ET.fromstring(z.read(drawing_path))
     return (drawing_root, rel_pic)
 
-def kpsc_parse_legend_parse_pictures(drawing_root: ET.Element, rel_pic: Dict[str, str]):
+def kpsc_parse_legend_parse_pictures(drawing_root: ET.Element, rel_pic: Dict[str, str]) -> List[Dict[str, Any]]:
+    """
+    Назначение: извлечь из drawing XML все картинки (xdr:pic) с их позициями на листе.
+    Вход: drawing_root — корень drawingN.xml; rel_pic — карта rId → медиа-файл из `read_sheet_drawing`.
+    Выход: список {row, col, bbox: {from: {row, col}, to: {row, col}}, rel_id, target}; координаты 1-based.
+    """
     pics = []
     for anc in drawing_root.findall('./', kpsc_parse_legend_NS):
         pic_el = anc.find('xdr:pic', kpsc_parse_legend_NS)
@@ -723,7 +797,12 @@ def kpsc_parse_legend_parse_pictures(drawing_root: ET.Element, rel_pic: Dict[str
         pics.append({'row': frow + 1, 'col': fcol + 1, 'bbox': {'from': {'row': frow + 1, 'col': fcol + 1}, 'to': {'row': trow + 1, 'col': tcol + 1}}, 'rel_id': rid, 'target': rel_pic.get(rid)})
     return pics
 
-def kpsc_parse_legend_collect_text(ws):
+def kpsc_parse_legend_collect_text(ws: Worksheet) -> List[Dict[str, Any]]:
+    """
+    Назначение: собрать непустые тексты описаний из колонки B (со 2-й строки) листа условных обозначений.
+    Вход: ws — лист.
+    Выход: список {row, col: 2, text}.
+    """
     texts = []
     for row in range(2, ws.max_row + 1):
         val = ws.cell(row=row, column=2).value
@@ -731,7 +810,12 @@ def kpsc_parse_legend_collect_text(ws):
             texts.append({'row': row, 'col': 2, 'text': val})
     return texts
 
-def kpsc_parse_legend_match_pics(texts: List[Dict[str, Any]], pics: List[Dict[str, Any]]):
+def kpsc_parse_legend_match_pics(texts: List[Dict[str, Any]], pics: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    """
+    Назначение: сопоставить тексты описаний и картинки по порядку строк.
+    Вход: texts — из `collect_text`; pics — из `parse_pictures`.
+    Выход: список {row, text, picture} — i-й текст (без заголовка 'Расшифровка или пояснение') ↔ i-я картинка по возрастанию row; при нехватке картинок picture=None.
+    """
     matched = []
     texts_order = [t for t in sorted(texts, key=lambda x: x['row']) if t['text'] != 'Расшифровка или пояснение']
     pics_order = sorted(pics, key=lambda x: x['row'])
@@ -741,7 +825,12 @@ def kpsc_parse_legend_match_pics(texts: List[Dict[str, Any]], pics: List[Dict[st
         matched.append({'row': t['row'], 'text': t['text'], 'picture': pic})
     return matched
 
-def kpsc_parse_legend_build_payload(xlsx: Path, sheet_name: Optional[str]=None):
+def kpsc_parse_legend_build_payload(xlsx: Path, sheet_name: Optional[str]=None) -> Dict[str, Any]:
+    """
+    Назначение: собрать payload листа 'Условные обозначения' — картинки и их текстовые расшифровки.
+    Вход: xlsx — путь к книге; sheet_name — явное имя листа (иначе `find_sheet` по 'условн'+'обозн').
+    Выход: {'meta': {workbook, sheet}, 'pictures': [...], 'entries': [...]}; лист не найден → sheet=None и пустые списки.
+    """
     wb = load_workbook(xlsx, data_only=True)
     if sheet_name:
         ws = wb[sheet_name]
@@ -763,7 +852,10 @@ def parse_legend(xlsx_path: Path, output_dir: Path) -> LegendDocument:
     _save_parser_payload(output_dir, 'legend_v2.json', payload, default_str=False)
     return payload
 
-def kpsc_parse_legend_main():
+def kpsc_parse_legend_main() -> None:
+    """
+    CLI-точка входа парсера листа 'Условные обозначения' (default_str=False).
+    """
     _run_parser_cli("Парсер листа 'Условные обозначения'", kpsc_parse_legend_build_payload, default_str=False)
 # END_PARSE_LEGEND
 
@@ -771,7 +863,7 @@ def kpsc_parse_legend_main():
 # PURPOSE: Парсер листа «Оцифровка потерь» с таблицей потерь по операциям.
 kpsc_parse_loss_digitization_HEADER_KEYS = ('описание проблемы', 'вид потери')
 
-def kpsc_parse_loss_digitization_find_header_row(ws) -> Optional[int]:
+def kpsc_parse_loss_digitization_find_header_row(ws: Worksheet) -> Optional[int]:
     """Находим строку заголовков по ключевым фразам."""
     for r in range(1, ws.max_row + 1):
         lower_vals = [str(c.value).lower() for c in ws[r] if isinstance(c.value, str)]
@@ -779,7 +871,7 @@ def kpsc_parse_loss_digitization_find_header_row(ws) -> Optional[int]:
             return r
     return None
 
-def kpsc_parse_loss_digitization_compute_col_bounds(ws, header_row: int) -> Tuple[int, int]:
+def kpsc_parse_loss_digitization_compute_col_bounds(ws: Worksheet, header_row: int) -> Tuple[int, int]:
     """Границы по непустым ячейкам строки заголовков (от первой до последней)."""
     left = None
     right = None
@@ -794,7 +886,7 @@ def kpsc_parse_loss_digitization_compute_col_bounds(ws, header_row: int) -> Tupl
         right = 1
     return (left, right)
 
-def kpsc_parse_loss_digitization_find_bottom_row(ws, header_row: int, left_col: int, right_col: int) -> int:
+def kpsc_parse_loss_digitization_find_bottom_row(ws: Worksheet, header_row: int, left_col: int, right_col: int) -> int:
     """
     Ищем конец таблицы: первая строка после заголовка, где данные отсутствуют
     во всех колонках кроме порядкового номера (left_col). Строки с одним
@@ -806,10 +898,18 @@ def kpsc_parse_loss_digitization_find_bottom_row(ws, header_row: int, left_col: 
             return r - 1
     return ws.max_row
 
-def kpsc_parse_loss_digitization_build_merged_lookup(ws):
+def kpsc_parse_loss_digitization_build_merged_lookup(ws: Worksheet) -> Dict[Tuple[int, int], str]:
+    """
+    Обёртка над `_build_merged_lookup` для парсера 'Оцифровка потерь': {(row, col): coord-диапазона}.
+    """
     return _build_merged_lookup(ws)
 
-def kpsc_parse_loss_digitization_extract_table(ws, top_row: int, bottom_row: int, left_col: int, right_col: int):
+def kpsc_parse_loss_digitization_extract_table(ws: Worksheet, top_row: int, bottom_row: int, left_col: int, right_col: int) -> List[Dict[str, Any]]:
+    """
+    Назначение: выгрузить область таблицы потерь через `_extract_table_rows`.
+    Вход: ws — лист; top_row/bottom_row/left_col/right_col — границы таблицы.
+    Выход: список строк {'row', 'cells': [...]} с учётом merged-ячеек.
+    """
     return _extract_table_rows(
         ws,
         top_row,
@@ -819,7 +919,15 @@ def kpsc_parse_loss_digitization_extract_table(ws, top_row: int, bottom_row: int
         kpsc_parse_loss_digitization_build_merged_lookup(ws),
     )
 
-def kpsc_parse_loss_digitization_build_payload(xlsx_path: Path, sheet_name: Optional[str]=None):
+def kpsc_parse_loss_digitization_build_payload(xlsx_path: Path, sheet_name: Optional[str]=None) -> Dict[str, Any]:
+    """
+    Назначение: собрать payload листа 'Оцифровка потерь'.
+    Вход: xlsx_path — путь к книге; sheet_name — явное имя листа (иначе `find_sheet` по 'оцифровк').
+    Выход: {'meta': {workbook, sheet, header_row}, 'bounds': KpscBounds | None, 'rows': [...]}.
+    Логика:
+      1. Лист или строка заголовков не найдены → header_row/bounds=None, rows=[].
+      2. Иначе: границы колонок по строке заголовков → нижняя граница → выгрузка строк.
+    """
     wb = load_workbook(xlsx_path, data_only=True)
     if sheet_name:
         ws = wb[sheet_name]
@@ -843,7 +951,10 @@ def parse_loss_digitization(xlsx_path: Path, output_dir: Path) -> LossDigitizati
     _save_parser_payload(output_dir, 'ocifrovka_poteri_v2.json', payload)
     return payload
 
-def kpsc_parse_loss_digitization_main():
+def kpsc_parse_loss_digitization_main() -> None:
+    """
+    CLI-точка входа парсера листа 'Оцифровка потерь КПСЦ' (см. `_run_parser_cli`).
+    """
     _run_parser_cli(
         "Парсер листа 'Оцифровка потерь КПСЦ'",
         kpsc_parse_loss_digitization_build_payload,
@@ -868,7 +979,12 @@ def kpsc_parse_pa1_chart__sheet_name_from_range(rng: str) -> Tuple[str, str]:
         return (sheet, r)
     return ('', rng)
 
-def kpsc_parse_pa1_chart__values_from_range(wb, sheet_name: str, rng: str):
+def kpsc_parse_pa1_chart__values_from_range(wb: Workbook, sheet_name: str, rng: str) -> Union[List[Any], List[List[Any]]]:
+    """
+    Назначение: прочитать значения ячеек диапазона, на который ссылается серия графика.
+    Вход: wb — книга (data_only=True); sheet_name — имя листа; rng — диапазон вида '$A$1:$B$2'.
+    Выход: одномерный список для диапазона в одну строку или одну колонку; иначе список строк (список списков).
+    """
     ws = wb[sheet_name]
     min_col, min_row, max_col, max_row = range_boundaries(rng)
     values = []
@@ -882,6 +998,11 @@ def kpsc_parse_pa1_chart__values_from_range(wb, sheet_name: str, rng: str):
     return values
 
 def kpsc_parse_pa1_chart__chart_title(chart: ChartBase) -> Optional[str]:
+    """
+    Назначение: извлечь текст заголовка графика из rich-text первого параграфа (title.tx.rich.p[0].r).
+    Вход: chart — объект графика openpyxl.
+    Выход: склеенный текст run-ов или None (заголовка нет / структура неожиданная — исключение глушится).
+    """
     t = chart.title
     if t is None:
         return None
@@ -892,7 +1013,15 @@ def kpsc_parse_pa1_chart__chart_title(chart: ChartBase) -> Optional[str]:
         pass
     return None
 
-def kpsc_parse_pa1_chart_extract_chart_payload(chart: ChartBase, wb_data, wb_formulas) -> Dict[str, Any]:
+def kpsc_parse_pa1_chart_extract_chart_payload(chart: ChartBase, wb_data: Workbook, wb_formulas: Workbook) -> Dict[str, Any]:
+    """
+    Назначение: описать один график openpyxl — тип, заголовок, якорь и серии со значениями.
+    Вход: chart — объект графика; wb_data — книга с вычисленными значениями (для чтения диапазонов серий); wb_formulas — книга с формулами (не используется в теле, передаётся для симметрии).
+    Выход: {type, title, anchor?: {from, to}, series: [{name, values_range, values, categories_range, categories}]}.
+    Логика:
+      1. Имя серии — из title.v или из кэша strRef.
+      2. Диапазоны val.numRef.f и cat.strRef.f разбираются через `__sheet_name_from_range` и читаются из wb_data.
+    """
     payload: Dict[str, Any] = {'type': type(chart).__name__, 'title': kpsc_parse_pa1_chart__chart_title(chart)}
     if getattr(chart, 'anchor', None) and getattr(chart.anchor, '_from', None):
         a_from = chart.anchor._from
@@ -922,12 +1051,20 @@ def kpsc_parse_pa1_chart_extract_chart_payload(chart: ChartBase, wb_data, wb_for
     payload['series'] = series_list
     return payload
 
-def kpsc_parse_pa1_chart__find_pa1_sheet(wb) -> Optional[str]:
+def kpsc_parse_pa1_chart__find_pa1_sheet(wb: Workbook) -> Optional[str]:
     """Находит лист ПА-1 через sheet_finder."""
     ws = find_sheet(wb, keywords=['па'], exclude_keywords=['спагетти', 'кпсц', 'ямадз'])
     return ws.title if ws else None
 
-def kpsc_parse_pa1_chart_build_payload(xlsx_path: Path, sheet_name: Optional[str]=None):
+def kpsc_parse_pa1_chart_build_payload(xlsx_path: Path, sheet_name: Optional[str]=None) -> Dict[str, Any]:
+    """
+    Назначение: собрать payload графиков и текстовых блоков листа 'ПА-1'.
+    Вход: xlsx_path — путь к книге; sheet_name — явное имя листа (иначе `find_sheet` по 'па', исключая спагетти/кпсц/ямадз).
+    Выход: {'meta': {workbook, sheet}, 'charts': [...], 'text_boxes': [{text, anchor}]}; лист не найден → sheet=None и пустые списки.
+    Логика:
+      1. Книга открывается дважды: с формулами (там лежат графики ws._charts) и с значениями (для чтения серий).
+      2. Текстовые блоки читаются напрямую из drawing XML в zip (xdr:twoCellAnchor с a:t); любая ошибка на этом шаге глушится — text_boxes остаётся пустым.
+    """
     wb_formulas = load_workbook(xlsx_path, data_only=False)
     wb_data = load_workbook(xlsx_path, data_only=True)
     if not sheet_name:
@@ -987,7 +1124,10 @@ def parse_pa1_chart(xlsx_path: Path, output_dir: Path) -> Pa1ChartDocument:
     _save_parser_payload(output_dir, 'pa1_chart_v3.json', payload)
     return payload
 
-def kpsc_parse_pa1_chart_main():
+def kpsc_parse_pa1_chart_main() -> None:
+    """
+    CLI-точка входа парсера диаграмм листа 'ПА-1' (см. `_run_parser_cli`).
+    """
     _run_parser_cli(
         "Парсер диаграмм на листе 'ПА-1' (после таблицы)",
         kpsc_parse_pa1_chart_build_payload,
@@ -999,14 +1139,14 @@ def kpsc_parse_pa1_chart_main():
 
 # START_PARSE_PA1_TABLE
 # PURPOSE: Парсер таблицы на листе «ПА1».
-def kpsc_parse_pa1_table_find_header_row(ws) -> Optional[int]:
+def kpsc_parse_pa1_table_find_header_row(ws: Worksheet) -> Optional[int]:
     """Ищем строку, где в заголовках встречается слово 'итого'."""
     for r in range(1, ws.max_row + 1):
         if any((isinstance(c.value, str) and 'итого' in c.value.lower() for c in ws[r])):
             return r
     return None
 
-def kpsc_parse_pa1_table_compute_col_bounds(ws, header_row: int) -> Tuple[int, int]:
+def kpsc_parse_pa1_table_compute_col_bounds(ws: Worksheet, header_row: int) -> Tuple[int, int]:
     """
     Берём минимальный/максимальный столбцы с данными в строках заголовка
     и двух строках ниже (чтобы захватить пустой заголовок первого столбца,
@@ -1025,7 +1165,7 @@ def kpsc_parse_pa1_table_compute_col_bounds(ws, header_row: int) -> Tuple[int, i
         right = 1
     return (left, right)
 
-def kpsc_parse_pa1_table_find_bottom_row(ws, header_row: int, left_col: int, right_col: int) -> int:
+def kpsc_parse_pa1_table_find_bottom_row(ws: Worksheet, header_row: int, left_col: int, right_col: int) -> int:
     """Первая строка, полностью пустая в пределах таблицы, завершает данные."""
     r = header_row + 1
     while r <= ws.max_row:
@@ -1034,10 +1174,18 @@ def kpsc_parse_pa1_table_find_bottom_row(ws, header_row: int, left_col: int, rig
         r += 1
     return ws.max_row
 
-def kpsc_parse_pa1_table_build_merged_lookup(ws):
+def kpsc_parse_pa1_table_build_merged_lookup(ws: Worksheet) -> Dict[Tuple[int, int], str]:
+    """
+    Обёртка над `_build_merged_lookup` для парсера таблицы 'ПА-1': {(row, col): coord-диапазона}.
+    """
     return _build_merged_lookup(ws)
 
-def kpsc_parse_pa1_table_extract_table(ws, top_row: int, bottom_row: int, left_col: int, right_col: int):
+def kpsc_parse_pa1_table_extract_table(ws: Worksheet, top_row: int, bottom_row: int, left_col: int, right_col: int) -> List[Dict[str, Any]]:
+    """
+    Назначение: выгрузить область таблицы 'ПА-1' через `_extract_table_rows`.
+    Вход: ws — лист; top_row/bottom_row/left_col/right_col — границы таблицы.
+    Выход: список строк {'row', 'cells': [...]} с учётом merged-ячеек.
+    """
     return _extract_table_rows(
         ws,
         top_row,
@@ -1047,7 +1195,15 @@ def kpsc_parse_pa1_table_extract_table(ws, top_row: int, bottom_row: int, left_c
         kpsc_parse_pa1_table_build_merged_lookup(ws),
     )
 
-def kpsc_parse_pa1_table_build_payload(xlsx_path: Path, sheet_name: Optional[str]=None):
+def kpsc_parse_pa1_table_build_payload(xlsx_path: Path, sheet_name: Optional[str]=None) -> Dict[str, Any]:
+    """
+    Назначение: собрать payload стартовой таблицы листа 'ПА-1'.
+    Вход: xlsx_path — путь к книге; sheet_name — явное имя листа (иначе `find_sheet` по 'па', исключая спагетти/кпсц/ямадз).
+    Выход: {'meta': {workbook, sheet, header_row}, 'bounds': KpscBounds | None, 'rows': [...]}.
+    Логика:
+      1. Лист или строка заголовков (со словом 'итого') не найдены → header_row/bounds=None, rows=[].
+      2. Иначе: границы колонок → нижняя граница → выгрузка строк.
+    """
     wb = load_workbook(xlsx_path, data_only=True)
     if sheet_name:
         ws = wb[sheet_name]
@@ -1071,7 +1227,10 @@ def parse_pa1_table(xlsx_path: Path, output_dir: Path) -> Pa1TableDocument:
     _save_parser_payload(output_dir, 'pa1_table_v1.json', payload)
     return payload
 
-def kpsc_parse_pa1_table_main():
+def kpsc_parse_pa1_table_main() -> None:
+    """
+    CLI-точка входа парсера стартовой таблицы листа 'ПА-1' (см. `_run_parser_cli`).
+    """
     _run_parser_cli("Парсер стартовой таблицы на листе 'ПА-1'", kpsc_parse_pa1_table_build_payload)
 
 # END_PARSE_PA1_TABLE
@@ -1080,7 +1239,12 @@ def kpsc_parse_pa1_table_main():
 # PURPOSE: Парсер листа «Показатели» с ключевыми метриками потока.
 kpsc_parse_pokazateli_TITLE_PHRASE = 'текущие показатели потока'
 
-def kpsc_parse_pokazateli_find_title(ws) -> int:
+def kpsc_parse_pokazateli_find_title(ws: Worksheet) -> int:
+    """
+    Назначение: найти строку заголовка 'Текущие показатели потока' (поиск по всему листу, без учёта регистра).
+    Вход: ws — лист 'Показатели'.
+    Выход: номер строки; если фраза не найдена — ValueError.
+    """
     for r in range(1, ws.max_row + 1):
         for c in range(1, ws.max_column + 1):
             v = ws.cell(row=r, column=c).value
@@ -1088,13 +1252,23 @@ def kpsc_parse_pokazateli_find_title(ws) -> int:
                 return r
     raise ValueError("Title 'Текущие показатели потока' not found")
 
-def kpsc_parse_pokazateli_find_header_row(ws, title_row: int) -> int:
+def kpsc_parse_pokazateli_find_header_row(ws: Worksheet, title_row: int) -> int:
+    """
+    Назначение: найти строку заголовков таблицы под заголовком секции.
+    Вход: ws — лист; title_row — строка из `find_title`.
+    Выход: первая непустая строка в диапазоне title_row+1..title_row+4; иначе title_row + 1.
+    """
     for r in range(title_row + 1, title_row + 5):
         if any((ws.cell(row=r, column=c).value not in (None, '') for c in range(1, ws.max_column + 1))):
             return r
     return title_row + 1
 
-def kpsc_parse_pokazateli_find_bottom_row(ws, header_row: int) -> int:
+def kpsc_parse_pokazateli_find_bottom_row(ws: Worksheet, header_row: int) -> int:
+    """
+    Назначение: найти нижнюю границу таблицы — строку перед первой полностью пустой строкой листа (по всем колонкам).
+    Вход: ws — лист; header_row — строка заголовков.
+    Выход: номер последней строки с данными; если пустых строк нет — ws.max_row.
+    """
     r = header_row + 1
     while r <= ws.max_row:
         if all((ws.cell(row=r, column=c).value in (None, '') for c in range(1, ws.max_column + 1))):
@@ -1102,7 +1276,7 @@ def kpsc_parse_pokazateli_find_bottom_row(ws, header_row: int) -> int:
         r += 1
     return ws.max_row
 
-def kpsc_parse_pokazateli_compute_col_bounds(ws, header_row: int) -> Tuple[int, int]:
+def kpsc_parse_pokazateli_compute_col_bounds(ws: Worksheet, header_row: int) -> Tuple[int, int]:
     """
     Граница по строке заголовков: берём первую непустую ячейку и продолжаем вправо,
     пока идут непустые. Если встречаем пустую колонку после начала таблицы — там обрываем.
@@ -1125,10 +1299,18 @@ def kpsc_parse_pokazateli_compute_col_bounds(ws, header_row: int) -> Tuple[int, 
         right = 1
     return (left, right)
 
-def kpsc_parse_pokazateli_build_merged_lookup(ws):
+def kpsc_parse_pokazateli_build_merged_lookup(ws: Worksheet) -> Dict[Tuple[int, int], str]:
+    """
+    Обёртка над `_build_merged_lookup` для парсера 'Показатели': {(row, col): coord-диапазона}.
+    """
     return _build_merged_lookup(ws)
 
-def kpsc_parse_pokazateli_extract_table(ws, top_row: int, bottom_row: int, left_col: int, right_col: int):
+def kpsc_parse_pokazateli_extract_table(ws: Worksheet, top_row: int, bottom_row: int, left_col: int, right_col: int) -> List[Dict[str, Any]]:
+    """
+    Назначение: выгрузить область таблицы показателей через `_extract_table_rows`.
+    Вход: ws — лист; top_row/bottom_row/left_col/right_col — границы таблицы.
+    Выход: список строк {'row', 'cells': [...]} с учётом merged-ячеек.
+    """
     return _extract_table_rows(
         ws,
         top_row,
@@ -1138,7 +1320,15 @@ def kpsc_parse_pokazateli_extract_table(ws, top_row: int, bottom_row: int, left_
         kpsc_parse_pokazateli_build_merged_lookup(ws),
     )
 
-def kpsc_parse_pokazateli_build_payload(xlsx: Path, sheet_name: Optional[str]=None):
+def kpsc_parse_pokazateli_build_payload(xlsx: Path, sheet_name: Optional[str]=None) -> Dict[str, Any]:
+    """
+    Назначение: собрать payload таблицы 'Текущие показатели потока'.
+    Вход: xlsx — путь к книге; sheet_name — явное имя листа (иначе `find_sheet` по 'показател').
+    Выход: {'meta': {workbook, sheet, title_row}, 'bounds': {top_row, bottom_row, left_col, right_col} | None, 'rows': [...]} — bounds без букв/размеров (with_letters=False).
+    Логика:
+      1. Лист не найден или заголовок секции не найден (ValueError из `find_title`) → title_row/bounds=None, rows=[].
+      2. Иначе: строка заголовков → нижняя граница → границы колонок → выгрузка строк.
+    """
     wb = load_workbook(xlsx, data_only=True)
     if sheet_name:
         ws = wb[sheet_name]
@@ -1165,7 +1355,10 @@ def parse_pokazateli(xlsx_path: Path, output_dir: Path) -> PokazateliDocument:
     _save_parser_payload(output_dir, 'pokazateli_v3.json', payload)
     return payload
 
-def kpsc_parse_pokazateli_main():
+def kpsc_parse_pokazateli_main() -> None:
+    """
+    CLI-точка входа парсера 'Текущие показатели потока' (см. `_run_parser_cli`).
+    """
     _run_parser_cli("Парсер 'Текущие показатели потока'", kpsc_parse_pokazateli_build_payload)
 # END_PARSE_POKAZATELI
 
@@ -1173,13 +1366,23 @@ def kpsc_parse_pokazateli_main():
 # PURPOSE: Парсер листа «Спагетти-проблемы» — перечень найденных проблем по маршрутам.
 kpsc_parse_spaghetti_problems_HEADER_KEY = 'описание проблемы'
 
-def kpsc_parse_spaghetti_problems_find_header_row(ws) -> Optional[int]:
+def kpsc_parse_spaghetti_problems_find_header_row(ws: Worksheet) -> Optional[int]:
+    """
+    Назначение: найти строку заголовков по фразе 'описание проблемы' (без учёта регистра).
+    Вход: ws — лист перечня проблем.
+    Выход: номер строки или None.
+    """
     for r in range(1, ws.max_row + 1):
         if any((isinstance(c.value, str) and kpsc_parse_spaghetti_problems_HEADER_KEY in c.value.lower() for c in ws[r])):
             return r
     return None
 
-def kpsc_parse_spaghetti_problems_compute_col_bounds(ws, header_row: int) -> Tuple[int, int]:
+def kpsc_parse_spaghetti_problems_compute_col_bounds(ws: Worksheet, header_row: int) -> Tuple[int, int]:
+    """
+    Назначение: границы колонок по непустым ячейкам строки заголовков (первая и последняя).
+    Вход: ws — лист; header_row — строка заголовков.
+    Выход: (left, right); если заголовков нет — (1, 1).
+    """
     left = None
     right = 0
     for c in range(1, ws.max_column + 1):
@@ -1193,7 +1396,12 @@ def kpsc_parse_spaghetti_problems_compute_col_bounds(ws, header_row: int) -> Tup
         right = 1
     return (left, right)
 
-def kpsc_parse_spaghetti_problems_find_bottom_row(ws, header_row: int, left_col: int, right_col: int) -> int:
+def kpsc_parse_spaghetti_problems_find_bottom_row(ws: Worksheet, header_row: int, left_col: int, right_col: int) -> int:
+    """
+    Назначение: нижняя граница таблицы — строка перед первой строкой, пустой в пределах left_col..right_col.
+    Вход: ws — лист; header_row — строка заголовков; left_col/right_col — границы колонок.
+    Выход: номер последней строки с данными; если пустых строк нет — ws.max_row.
+    """
     r = header_row + 1
     while r <= ws.max_row:
         if all((ws.cell(row=r, column=c).value in (None, '') for c in range(left_col, right_col + 1))):
@@ -1201,10 +1409,18 @@ def kpsc_parse_spaghetti_problems_find_bottom_row(ws, header_row: int, left_col:
         r += 1
     return ws.max_row
 
-def kpsc_parse_spaghetti_problems_build_merged_lookup(ws):
+def kpsc_parse_spaghetti_problems_build_merged_lookup(ws: Worksheet) -> Dict[Tuple[int, int], str]:
+    """
+    Обёртка над `_build_merged_lookup` для парсера перечня проблем по спагетти: {(row, col): coord-диапазона}.
+    """
     return _build_merged_lookup(ws)
 
-def kpsc_parse_spaghetti_problems_extract_table(ws, top_row: int, bottom_row: int, left_col: int, right_col: int):
+def kpsc_parse_spaghetti_problems_extract_table(ws: Worksheet, top_row: int, bottom_row: int, left_col: int, right_col: int) -> List[Dict[str, Any]]:
+    """
+    Назначение: выгрузить область таблицы проблем через `_extract_table_rows`.
+    Вход: ws — лист; top_row/bottom_row/left_col/right_col — границы таблицы.
+    Выход: список строк {'row', 'cells': [...]} с учётом merged-ячеек.
+    """
     return _extract_table_rows(
         ws,
         top_row,
@@ -1214,7 +1430,15 @@ def kpsc_parse_spaghetti_problems_extract_table(ws, top_row: int, bottom_row: in
         kpsc_parse_spaghetti_problems_build_merged_lookup(ws),
     )
 
-def kpsc_parse_spaghetti_problems_build_payload(xlsx_path: Path, sheet_name: Optional[str]=None):
+def kpsc_parse_spaghetti_problems_build_payload(xlsx_path: Path, sheet_name: Optional[str]=None) -> Dict[str, Any]:
+    """
+    Назначение: собрать payload листа 'Перечень проблем по спагетти'.
+    Вход: xlsx_path — путь к книге; sheet_name — явное имя листа (иначе `find_sheet` по 'спагетти', исключая 'диаграмм').
+    Выход: {'meta': {workbook, sheet, header_row}, 'bounds': KpscBounds | None, 'rows': [...]}.
+    Логика:
+      1. Лист или строка заголовков не найдены → header_row/bounds=None, rows=[].
+      2. Иначе: границы колонок → нижняя граница → выгрузка строк.
+    """
     wb = load_workbook(xlsx_path, data_only=True)
     if sheet_name:
         ws = wb[sheet_name]
@@ -1238,7 +1462,10 @@ def parse_spaghetti_problems(xlsx_path: Path, output_dir: Path) -> SpaghettiProb
     _save_parser_payload(output_dir, 'spaghetti_problems_v1.json', payload)
     return payload
 
-def kpsc_parse_spaghetti_problems_main():
+def kpsc_parse_spaghetti_problems_main() -> None:
+    """
+    CLI-точка входа парсера листа 'Перечень проблем по спагетти' (см. `_run_parser_cli`).
+    """
     _run_parser_cli("Парсер листа 'Перечень проблем по спагетти'", kpsc_parse_spaghetti_problems_build_payload)
 # END_PARSE_SPAGHETTI_PROB
 
@@ -1246,7 +1473,7 @@ def kpsc_parse_spaghetti_problems_main():
 # PURPOSE: Парсер листа «Спагетти» — изображение маршрута + таблица шагов.
 kpsc_parse_spaghetti_sheet_HEADER_PHRASES = ['шаги процесса', 'путь', 'перемещени']
 
-def kpsc_parse_spaghetti_sheet_find_header_row(ws) -> Optional[int]:
+def kpsc_parse_spaghetti_sheet_find_header_row(ws: Worksheet) -> Optional[int]:
     """Ищем строку-заголовок таблицы перемещений по ключевым словам."""
     for r in range(1, min(20, ws.max_row + 1)):
         row_vals = [c.value for c in ws[r]]
@@ -1257,7 +1484,15 @@ def kpsc_parse_spaghetti_sheet_find_header_row(ws) -> Optional[int]:
                     return r
     return None
 
-def kpsc_parse_spaghetti_sheet_compute_col_bounds(ws, header_row: int) -> Tuple[int, int]:
+def kpsc_parse_spaghetti_sheet_compute_col_bounds(ws: Worksheet, header_row: int) -> Tuple[int, int]:
+    """
+    Назначение: границы колонок таблицы перемещений.
+    Вход: ws — лист; header_row — строка заголовков.
+    Выход: (left, right).
+    Логика:
+      1. left — первая непустая ячейка строки заголовков (если нет — 1).
+      2. right — максимальная непустая колонка во всех строках от header_row до конца листа (не меньше left).
+    """
     left = None
     right = 0
     for c in range(1, ws.max_column + 1):
@@ -1275,7 +1510,12 @@ def kpsc_parse_spaghetti_sheet_compute_col_bounds(ws, header_row: int) -> Tuple[
         right = left
     return (left, right)
 
-def kpsc_parse_spaghetti_sheet_find_bottom_row(ws, header_row: int, left_col: int, right_col: int) -> int:
+def kpsc_parse_spaghetti_sheet_find_bottom_row(ws: Worksheet, header_row: int, left_col: int, right_col: int) -> int:
+    """
+    Назначение: нижняя граница таблицы — строка перед первой строкой, пустой в пределах left_col..right_col.
+    Вход: ws — лист; header_row — строка заголовков; left_col/right_col — границы колонок.
+    Выход: номер последней строки с данными; если пустых строк нет — ws.max_row.
+    """
     r = header_row + 1
     while r <= ws.max_row:
         if all((ws.cell(row=r, column=c).value in (None, '') for c in range(left_col, right_col + 1))):
@@ -1283,10 +1523,18 @@ def kpsc_parse_spaghetti_sheet_find_bottom_row(ws, header_row: int, left_col: in
         r += 1
     return ws.max_row
 
-def kpsc_parse_spaghetti_sheet_build_merged_lookup(ws):
+def kpsc_parse_spaghetti_sheet_build_merged_lookup(ws: Worksheet) -> Dict[Tuple[int, int], str]:
+    """
+    Обёртка над `_build_merged_lookup` для парсера листа 'Спагетти': {(row, col): coord-диапазона}.
+    """
     return _build_merged_lookup(ws)
 
-def kpsc_parse_spaghetti_sheet_extract_table(ws, top_row: int, bottom_row: int, left_col: int, right_col: int):
+def kpsc_parse_spaghetti_sheet_extract_table(ws: Worksheet, top_row: int, bottom_row: int, left_col: int, right_col: int) -> List[Dict[str, Any]]:
+    """
+    Назначение: выгрузить область таблицы перемещений через `_extract_table_rows`.
+    Вход: ws — лист; top_row/bottom_row/left_col/right_col — границы таблицы.
+    Выход: список строк {'row', 'cells': [...]} с учётом merged-ячеек.
+    """
     return _extract_table_rows(
         ws,
         top_row,
@@ -1296,7 +1544,12 @@ def kpsc_parse_spaghetti_sheet_extract_table(ws, top_row: int, bottom_row: int, 
         kpsc_parse_spaghetti_sheet_build_merged_lookup(ws),
     )
 
-def kpsc_parse_spaghetti_sheet_extract_pre_table(ws, header_row: int):
+def kpsc_parse_spaghetti_sheet_extract_pre_table(ws: Worksheet, header_row: int) -> List[Dict[str, Any]]:
+    """
+    Назначение: собрать все непустые ячейки над таблицей (строки 1..header_row-1, все колонки) — реквизиты маршрута.
+    Вход: ws — лист; header_row — строка заголовков таблицы.
+    Выход: список {coord, row, col, value}.
+    """
     cells = []
     for r in range(1, header_row):
         for c in range(1, ws.max_column + 1):
@@ -1305,7 +1558,15 @@ def kpsc_parse_spaghetti_sheet_extract_pre_table(ws, header_row: int):
                 cells.append({'coord': f'{get_column_letter(c)}{r}', 'row': r, 'col': c, 'value': v})
     return cells
 
-def kpsc_parse_spaghetti_sheet_build_payload(xlsx_path: Path, sheet_name: Optional[str]=None):
+def kpsc_parse_spaghetti_sheet_build_payload(xlsx_path: Path, sheet_name: Optional[str]=None) -> Dict[str, Any]:
+    """
+    Назначение: собрать payload листа 'Диаграмма Спагетти' — ячейки над таблицей и таблицу перемещений (без самой диаграммы).
+    Вход: xlsx_path — путь к книге; sheet_name — явное имя листа (иначе `find_sheet` по 'спагетти', исключая пробл/улучш/перечень).
+    Выход: {'meta': {workbook, sheet, header_row}, 'bounds': KpscBounds | None, 'pre_table_cells': [...], 'rows': [...]}.
+    Логика:
+      1. Лист или строка заголовков не найдены → header_row/bounds=None, пустые pre_table_cells и rows.
+      2. Иначе: границы колонок → нижняя граница → ячейки над таблицей → выгрузка строк.
+    """
     wb = load_workbook(xlsx_path, data_only=True)
     if sheet_name:
         ws = wb[sheet_name]
@@ -1330,6 +1591,9 @@ def parse_spaghetti_sheet(xlsx_path: Path, output_dir: Path) -> SpaghettiSheetDo
     _save_parser_payload(output_dir, 'spaghetti_sheet_v2.json', payload)
     return payload
 
-def kpsc_parse_spaghetti_sheet_main():
+def kpsc_parse_spaghetti_sheet_main() -> None:
+    """
+    CLI-точка входа парсера листа 'Диаграмма Спагетти' (см. `_run_parser_cli`).
+    """
     _run_parser_cli("Парсер листа 'Диаграмма Спагетти' (без диаграммы)", kpsc_parse_spaghetti_sheet_build_payload)
 # END_PARSE_SPAGHETTI_SHEET

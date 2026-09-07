@@ -82,6 +82,16 @@ def _llm_yes_no(prompt: str, config: dict,
 # RULE 1 — Наличие логотипа (≥1 изображение на листе)
 # ==============================================================================
 def _rule_1_validate(data: dict, rule: dict, config: dict) -> dict:
+    """
+    Правило 1 — наличие логотипа на листе.
+
+    Назначение: проверить, что на листе присутствия есть хотя бы одно встроенное
+    изображение (логотип АНО «Мосстратегия»).
+    Вход: data — lp_main.json (используется data["images_count"]); rule — правило
+    из validation_rules.json (rule_title); config — config.json модуля (не используется).
+    Выход: dict формата _make_result. PASS, если images_count >= 1;
+    FAIL, если изображений на листе нет.
+    """
     title = rule["rule_title"]
     if data.get("images_count", 0) >= 1:
         return _make_result("1", title, "PASS")
@@ -93,6 +103,20 @@ def _rule_1_validate(data: dict, rule: dict, config: dict) -> dict:
 # RULE 2 — Имя файла: ключевые слова + название тренинга (config)
 # ==============================================================================
 def _rule_2_validate(data: dict, rule: dict, config: dict) -> dict:
+    """
+    Правило 2 — имя файла: ключевые слова и название тренинга.
+
+    Назначение: проверить, что имя книги Excel содержит все ключевые слова из
+    config["filename_keywords"] и хотя бы одно разрешённое название тренинга
+    из config["allowed_trainings"] (регистронезависимо).
+    Вход: data — lp_main.json (data["meta"]["workbook"]); rule — правило (rule_title);
+    config — config.json модуля (filename_keywords, allowed_trainings, module).
+    Выход: dict формата _make_result.
+    Логика:
+      1. Если в имени файла нет хотя бы одного ключевого слова — FAIL со списком отсутствующих.
+      2. Если allowed_trainings задан и ни одно название не входит в имя файла — FAIL.
+      3. Иначе PASS.
+    """
     title = rule["rule_title"]
     fname = data.get("meta", {}).get("workbook", "")
     fname_low = fname.lower()
@@ -112,6 +136,20 @@ def _rule_2_validate(data: dict, rule: dict, config: dict) -> dict:
 # RULE 3 — Название тренинга в C1: 'Модуль N' + разрешённое название (config)
 # ==============================================================================
 def _rule_3_validate(data: dict, rule: dict, config: dict) -> dict:
+    """
+    Правило 3 — название тренинга в ячейке C1.
+
+    Назначение: проверить, что в C1 указан «Модуль N» (N = config["module"]) и одно из
+    разрешённых названий тренинга config["allowed_trainings"] (регистронезависимо).
+    Вход: data — lp_main.json (data["header"]["training_name"]); rule — правило (rule_title);
+    config — config.json модуля (module, allowed_trainings).
+    Выход: dict формата _make_result.
+    Логика:
+      1. Пустая C1 — FAIL.
+      2. Нет подстроки «Модуль N» (в любом регистре) — FAIL.
+      3. allowed_trainings задан, но ни одно название не найдено в C1 — FAIL.
+      4. Иначе PASS.
+    """
     title = rule["rule_title"]
     c1 = (data.get("header", {}).get("training_name") or "").strip()
     if not c1:
@@ -131,6 +169,21 @@ def _rule_3_validate(data: dict, rule: dict, config: dict) -> dict:
 # RULE 4 — ФИО тренера в C2 (полное, без сокращений). LLM.
 # ==============================================================================
 def _rule_4_validate(data: dict, rule: dict, config: dict) -> dict:
+    """
+    Правило 4 — ФИО тренера в ячейке C2 (LLM).
+
+    Назначение: проверить, что в C2 указано полное ФИО (Фамилия Имя Отчество)
+    без инициалов, сокращений и плейсхолдеров.
+    Вход: data — lp_main.json (data["header"]["trainer_fio"]); rule — правило (rule_title);
+    config — config.json модуля (model, llm_base_url для _llm_yes_no).
+    Выход: dict формата _make_result.
+    Логика:
+      1. Пустая C2 — FAIL без вызова LLM.
+      2. Иначе промпт с критериями PASS/FAIL отправляется в _llm_yes_no; ожидается JSON
+         {"status", "discrepancy"}.
+      3. Любой статус, кроме "PASS"/"FAIL", трактуется как FAIL; discrepancy берётся
+         из ответа LLM только при FAIL.
+    """
     title = rule["rule_title"]
     fio = (data.get("header", {}).get("trainer_fio") or "").strip()
     if not fio:
@@ -155,6 +208,21 @@ def _rule_4_validate(data: dict, rule: dict, config: dict) -> dict:
 # RULE 5 — Адрес проведения в C3 (город/улица/дом). LLM.
 # ==============================================================================
 def _rule_5_validate(data: dict, rule: dict, config: dict) -> dict:
+    """
+    Правило 5 — адрес проведения в ячейке C3 (LLM).
+
+    Назначение: проверить, что в C3 указан адрес с городом, улицей (или иным топонимом)
+    и номером дома; плейсхолдер или только регион — нарушение.
+    Вход: data — lp_main.json (data["header"]["address"]); rule — правило (rule_title);
+    config — config.json модуля (model, llm_base_url для _llm_yes_no).
+    Выход: dict формата _make_result.
+    Логика:
+      1. Пустая C3 — FAIL без вызова LLM.
+      2. Иначе промпт с критериями PASS/FAIL отправляется в _llm_yes_no; ожидается JSON
+         {"status", "discrepancy"}.
+      3. Любой статус, кроме "PASS"/"FAIL", трактуется как FAIL; discrepancy берётся
+         из ответа LLM только при FAIL.
+    """
     title = rule["rule_title"]
     addr = (data.get("header", {}).get("address") or "").strip()
     if not addr:
@@ -184,6 +252,21 @@ _FIO_RE = re.compile(r"^[А-ЯЁA-Z][а-яёa-z]+(?:-[А-ЯЁA-Z][а-яёa-z]+)?
 
 
 def _rule_6_validate(data: dict, rule: dict, config: dict) -> dict:
+    """
+    Правило 6 — ФИО участников (B6:B15): полные, без повторов.
+
+    Назначение: проверить, что у каждого участника ФИО заполнено, соответствует
+    шаблону _FIO_RE (три слова с заглавной, допускается двойная фамилия через дефис)
+    и не дублируется в других строках (сравнение без учёта регистра).
+    Вход: data — lp_main.json (data["participants"], поля row, fio); rule — правило
+    (rule_title); config — config.json модуля (не используется).
+    Выход: dict формата _make_result.
+    Логика:
+      1. Пустая таблица участников — FAIL.
+      2. Собираются замечания по формату: пустое ФИО или несовпадение с _FIO_RE.
+      3. Собираются дубли ФИО с указанием пар строк.
+      4. Есть замечания — FAIL с первыми 10 через «; », иначе PASS.
+    """
     title = rule["rule_title"]
     parts = data.get("participants", []) or []
     if not parts:
@@ -217,6 +300,22 @@ def _rule_6_validate(data: dict, rule: dict, config: dict) -> dict:
 # RULE 7 — Должности (C6:C15) без сокращений. LLM (1 batch-вызов).
 # ==============================================================================
 def _rule_7_validate(data: dict, rule: dict, config: dict) -> dict:
+    """
+    Правило 7 — должности участников (C6:C15) без сокращений (LLM, один batch-вызов).
+
+    Назначение: проверить, что должности заполнены и записаны полностью, без
+    сокращений и аббревиатур («м-р», «нач.», «инж.» и т.п.); опечатки и регистр не проверяются.
+    Вход: data — lp_main.json (data["participants"], поля row, position); rule — правило
+    (rule_title); config — config.json модуля (model, llm_base_url для _llm_yes_no).
+    Выход: dict формата _make_result.
+    Логика:
+      1. Пустая таблица участников — FAIL.
+      2. Есть строки с пустой должностью — FAIL с перечнем строк, без вызова LLM.
+      3. Иначе все должности одним списком отправляются в _llm_yes_no; ожидается JSON
+         {"status", "discrepancy"}.
+      4. Любой статус, кроме "PASS"/"FAIL", трактуется как FAIL; discrepancy берётся
+         из ответа LLM только при FAIL.
+    """
     title = rule["rule_title"]
     parts = data.get("participants", []) or []
     if not parts:
@@ -257,6 +356,22 @@ _LEGAL_RE = re.compile(r"\b(" + "|".join(_LEGAL_FORMS) + r")\b", re.IGNORECASE)
 
 
 def _rule_8_validate(data: dict, rule: dict, config: dict) -> dict:
+    """
+    Правило 8 — организация участников (D6:D15): юр. форма и единообразие.
+
+    Назначение: проверить, что организация заполнена в каждой строке, содержит
+    юридическую форму из _LEGAL_FORMS (ООО/ЗАО/АО/ПАО/ИП/…) и одинакова во всех строках
+    (сравнение без учёта регистра и краевых пробелов).
+    Вход: data — lp_main.json (data["participants"], поля row, org); rule — правило
+    (rule_title); config — config.json модуля (не используется).
+    Выход: dict формата _make_result.
+    Логика:
+      1. Пустая таблица участников — FAIL.
+      2. Есть строки с пустой организацией — FAIL с перечнем строк.
+      3. Есть строки без юр. формы (_LEGAL_RE не находит) — FAIL с перечнем строк.
+      4. Более одного уникального названия — FAIL с примерами (до 5 строк).
+      5. Иначе PASS.
+    """
     title = rule["rule_title"]
     parts = data.get("participants", []) or []
     if not parts:
@@ -283,6 +398,21 @@ _INN_RE = re.compile(r"^\d{10}$|^\d{12}$")
 
 
 def _rule_9_validate(data: dict, rule: dict, config: dict) -> dict:
+    """
+    Правило 9 — ИНН участников (E6:E15): формат и единообразие.
+
+    Назначение: проверить, что ИНН заполнен в каждой строке, состоит ровно из 10
+    или 12 цифр (_INN_RE) и одинаков во всех строках.
+    Вход: data — lp_main.json (data["participants"], поля row, inn); rule — правило
+    (rule_title); config — config.json модуля (не используется).
+    Выход: dict формата _make_result.
+    Логика:
+      1. Пустая таблица участников — FAIL.
+      2. Есть строки с пустым ИНН — FAIL с перечнем строк.
+      3. Есть ИНН, не совпадающие с _INN_RE — FAIL с примерами (до 5).
+      4. Более одного уникального ИНН — FAIL с перечнем значений.
+      5. Иначе PASS.
+    """
     title = rule["rule_title"]
     parts = data.get("participants", []) or []
     if not parts:
@@ -305,10 +435,24 @@ def _rule_9_validate(data: dict, rule: dict, config: dict) -> dict:
 # RULE 10 — Регион (F6:F15) = expected_region (config). Python.
 # ==============================================================================
 def _normalize_region(s: str) -> str:
+    """Нормализует название региона для сравнения: trim, нижний регистр, без точек и пробелов."""
     return s.strip().lower().replace(".", "").replace(" ", "")
 
 
 def _rule_10_validate(data: dict, rule: dict, config: dict) -> dict:
+    """
+    Правило 10 — регион участников (F6:F15) равен ожидаемому.
+
+    Назначение: проверить, что регион заполнен в каждой строке и после нормализации
+    (_normalize_region) совпадает с config["expected_region"] (по умолчанию «г. Москва»).
+    Вход: data — lp_main.json (data["participants"], поля row, region); rule — правило
+    (rule_title); config — config.json модуля (expected_region).
+    Выход: dict формата _make_result.
+    Логика:
+      1. Пустая таблица участников — FAIL.
+      2. Для каждой строки: пустой регион или несовпадение с ожидаемым — замечание.
+      3. Есть замечания — FAIL с первыми 10 через «; », иначе PASS.
+    """
     title = rule["rule_title"]
     parts = data.get("participants", []) or []
     if not parts:
@@ -334,6 +478,19 @@ _EMAIL_RE = re.compile(r"^[^\s@]+@[^\s@]+\.[^\s@]+$")
 
 
 def _rule_11_validate(data: dict, rule: dict, config: dict) -> dict:
+    """
+    Правило 11 — e-mail участников (G6:G15): валидный формат, без повторов.
+
+    Назначение: проверить, что e-mail заполнен в каждой строке, соответствует _EMAIL_RE
+    (локальная часть@домен.зона без пробелов) и не дублируется (сравнение без учёта регистра).
+    Вход: data — lp_main.json (data["participants"], поля row, email); rule — правило
+    (rule_title); config — config.json модуля (не используется).
+    Выход: dict формата _make_result.
+    Логика:
+      1. Пустая таблица участников — FAIL.
+      2. Для каждой строки: пустой e-mail, невалидный формат или дубль — замечание.
+      3. Есть замечания — FAIL с первыми 10 через «; », иначе PASS.
+    """
     title = rule["rule_title"]
     parts = data.get("participants", []) or []
     if not parts:
@@ -366,6 +523,20 @@ _DIGITS_ONLY = re.compile(r"\D+")
 
 
 def _rule_12_validate(data: dict, rule: dict, config: dict) -> dict:
+    """
+    Правило 12 — телефон участников (H6:H15): 10–12 цифр, без повторов.
+
+    Назначение: проверить, что телефон заполнен в каждой строке, после удаления
+    всех нецифровых символов (_DIGITS_ONLY) содержит от 10 до 12 цифр и не дублируется
+    (сравнение по нормализованным цифрам).
+    Вход: data — lp_main.json (data["participants"], поля row, phone); rule — правило
+    (rule_title); config — config.json модуля (не используется).
+    Выход: dict формата _make_result.
+    Логика:
+      1. Пустая таблица участников — FAIL.
+      2. Для каждой строки: пустой телефон, число цифр вне 10–12 или дубль — замечание.
+      3. Есть замечания — FAIL с первыми 10 через «; », иначе PASS.
+    """
     title = rule["rule_title"]
     parts = data.get("participants", []) or []
     if not parts:
@@ -398,6 +569,22 @@ _DATE_PLACEHOLDER_PATTERNS = [r"_+", r"\?{2,}", r"^Поставьте"]
 
 
 def _rule_13_validate(data: dict, rule: dict, config: dict) -> dict:
+    """
+    Правило 13 — дата проведения в ячейке I5.
+
+    Назначение: проверить, что в I5 указана реальная дата (дд.мм.гггг или Excel-datetime),
+    а не пусто/плейсхолдер, и что парсер смог привести её к ISO.
+    Вход: data — lp_main.json (data["header"]["date_cell"] — сырой текст ячейки,
+    data["header"]["date_iso"] — распознанная дата); rule — правило (rule_title);
+    config — config.json модуля (не используется).
+    Выход: dict формата _make_result.
+    Логика:
+      1. Пустая I5 — FAIL.
+      2. Сырой текст совпадает с одним из _DATE_PLACEHOLDER_PATTERNS (подчёркивания,
+         «??», «Поставьте…») — FAIL «плейсхолдер вместо даты».
+      3. date_iso пустой (парсер не распознал дату) — FAIL.
+      4. Иначе PASS.
+    """
     title = rule["rule_title"]
     header = data.get("header", {})
     raw = (header.get("date_cell") or "").strip()
@@ -452,7 +639,7 @@ def _create_excel_report(results: List[Tuple[Dict, Dict, float]], report_path: P
 
 
 # START_LIST_PRISUTSTVIYA_RUNNER
-def run_list_prisutstviya_special(args) -> AuditResult:
+def run_list_prisutstviya_special(args: Any) -> AuditResult:
     """
     Публичный entrypoint для list_prisutstviya. Регистрируется в SPECIAL_ENGINE_RUNNERS.
     Один движок на оба модуля — doc_type из args выбирает config/rules (modul_1 / modul_2).

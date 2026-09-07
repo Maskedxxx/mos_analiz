@@ -15,7 +15,7 @@ import re
 import time
 from datetime import date, datetime
 from pathlib import Path
-from typing import Any, Callable, Dict, List, Tuple
+from typing import Any, Callable, Dict, List, Optional, Tuple
 
 import pandas as pd
 from openpyxl.utils import get_column_letter
@@ -62,6 +62,17 @@ def _make_result(rule_index: str, rule_title: str, status: str, discrepancy: str
 # RULE 1 — Имя файла содержит '0.4' и тематические слова
 # ==============================================================================
 def _rule_1_validate(data: dict, rule: dict, config: dict) -> dict:
+    """
+    Правило 1 — имя файла книги содержит код мероприятия «0.4» и тематические слова.
+
+    Назначение: проверить, что имя xlsx-файла (data["meta"]["workbook"]) соответствует форме 0.4.
+    Вход: data — forma_0_4_main.json; rule — запись правила (rule_title); config — не используется.
+    Выход: результат _make_result со статусом PASS/FAIL.
+    Логика:
+        1. Имя переводится в нижний регистр; если нет подстроки «0.4» — FAIL.
+        2. Если нет ни одной из подстрок «о проекте в цифрах» / «опроектевцифрах» / «проекте в цифр» — FAIL.
+        3. Иначе PASS.
+    """
     title = rule["rule_title"]
     fname = data.get("meta", {}).get("workbook", "")
     fl = fname.lower()
@@ -81,6 +92,17 @@ _AGREEMENT_NO_RE = re.compile(r"\d{2,3}\s*[\-–—]\s*\d{2,3}\s*[\-–—]\s*\d
 
 
 def _rule_2_validate(data: dict, rule: dict, config: dict) -> dict:
+    """
+    Правило 2 — шапка соглашения (G2:G4) заполнена и корректна по формату.
+
+    Назначение: проверить три поля data["header"]: appendix_label (G2), agreement_no (G3), agreement_date_text (G4).
+    Вход: data — forma_0_4_main.json; rule — запись правила (rule_title); config — не используется.
+    Выход: результат _make_result; при нарушениях — FAIL с перечнем проблем через «; ».
+    Логика (каждая проверка добавляет issue, правило нарушено при любом issue):
+        1. G2 пуст → issue; не содержит слова «приложение» → issue.
+        2. G3 пуст → issue; не совпадает с _AGREEMENT_NO_RE (формат «XXX-XXX-YYYY/ППТ») → issue.
+        3. G4 пуст → issue; не содержит 4 цифр подряд (года) → issue.
+    """
     title = rule["rule_title"]
     h = data.get("header", {}) or {}
     issues = []
@@ -108,6 +130,15 @@ def _rule_2_validate(data: dict, rule: dict, config: dict) -> dict:
 # RULE 3 — Общая информация о потоке заполнена (B8, C8, D8, E8, F8, H8)
 # ==============================================================================
 def _rule_3_validate(data: dict, rule: dict, config: dict) -> dict:
+    """
+    Правило 3 — общая информация о потоке заполнена (B8, C8, D8, E8, F8, H8).
+
+    Назначение: проверить обязательные поля data["flow_info"].
+    Вход: data — forma_0_4_main.json; rule — запись правила (rule_title); config — не используется.
+    Выход: результат _make_result; FAIL с перечнем пустых ячеек через «; », иначе PASS.
+    Логика: issue добавляется, если пусто company (B8), region (C8), flow_name (D8),
+        directions (F8), project_start_date_iso (H8), либо share_in_revenue (E8) равно None.
+    """
     title = rule["rule_title"]
     fi = data.get("flow_info", {}) or {}
     issues = []
@@ -132,6 +163,13 @@ def _rule_3_validate(data: dict, rule: dict, config: dict) -> dict:
 # RULE 4 — Дата старта проекта (H8) валидна
 # ==============================================================================
 def _rule_4_validate(data: dict, rule: dict, config: dict) -> dict:
+    """
+    Правило 4 — дата старта проекта (H8) валидна.
+
+    Назначение: проверить, что парсер распознал дату в H8 (data["flow_info"]["project_start_date_iso"] непусто).
+    Вход: data — forma_0_4_main.json; rule — запись правила (rule_title); config — не используется.
+    Выход: FAIL, если ISO-дата отсутствует (ячейка пуста или не распарсилась в дд.мм.гггг), иначе PASS.
+    """
     title = rule["rule_title"]
     iso = (data.get("flow_info", {}) or {}).get("project_start_date_iso")
     if not iso:
@@ -144,6 +182,16 @@ def _rule_4_validate(data: dict, rule: dict, config: dict) -> dict:
 # RULE 5 — Три показателя присутствуют + Выработка обязательна (ФЦК 0.4-3)
 # ==============================================================================
 def _rule_5_validate(data: dict, rule: dict, config: dict) -> dict:
+    """
+    Правило 5 — у всех показателей указано наименование, среди них есть «Выработка» (критерий ФЦК 0.4-3).
+
+    Назначение: проверить список data["indicators"].
+    Вход: data — forma_0_4_main.json; rule — запись правила (rule_title); config — не используется.
+    Выход: результат _make_result; FAIL с перечнем проблем через «; », иначе PASS.
+    Логика:
+        1. Для каждого показателя с пустым name → issue с номером показателя и строкой листа.
+        2. Наименования склеиваются в нижнем регистре; если нет подстроки «выработк» → issue.
+    """
     title = rule["rule_title"]
     inds = data.get("indicators") or []
     issues = []
@@ -162,10 +210,12 @@ def _rule_5_validate(data: dict, rule: dict, config: dict) -> dict:
 # RULE 6 — Единицы измерения соответствуют справочнику листа 3
 # ==============================================================================
 def _normalize(s: str) -> str:
+    """Нормализует строку для сравнения: обрезка пробелов, нижний регистр, «ё» → «е»; None → ''."""
     return (s or "").strip().lower().replace("ё", "е")
 
 
-def _category_for(name: str):
+def _category_for(name: str) -> Optional[str]:
+    """Определяет категорию показателя по наименованию: 'time' / 'production' / 'stock' или None, если не распознано."""
     n = _normalize(name)
     if "врем" in n and "процесс" in n:
         return "time"
@@ -177,6 +227,20 @@ def _category_for(name: str):
 
 
 def _rule_6_validate(data: dict, rule: dict, config: dict) -> dict:
+    """
+    Правило 6 — единицы измерения показателей соответствуют справочнику листа 3.
+
+    Назначение: сверить unit каждого показателя из data["indicators"] со списком допустимых
+        единиц data["allowed_units"][категория].
+    Вход: data — forma_0_4_main.json; rule — запись правила (rule_title); config — не используется.
+    Выход: результат _make_result; FAIL с перечнем проблем через «; », иначе PASS.
+    Логика (для каждого показателя):
+        1. Категория определяется через _category_for(name); если None — показатель пропускается.
+        2. Справочник категории пуст → issue.
+        3. Единица измерения пуста → issue.
+        4. Единица (после _normalize) не совпадает ни с одной из справочника
+           (равенство, startswith или вхождение справочной единицы в указанную) → issue.
+    """
     title = rule["rule_title"]
     inds = data.get("indicators") or []
     allowed = data.get("allowed_units") or {}
@@ -206,7 +270,8 @@ def _rule_6_validate(data: dict, rule: dict, config: dict) -> dict:
 # ==============================================================================
 # RULE 7 — Период измерений ≥ min_workdays (config, дефолт 137 дней / 4.5 мес.)
 # ==============================================================================
-def _parse_iso(s):
+def _parse_iso(s: Optional[str]) -> Optional[date]:
+    """Разбирает строку 'ГГГГ-ММ-ДД' в date; при невалидной строке или None возвращает None."""
     try:
         y, m, d = s.split("-")
         return date(int(y), int(m), int(d))
@@ -215,6 +280,20 @@ def _parse_iso(s):
 
 
 def _rule_7_validate(data: dict, rule: dict, config: dict) -> dict:
+    """
+    Правило 7 — период измерений (F10..G10) не короче порога min_workdays из config.
+
+    Назначение: проверить даты начала/конца периода data["period_start_iso"] / data["period_end_iso"].
+    Вход: data — forma_0_4_main.json; rule — запись правила (rule_title);
+        config — config.json, используется ключ min_workdays (дефолт 137 дней ≈ 4.5 мес.).
+    Выход: результат _make_result со статусом PASS/FAIL (первое найденное нарушение).
+    Логика:
+        1. F10 не парсится через _parse_iso → FAIL.
+        2. G10 не парсится → FAIL.
+        3. G10 <= F10 → FAIL.
+        4. Разница в днях меньше min_workdays → FAIL (в сообщении — дни и примерно месяцы).
+        5. Иначе PASS.
+    """
     title = rule["rule_title"]
     min_days = config.get("min_workdays", 137)
     f10 = _parse_iso(data.get("period_start_iso"))
@@ -236,6 +315,14 @@ def _rule_7_validate(data: dict, rule: dict, config: dict) -> dict:
 # RULE 8 — Все 6 числовых значений (F/G строк 11-13) — числа
 # ==============================================================================
 def _rule_8_validate(data: dict, rule: dict, config: dict) -> dict:
+    """
+    Правило 8 — начальное и конечное значения каждого показателя (F/G строк 11-13) являются числами.
+
+    Назначение: проверить value_start и value_end у каждого показателя data["indicators"].
+    Вход: data — forma_0_4_main.json; rule — запись правила (rule_title); config — не используется.
+    Выход: результат _make_result; FAIL с перечнем нечисловых ячеек через «; », иначе PASS.
+    Логика: value_start не int/float → issue «F{row}»; value_end не int/float → issue «G{row}».
+    """
     title = rule["rule_title"]
     inds = data.get("indicators") or []
     issues = []
@@ -254,6 +341,18 @@ def _rule_8_validate(data: dict, rule: dict, config: dict) -> dict:
 # RULE 9 — Время протекания процесса убывает (G11 < F11)
 # ==============================================================================
 def _rule_9_validate(data: dict, rule: dict, config: dict) -> dict:
+    """
+    Правило 9 — время протекания процесса сокращается (G11 < F11).
+
+    Назначение: найти показатель «Время протекания процесса» и сравнить его начальное и конечное значения.
+    Вход: data — forma_0_4_main.json; rule — запись правила (rule_title); config — не используется.
+    Выход: результат _make_result со статусом PASS/FAIL (первое найденное нарушение).
+    Логика:
+        1. Показатель ищется по наименованию, содержащему «врем» и «процесс»; не найден → FAIL.
+        2. value_start или value_end не int/float → FAIL.
+        3. value_end >= value_start (время не сократилось) → FAIL.
+        4. Иначе PASS.
+    """
     title = rule["rule_title"]
     inds = data.get("indicators") or []
     target = next(
@@ -275,6 +374,20 @@ def _rule_9_validate(data: dict, rule: dict, config: dict) -> dict:
 # RULE 10 — Прирост Выработки ≥ min_production_growth_pct (config, дефолт 52%)
 # ==============================================================================
 def _rule_10_validate(data: dict, rule: dict, config: dict) -> dict:
+    """
+    Правило 10 — прирост Выработки не ниже порога min_production_growth_pct из config.
+
+    Назначение: найти показатель «Выработка» и рассчитать относительный прирост (G - F) / F.
+    Вход: data — forma_0_4_main.json; rule — запись правила (rule_title);
+        config — config.json, используется ключ min_production_growth_pct (дефолт 52 %).
+    Выход: результат _make_result со статусом PASS/FAIL (первое найденное нарушение).
+    Логика:
+        1. Показатель ищется по наименованию, содержащему «выработк» или «производительност»; не найден → FAIL.
+        2. value_start или value_end не int/float → FAIL.
+        3. value_start == 0 (деление невозможно) → FAIL.
+        4. Прирост меньше порога (min_pct / 100) → FAIL с фактическим и требуемым процентом.
+        5. Иначе PASS.
+    """
     title = rule["rule_title"]
     min_pct = float(config.get("min_production_growth_pct", 52))
     threshold = min_pct / 100.0
@@ -302,6 +415,18 @@ def _rule_10_validate(data: dict, rule: dict, config: dict) -> dict:
 # RULE 11 — Запасы убывают (G13 < F13)
 # ==============================================================================
 def _rule_11_validate(data: dict, rule: dict, config: dict) -> dict:
+    """
+    Правило 11 — запасы / незавершённое производство сокращаются (G13 < F13).
+
+    Назначение: найти показатель запасов и сравнить его начальное и конечное значения.
+    Вход: data — forma_0_4_main.json; rule — запись правила (rule_title); config — не используется.
+    Выход: результат _make_result со статусом PASS/FAIL (первое найденное нарушение).
+    Логика:
+        1. Показатель ищется по наименованию, содержащему «запас» или «незавершен»; не найден → FAIL.
+        2. value_start или value_end не int/float → FAIL.
+        3. value_end >= value_start (запасы не сократились) → FAIL.
+        4. Иначе PASS.
+    """
     title = rule["rule_title"]
     inds = data.get("indicators") or []
     target = next(
@@ -323,6 +448,18 @@ def _rule_11_validate(data: dict, rule: dict, config: dict) -> dict:
 # RULE 12 — Все 6 формул на листе 2 заполнены (B2:B7)
 # ==============================================================================
 def _rule_12_validate(data: dict, rule: dict, config: dict) -> dict:
+    """
+    Правило 12 — все 6 формул расчёта показателей на листе 2 (B2:B7) заполнены.
+
+    Назначение: проверить список data["formulas_filled"] (row, filled).
+    Вход: data — forma_0_4_main.json; rule — запись правила (rule_title); config — не используется.
+    Выход: результат _make_result со статусом PASS/FAIL (первое найденное нарушение).
+    Логика:
+        1. Список пуст (лист не найден) → FAIL.
+        2. Есть записи с filled == False → FAIL с перечнем ячеек «B{row}».
+        3. Записей меньше 6 → FAIL.
+        4. Иначе PASS.
+    """
     title = rule["rule_title"]
     formulas = data.get("formulas_filled") or []
     if not formulas:
@@ -339,6 +476,18 @@ def _rule_12_validate(data: dict, rule: dict, config: dict) -> dict:
 # RULE 13 — Согласие на публикацию в D39
 # ==============================================================================
 def _rule_13_validate(data: dict, rule: dict, config: dict) -> dict:
+    """
+    Правило 13 — согласие на публикацию (D39) выражено.
+
+    Назначение: проверить текст data["signatures"]["consent"].
+    Вход: data — forma_0_4_main.json; rule — запись правила (rule_title); config — не используется.
+    Выход: результат _make_result со статусом PASS/FAIL (первое найденное нарушение).
+    Логика (текст в нижнем регистре без пробелов по краям):
+        1. Пусто → FAIL.
+        2. Нет подстроки «соглас» → FAIL.
+        3. Есть подстрока «не соглас» (отрицание) → FAIL.
+        4. Иначе PASS.
+    """
     title = rule["rule_title"]
     consent = (data.get("signatures", {}) or {}).get("consent") or ""
     consent_l = consent.strip().lower()
@@ -358,6 +507,16 @@ _PLACEHOLDER_RE_14 = re.compile(r"_{3,}|«\s*___")
 
 
 def _rule_14_validate(data: dict, rule: dict, config: dict) -> dict:
+    """
+    Правило 14 — дата подписи (G41) и дата документа (B46) заполнены.
+
+    Назначение: проверить поля data["signatures"]: signature_date_iso / signature_date_raw и doc_date_text.
+    Вход: data — forma_0_4_main.json; rule — запись правила (rule_title); config — не используется.
+    Выход: результат _make_result; FAIL с перечнем проблем через «; », иначе PASS.
+    Логика:
+        1. G41: пусты и ISO-дата, и сырое значение → issue.
+        2. B46: текст пуст → issue; текст совпадает с _PLACEHOLDER_RE_14 (подчёркивания «___», «« ___») → issue.
+    """
     title = rule["rule_title"]
     sig = data.get("signatures", {}) or {}
     issues = []
@@ -379,6 +538,18 @@ def _rule_14_validate(data: dict, rule: dict, config: dict) -> dict:
 # RULE 15 — ФИО подписанта (B44) не плейсхолдер
 # ==============================================================================
 def _rule_15_validate(data: dict, rule: dict, config: dict) -> dict:
+    """
+    Правило 15 — ФИО подписанта (B44) указано и не является плейсхолдером.
+
+    Назначение: проверить data["signatures"]["signer_fio"].
+    Вход: data — forma_0_4_main.json; rule — запись правила (rule_title); config — не используется.
+    Выход: результат _make_result со статусом PASS/FAIL (первое найденное нарушение).
+    Логика:
+        1. Пусто → FAIL.
+        2. После удаления символов «_», «/» и пробелов ничего не осталось (плейсхолдер) → FAIL.
+        3. Очищенная строка короче 5 символов → FAIL.
+        4. Иначе PASS.
+    """
     title = rule["rule_title"]
     fio = ((data.get("signatures", {}) or {}).get("signer_fio") or "").strip()
     if not fio:
@@ -430,7 +601,7 @@ def _create_excel_report(results: List[Tuple[Dict, Dict, float]], report_path: P
 
 
 # START_FORMA_0_4_RUNNER
-def run_forma_0_4_special(args) -> AuditResult:
+def run_forma_0_4_special(args: Any) -> AuditResult:
     """
     Публичный entrypoint для forma_0_4. Регистрируется в SPECIAL_ENGINE_RUNNERS.
     Оркестрирует: 1 парсер → load rules → прогон 15 python-валидаторов → Excel.
