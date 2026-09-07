@@ -5,6 +5,7 @@
 
 Содержит пути к тестовым файлам и вспомогательные функции.
 """
+import os
 import sys
 from pathlib import Path
 
@@ -15,6 +16,12 @@ from docx import Document
 # Корень проекта
 PROJECT_ROOT = Path(__file__).parent.parent
 sys.path.insert(0, str(PROJECT_ROOT))
+
+# Учётные данные веб-API для тестов. В коде сервера дефолтов нет (см. src/api/server.py START_AUTH),
+# поэтому задаём тестовые значения до первого импорта main. Реальные значения из окружения не перекрываются.
+os.environ.setdefault("AUDIT_LOGIN", "test")
+os.environ.setdefault("AUDIT_PASSWORD", "test-password")
+os.environ.setdefault("AUDIT_TOKEN", "test-token")
 
 TEST_DOCS = PROJECT_ROOT / "test_docs"
 DOC_CONFIGS = PROJECT_ROOT / "doc_configs"

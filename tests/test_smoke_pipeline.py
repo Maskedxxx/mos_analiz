@@ -6,7 +6,7 @@
 Запускают engine.run() end-to-end на одном файле каждого типа.
 Медленные (LLM-вызовы) — запускать через pytest -m integration.
 
-Требования: Layout API + Paddle OCR + vLLM доступны на 172.16.10.35.
+Требования: LLM, OCR и Layout API доступны по адресам из конфига (LLM_BASE_URL, OCR_BASE_URL, LAYOUT_BASE_URL).
 """
 import os
 import tempfile
@@ -14,6 +14,16 @@ import urllib.request
 from pathlib import Path
 
 import pytest
+
+
+def _no_proxy_hosts() -> str:
+    """Хосты внешних сервисов (LLM, OCR, layout) из конфига + localhost — чтобы прокси не мешал тестам."""
+    from urllib.parse import urlparse
+    from config.llm import LLM_CONFIG
+    from config.parsers import PARSERS_CONFIG
+    urls = (LLM_CONFIG.base_url, PARSERS_CONFIG.pdf.vlm.base_url, PARSERS_CONFIG.pdf.layout.base_url or "")
+    hosts = {urlparse(u).hostname for u in urls if u} | {"localhost", "127.0.0.1"}
+    return ",".join(sorted(h for h in hosts if h))
 
 from conftest import LOCAL_SMOKE_FIXTURES, PROJECT_ROOT
 
@@ -28,12 +38,17 @@ PIPELINE_FIXTURES = {
 
 
 def _services_available() -> bool:
-    """Проверяет что LLM, OCR и Layout API доступны."""
+    """Проверяет что LLM, OCR и Layout API доступны (адреса — из конфига / .env)."""
+    from config.llm import LLM_CONFIG
+    from config.parsers import PARSERS_CONFIG
+    layout = PARSERS_CONFIG.pdf.layout.base_url
     for url in [
-        "http://172.16.10.35:11437/v1/models",
-        "http://172.16.10.35:11438/v1/models",
-        "http://172.16.10.35:11439/health",
+        LLM_CONFIG.base_url.rstrip("/") + "/models",
+        PARSERS_CONFIG.pdf.vlm.base_url.rstrip("/") + "/models",
+        (layout.rstrip("/") + "/health") if layout else "",
     ]:
+        if not url:
+            return False
         try:
             with urllib.request.urlopen(url, timeout=3) as r:
                 if r.status != 200:
@@ -48,13 +63,13 @@ def _services_available() -> bool:
 def test_pipeline_end_to_end(doc_type, rel_path):
     """Полный прогон engine.run() — не крашится, возвращает result с violations."""
     if not _services_available():
-        pytest.skip("ML-сервисы на 172.16.10.35 недоступны")
+        pytest.skip("ML-сервисы (LLM/OCR/Layout из конфига) недоступны")
 
     file_path = PROJECT_ROOT / rel_path
     if not file_path.exists():
         pytest.skip(f"Фикстура не найдена: {rel_path}")
 
-    os.environ["NO_PROXY"] = "172.16.10.35,localhost,127.0.0.1"
+    os.environ["NO_PROXY"] = _no_proxy_hosts()
 
     from main import AuditEngine
 

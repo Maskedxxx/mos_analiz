@@ -11,6 +11,16 @@ from pathlib import Path
 
 import pytest
 
+
+def _no_proxy_hosts() -> str:
+    """Хосты внешних сервисов (LLM, OCR, layout) из конфига + localhost — чтобы прокси не мешал тестам."""
+    from urllib.parse import urlparse
+    from config.llm import LLM_CONFIG
+    from config.parsers import PARSERS_CONFIG
+    urls = (LLM_CONFIG.base_url, PARSERS_CONFIG.pdf.vlm.base_url, PARSERS_CONFIG.pdf.layout.base_url or "")
+    hosts = {urlparse(u).hostname for u in urls if u} | {"localhost", "127.0.0.1"}
+    return ",".join(sorted(h for h in hosts if h))
+
 from conftest import LOCAL_SMOKE_FIXTURES, PROJECT_ROOT
 
 
@@ -21,9 +31,14 @@ PDF_DOC_TYPES = ("prikaz_pa", "otchet_rezultatov")
 
 
 def _layout_api_available() -> bool:
+    """Доступен ли layout-сервис по адресу из конфига (LAYOUT_BASE_URL)."""
     import urllib.request
+    from config.parsers import PARSERS_CONFIG
+    base = PARSERS_CONFIG.pdf.layout.base_url
+    if not base:
+        return False
     try:
-        with urllib.request.urlopen("http://172.16.10.35:11439/health", timeout=2) as r:
+        with urllib.request.urlopen(base.rstrip("/") + "/health", timeout=2) as r:
             return r.status == 200
     except Exception:
         return False
@@ -41,7 +56,7 @@ def test_parser_no_crash(doc_type, rel_path):
         pytest.skip(f"Фикстура не найдена: {rel_path}")
 
     ext = file_path.suffix.lower()
-    os.environ["NO_PROXY"] = "172.16.10.35,localhost,127.0.0.1"
+    os.environ["NO_PROXY"] = _no_proxy_hosts()
 
     if ext == ".docx":
         from main import parse_docx
@@ -64,11 +79,11 @@ def test_parser_no_crash(doc_type, rel_path):
 def test_pdf_parser_no_crash(doc_type, generated_pdf_fixtures):
     """PDF-парсер (paddle) — требует запущенный Layout API на Spark."""
     if not _layout_api_available():
-        pytest.skip("Layout API (172.16.10.35:11439) недоступен")
+        pytest.skip("Layout API (LAYOUT_BASE_URL) недоступен")
 
     file_path = generated_pdf_fixtures[doc_type]
 
-    os.environ["NO_PROXY"] = "172.16.10.35,localhost,127.0.0.1"
+    os.environ["NO_PROXY"] = _no_proxy_hosts()
 
     # Только проверяем что PDF рендерится без крашей (pymupdf fix)
     # Полный OCR через VLM — в интеграционном тесте

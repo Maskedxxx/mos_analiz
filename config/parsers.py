@@ -1,31 +1,46 @@
 # START_MODULE_CONTRACT
-# PURPOSE: Единый конфиг парсеров проекта (Pydantic-модели + дефолтные значения). Заменяет старый `parsers.json`. Каждое поле снабжено `description` — при наведении в IDE или через `Model.model_json_schema()` видно, зачем поле нужно и как влияет.
+# PURPOSE: Единый конфиг парсеров проекта (Pydantic-модели + дефолтные значения). Адреса внешних сервисов (layout-детектор, OCR/VLM) читаются из окружения: LAYOUT_BASE_URL, OCR_BASE_URL, OCR_API_KEY (или `.env` в корне). Каждое поле снабжено `description` — при наведении в IDE или через `Model.model_json_schema()` видно, зачем поле нужно и как влияет.
 # INPUTS: —
 # OUTPUTS: Pydantic-классы (`PdfParserConfig`, `DocxHeaderOcrConfig`, `ParsersConfig`) и единственный экземпляр `CONFIG`, который используется во всём рантайме.
 # KEYWORDS: config, pydantic, single-source-of-truth, no-json, annotated-fields.
 # LINKS: src/format_parsers/pdf/, src/format_parsers/docx.py, main.py.
-# RATIONALE: Конфиг — Python-модуль, а не внешний JSON. Плюсы: нативные docstring + description поля, автодополнение в IDE, статическая проверка, нулевая зависимость от парсеров формата. Для смены окружения (dev/staging/prod) при необходимости добавим env-var override отдельным шагом.
+# RATIONALE: Конфиг — Python-модуль, а не внешний JSON. Плюсы: нативные docstring + description поля, автодополнение в IDE, статическая проверка, нулевая зависимость от парсеров формата. Смена окружения (другой стенд) — только через переменные окружения для адресов сервисов; параметры алгоритмов остаются в коде.
 # END_MODULE_CONTRACT
 
 from __future__ import annotations
 
 # START_IMPORTS
+from pathlib import Path
 from typing import Dict, List, Optional
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import AliasChoices, BaseModel, ConfigDict, Field
+from pydantic_settings import BaseSettings, SettingsConfigDict
+
+# Корень проекта: config/parsers.py → parents[1]. Отсюда читается `.env`, если он есть.
+_PROJECT_ROOT = Path(__file__).resolve().parents[1]
+_ENV_SETTINGS = dict(
+    frozen=True,
+    extra="ignore",
+    env_file=str(_PROJECT_ROOT / ".env"),
+    env_file_encoding="utf-8",
+)
 # END_IMPORTS
 
 
 # START_PDF_LAYOUT
-class PdfLayoutConfig(BaseModel):
-    """Параметры layout-детектора — определяет регионы на странице PDF (текст, таблицы, картинки)."""
+class PdfLayoutConfig(BaseSettings):
+    """Параметры layout-детектора — определяет регионы на странице PDF (текст, таблицы, картинки).
 
-    model_config = ConfigDict(frozen=True, extra="forbid")
+    `base_url` берётся из переменной окружения LAYOUT_BASE_URL (или `.env`), остальное — из кода.
+    """
+
+    model_config = SettingsConfigDict(**_ENV_SETTINGS)
 
     base_url: Optional[str] = Field(
-        default="http://172.16.10.35:11439",
+        default="http://127.0.0.1:11439",
+        validation_alias=AliasChoices("LAYOUT_BASE_URL"),
         description=(
-            "URL remote Layout API на Spark. Используется `RemoteLayoutDetector` в "
+            "URL удалённого Layout API (env: LAYOUT_BASE_URL). Используется `RemoteLayoutDetector` в "
             "`src/format_parsers/pdf/_clients.py`. Если `None` — запускается локальный "
             "`LayoutDetector` (Heron-101), требующий torch+GPU."
         ),
@@ -85,15 +100,19 @@ class PdfLayoutConfig(BaseModel):
 
 
 # START_PDF_VLM
-class PdfVlmConfig(BaseModel):
-    """Параметры VLM-клиента (PaddleOCR-VL на vLLM). Используется и pdf-, и docx-парсером."""
+class PdfVlmConfig(BaseSettings):
+    """Параметры VLM-клиента (PaddleOCR-VL на vLLM). Используется и pdf-, и docx-парсером.
 
-    model_config = ConfigDict(frozen=True, extra="forbid")
+    `base_url` и `api_key` берутся из переменных окружения OCR_BASE_URL / OCR_API_KEY (или `.env`).
+    """
+
+    model_config = SettingsConfigDict(**_ENV_SETTINGS)
 
     base_url: str = Field(
-        default="http://172.16.10.35:11438/v1/",
+        default="http://127.0.0.1:11438/v1/",
+        validation_alias=AliasChoices("OCR_BASE_URL"),
         description=(
-            "URL VLM-сервиса (vLLM с PaddleOCR-VL) на Spark. Используется `VLMClient` "
+            "URL OpenAI-совместимого VLM/OCR-сервиса (env: OCR_BASE_URL). Используется `VLMClient` "
             "в `src/format_parsers/pdf/_clients.py`."
         ),
     )
@@ -106,8 +125,9 @@ class PdfVlmConfig(BaseModel):
     )
     api_key: str = Field(
         default="none",
+        validation_alias=AliasChoices("OCR_API_KEY"),
         description=(
-            "API-ключ. Для vLLM обычно любое непустое значение (не проверяется). "
+            "API-ключ (env: OCR_API_KEY). Для vLLM обычно любое непустое значение (не проверяется). "
             "Передаётся в `AsyncOpenAI(api_key=...)`."
         ),
     )

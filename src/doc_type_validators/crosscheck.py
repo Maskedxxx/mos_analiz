@@ -223,7 +223,7 @@ def run_crosscheck_special(args) -> AuditResult:
 
         # Вызов Qwen.
         base_url = cfg.get("llm_base_url") or LLM_CONFIG.base_url
-        model = cfg.get("model") or LLM_CONFIG.model
+        model = cfg.get("model") or LLM_CONFIG.default_model
         client = OpenAI(base_url=base_url, api_key=LLM_CONFIG.api_key, timeout=OPENAI_TIMEOUT_SEC)
         resp = client.chat.completions.create(
             model=model,

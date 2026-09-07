@@ -1,6 +1,6 @@
 # START_MODULE_CONTRACT
 # PURPOSE: HTTP API-сервер аудита на FastAPI. Endpoints: /api/health, /api/login, /api/types, /api/audit (POST), /api/audit/<id>/events (SSE), /api/audit/<id>/result, /api/audit/<id>/download.
-# INPUTS: HTTP-запросы (загрузка файла + doc_type), env-переменные AUDIT_LOGIN/AUDIT_PASSWORD/AUDIT_TOKEN.
+# INPUTS: HTTP-запросы (загрузка файла + doc_type). Обязательные переменные окружения: AUDIT_LOGIN, AUDIT_PASSWORD, AUDIT_TOKEN (без них сервер не стартует); необязательная CORS_ORIGINS (через запятую). Адреса LLM/OCR — из config/llm.py и config/parsers.py.
 # OUTPUTS: app (FastAPI экземпляр) — уже подключённый со всеми middleware и роутами. Запускается через `uvicorn main:app` (main.py делает re-export).
 # KEYWORDS: api, fastapi, sse, auth, queue, audit.
 # LINKS: src/audit/engine.py (AuditEngine для multi_rule), src/doc_type_validators/{drivers,kpsc,kartochka_proekta,plan_grafik}.py (special-runner-ы).
@@ -36,6 +36,7 @@ from sse_starlette.sse import EventSourceResponse
 from openai import OpenAI
 
 from config.llm import LLM_CONFIG
+from config.parsers import PARSERS_CONFIG
 from src.audit.engine import AuditEngine
 from src.doc_type_validators.drivers import run_drivers_special
 from src.doc_type_validators.forma_0_3 import run_forma_0_3_special
@@ -82,9 +83,12 @@ except Exception as e:
 # START_APP
 app = FastAPI(title="AuditAPI")
 
+# Разрешённые origin фронтенда — из CORS_ORIGINS (через запятую). По умолчанию — локальный preview :5174.
+_CORS_ORIGINS = [o.strip() for o in os.getenv("CORS_ORIGINS", "http://localhost:5174,http://127.0.0.1:5174").split(",") if o.strip()]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173", "http://192.168.20.118:5173"],
+    allow_origins=_CORS_ORIGINS,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -93,10 +97,24 @@ app.add_middleware(
 
 
 # START_AUTH
-# PURPOSE: Cookie/Bearer-token аутентификация. Логин-парольная пара и токен — через env.
-AUTH_LOGIN = os.getenv("AUDIT_LOGIN", "admin")
-AUTH_PASSWORD = os.getenv("AUDIT_PASSWORD", "mos186124kva")
-AUTH_TOKEN = os.getenv("AUDIT_TOKEN", "audit-session-token-2026")
+# PURPOSE: Cookie/Bearer-token аутентификация. Логин, пароль и токен — ТОЛЬКО из окружения
+# (AUDIT_LOGIN / AUDIT_PASSWORD / AUDIT_TOKEN, см. .env.example). Дефолтов в коде нет намеренно:
+# без них сервер при старте (uvicorn) падает с понятным сообщением. Импорт модуля при этом
+# не ломается — CLI и тесты работают без этих переменных.
+AUTH_LOGIN = os.getenv("AUDIT_LOGIN", "")
+AUTH_PASSWORD = os.getenv("AUDIT_PASSWORD", "")
+AUTH_TOKEN = os.getenv("AUDIT_TOKEN", "")
+_REQUIRED_AUTH_ENV = ("AUDIT_LOGIN", "AUDIT_PASSWORD", "AUDIT_TOKEN")
+
+
+def check_auth_env() -> None:
+    """Проверяет, что все переменные аутентификации заданы. Бросает RuntimeError с перечнем пустых."""
+    missing = [name for name in _REQUIRED_AUTH_ENV if not os.getenv(name)]
+    if missing:
+        raise RuntimeError(
+            "Не заданы переменные окружения: " + ", ".join(missing)
+            + ". Задайте их в .env (образец — .env.example) или в окружении процесса."
+        )
 
 
 class LoginRequest(BaseModel):
@@ -112,7 +130,7 @@ def _check_auth(request: Request) -> None:
         auth_header = request.headers.get("Authorization", "")
         if auth_header.startswith("Bearer "):
             token = auth_header[7:]
-    if token != AUTH_TOKEN:
+    if not AUTH_TOKEN or token != AUTH_TOKEN:
         raise HTTPException(status_code=401, detail="Не авторизован")
 # END_AUTH
 
@@ -270,21 +288,29 @@ def _run_audit_thread(session_id: str, doc_type: str, target_path: str) -> None:
 
 
 # START_ENDPOINTS
+@app.on_event("startup")
+async def _require_auth_env() -> None:
+    """При старте сервера требуем AUDIT_* в окружении — иначе падаем с понятным сообщением."""
+    check_auth_env()
+
+
 @app.get("/api/health")
 async def health_check():
-    """Проверка здоровья всех сервисов. Без авторизации."""
+    """Проверка здоровья всех сервисов. Без авторизации. Адреса — из конфига (env LLM_BASE_URL / OCR_BASE_URL)."""
     from urllib.request import urlopen
     services = {}
+    ocr_models_url = PARSERS_CONFIG.pdf.vlm.base_url.rstrip("/") + "/models"
+    llm_models_url = LLM_CONFIG.base_url.rstrip("/") + "/models"
     try:
-        r = urlopen("http://172.16.10.35:11438/v1/models", timeout=5)
-        services["paddleocr"] = {"status": "ok", "code": r.status}
+        r = urlopen(ocr_models_url, timeout=5)
+        services["paddleocr"] = {"status": "ok", "code": r.status, "url": ocr_models_url}
     except Exception as e:
-        services["paddleocr"] = {"status": "error", "detail": str(e)}
+        services["paddleocr"] = {"status": "error", "detail": str(e), "url": ocr_models_url}
     try:
-        r = urlopen("http://172.16.10.35:11437/v1/models", timeout=5)
-        services["llm"] = {"status": "ok", "code": r.status}
+        r = urlopen(llm_models_url, timeout=5)
+        services["llm"] = {"status": "ok", "code": r.status, "url": llm_models_url}
     except Exception as e:
-        services["llm"] = {"status": "error", "detail": str(e)}
+        services["llm"] = {"status": "error", "detail": str(e), "url": llm_models_url}
     try:
         import torch as _torch
         cuda_ok = _torch.cuda.is_available()

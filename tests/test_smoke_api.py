@@ -60,8 +60,8 @@ def test_list_types_with_auth():
     import main
 
     client = TestClient(main.app)
-    login = os.getenv("AUDIT_LOGIN", "admin")
-    password = os.getenv("AUDIT_PASSWORD", "mos186124kva")
+    login = os.environ["AUDIT_LOGIN"]
+    password = os.environ["AUDIT_PASSWORD"]
 
     # Логин
     login_resp = client.post("/api/login", json={"login": login, "password": password})

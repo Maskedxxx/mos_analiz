@@ -74,7 +74,7 @@ class RemoteLayoutDetector:
             Инициализирует клиент.
 
         Вход:
-            base_url: URL layout-сервиса (например, http://172.16.10.35:11439).
+            base_url: URL layout-сервиса (значение PARSERS_CONFIG.pdf.layout.base_url, env LAYOUT_BASE_URL).
             timeout: Таймаут запроса в секундах.
 
         Выход:

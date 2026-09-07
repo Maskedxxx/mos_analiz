@@ -5,6 +5,5 @@
   "model": "Qwen3.5-35B-A3B",
   "temperature": 0.0,
   "max_workers": 5,
-  "llm_base_url": "http://172.16.10.35:11437/v1/",
   "llm_seed": 42
 }

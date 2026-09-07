@@ -6,6 +6,5 @@
   "temperature": 0.0,
   "primary_threshold": 9.0,
   "fallback_threshold": 7.0,
-  "llm_base_url": "http://172.16.10.35:11437/v1/",
   "llm_seed": 42
 }
