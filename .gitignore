@@ -48,7 +48,8 @@ node_modules/
 dist/
 
 # Тестовые данные (docx, json, jpg — хранятся локально)
-tests/data/
+tests/data/*
+!tests/data/README.md
 
 # Архивы
 *.zip
