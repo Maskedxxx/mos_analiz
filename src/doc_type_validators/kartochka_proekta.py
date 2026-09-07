@@ -222,7 +222,7 @@ def _rule_3_load_data(parser_outputs_dir: Path) -> Any:
 
 def _rule_3_check_semantic(project_name: str, rule: dict, api_key: str) -> dict:
     """LLM-проверка осмысленности названия проекта/потока (через единый клиент)."""
-    del api_key  # src.llm.client сам формирует api_key для Spark-vLLM
+    del api_key  # src.llm.client сам подставляет ключ из LLM_CONFIG
     prompt = f'Ты эксперт по проверке документов «Карточка проекта» в рамках бережливого производства.\n\nТРЕБОВАНИЕ:\n{rule['requirement_expert']}\n\nКРИТЕРИИ:\n- Что проверять: {rule['validation_criteria']['what_to_check']}\n- Условие успеха: {rule['validation_criteria']['success_condition']}\n- Условие ошибки: {rule['validation_criteria']['error_condition']}\n\nФАКТИЧЕСКИЕ ДАННЫЕ:\nНазвание проекта/потока: "{project_name}"\n\nЗАДАНИЕ:\nПроверь, является ли название проекта осмысленным текстом, описывающим реальный проект или поток.\nНе является осмысленным: placeholder ("Название проекта"), набор символов ("ааааа"), слишком общий текст ("тест").\nЯвляется осмысленным: конкретное описание проекта ("Оптимизация производства приборов учёта").\n\nФОРМАТ ОТВЕТА (строго JSON):\n{{\n  "rule_index": "{_RULE_3_INDEX}",\n  "rule_title": "{_RULE_3_TITLE}",\n  "status": "PASS или FAIL",\n  "discrepancy": "Описание проблемы если FAIL, иначе пустая строка"\n}}\n'
     result_text = call_llm(
         messages=[
@@ -375,7 +375,7 @@ def _rule_6_load_data(parser_outputs_dir: Path) -> Any:
 
 def _rule_6_check_semantic(key_risk: str, justification: str, rule: dict, api_key: str) -> dict:
     """LLM-проверка осмысленности обоснования и ключевого риска (через единый клиент)."""
-    del api_key  # src.llm.client сам формирует api_key для Spark-vLLM
+    del api_key  # src.llm.client сам подставляет ключ из LLM_CONFIG
     prompt = f'Ты эксперт по проверке документов «Карточка проекта» в рамках бережливого производства.\n\nТРЕБОВАНИЕ:\n{rule['requirement_expert']}\n\nКРИТЕРИИ:\n- Что проверять: {rule['validation_criteria']['what_to_check']}\n- Условие успеха: {rule['validation_criteria']['success_condition']}\n- Условие ошибки: {rule['validation_criteria']['error_condition']}\n\nФАКТИЧЕСКИЕ ДАННЫЕ:\nКлючевой риск (M11): "{key_risk}"\nОбоснование выбора потока (M13): "{justification}"\n\nЗАДАНИЕ:\nПроверь, содержат ли оба поля осмысленный текст:\n- Ключевой риск — должен описывать конкретный риск проекта (например: "Срыв сроков", "Потеря клиентов").\n  НЕ осмысленный: "-", "нет", "риск", набор символов.\n- Обоснование — должно содержать аргументацию выбора потока (например: "Наличие ожидания в потоке, несвоевременная подготовка").\n  НЕ осмысленный: "-", "обоснование", "тест", набор символов.\n\nФОРМАТ ОТВЕТА (строго JSON):\n{{\n  "rule_index": "{_RULE_6_INDEX}",\n  "rule_title": "{_RULE_6_TITLE}",\n  "status": "PASS или FAIL",\n  "discrepancy": "Описание проблемы если FAIL, иначе пустая строка"\n}}\n'
     result_text = call_llm(
         messages=[

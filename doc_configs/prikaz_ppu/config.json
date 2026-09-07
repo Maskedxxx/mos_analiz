@@ -1,7 +1,6 @@
 {
   "doc_type": "prikaz_ppu",
   "doc_title": "3.10 Приказ о ППУ",
-  "model": "Qwen3.5-35B-A3B",
   "filename_pattern": "order_ppu",
   "filename_keywords": [
     "приказ",

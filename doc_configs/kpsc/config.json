@@ -2,7 +2,6 @@
   "doc_type": "kpsc",
   "doc_title": "2.1 КПСЦ — Карта потока создания ценности",
   "engine": "kpsc",
-  "model": "Qwen3.5-35B-A3B",
   "temperature": 0.0,
   "max_workers": 5,
   "llm_seed": 42

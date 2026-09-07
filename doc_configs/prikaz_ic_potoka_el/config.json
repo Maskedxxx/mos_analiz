@@ -1,7 +1,6 @@
 {
   "doc_type": "prikaz_ic_potoka_el",
   "doc_title": "1.3 Приказ о создании ИЦ потока эл. вид с прилож.",
-  "model": "Qwen3.5-35B-A3B",
   "filename_pattern": "1.3 Приказ о создании ИЦ потока эл. вид с прилож",
   "max_workers": 1,
   "temperature": 0.0,

@@ -23,7 +23,7 @@ from config.llm import LLM_CONFIG
 
 # START_OPENAI_DEFAULTS
 # PURPOSE: Защита от висящих LLM-запросов и принудительное `enable_thinking=False`
-# для Qwen-thinking моделей на Spark-vLLM. Эти параметры применяются ВСЕГДА ко
+# для Qwen-thinking моделей на локальном LLM-сервисе. Эти параметры применяются ВСЕГДА ко
 # всем `call_llm`-вызовам (раньше делалось через monkey-patch в main.py — теперь
 # inline в клиенте).
 # - OPENAI_TIMEOUT_SEC: дефолтный таймаут запроса (сек), env-override.
@@ -78,15 +78,15 @@ def make_async_llm_client(base_url: Optional[str] = None, api_key: Optional[str]
 
 
 # START_MODEL_RESOLVER
-# PURPOSE: Резолвит имя LLM-модели. Нужно, потому что конфиги doc_types часто содержат стейл-идентификаторы облачных моделей (gpt-4.1-mini, openai/gpt-oss-120b), а локальный Spark-vLLM сервис ждёт имя, которое он зарегистрировал у себя.
+# PURPOSE: Резолвит имя LLM-модели. Нужно, потому что конфиги doc_types часто содержат стейл-идентификаторы облачных моделей (gpt-4.1-mini, openai/gpt-oss-120b), а локальный OpenAI-совместимый LLM-сервис (vLLM / llama.cpp) ждёт имя, которое он зарегистрировал у себя (env LLM_MODEL).
 # INPUTS: Имя модели из конфига (опционально).
-# OUTPUTS: Имя модели, пригодное для Spark-vLLM.
+# OUTPUTS: Имя модели, пригодное для локального LLM-сервиса.
 # KEYWORDS: model-resolver, fallback, stale-cloud-id.
 def resolve_runtime_llm_model(model_name: Optional[str]) -> str:
     """
     Назначение:
         Маппит стейл-идентификаторы облачных моделей (наследие от прежней конфигурации
-        с облачными LLM) на имя модели, реально обслуживаемое Spark-vLLM. Дефолт —
+        с облачными LLM) на имя модели, реально обслуживаемое локальным сервисом. Дефолт —
         `LLM_CONFIG.default_model`.
 
     Вход:
@@ -98,7 +98,7 @@ def resolve_runtime_llm_model(model_name: Optional[str]) -> str:
     Логика:
         1. `None`/пусто → `LLM_CONFIG.default_model`.
         2. Имена с префиксом `openai/` или `gpt-` → `LLM_CONFIG.default_model`
-           (эти имена были актуальны только для облачного API, Spark их не знает).
+           (эти имена были актуальны только для облачного API, локальный сервис их не знает).
         3. Прочие имена передаются как есть.
     """
     fallback = LLM_CONFIG.default_model
@@ -242,7 +242,7 @@ def call_llm(
             замаплен через `resolve_runtime_llm_model`.
         temperature: Температура генерации (0.0 = детерминизм).
         base_url: URL сервиса. `None` → облачный OpenAI через env-var `OPENAI_API_KEY`.
-            Любое значение → Spark-vLLM с `api_key='none'`.
+            Любое значение → локальный OpenAI-совместимый LLM-сервис (vLLM / llama.cpp), ключ из LLM_CONFIG.api_key.
         max_tokens: Лимит токенов ответа. `None` → по умолчанию провайдера.
         reasoning_effort: Для gpt-oss-моделей: `low`/`medium`/`high`. Прокидывается
             через `extra_body={"reasoning_effort": ...}`.
@@ -254,13 +254,13 @@ def call_llm(
         Текст ответа LLM (или пустая строка, если `message.content` отсутствует).
 
     Логика:
-        1. Если `base_url` задан — создаём OpenAI клиент для Spark-vLLM; иначе облачный.
+        1. Если `base_url` задан — клиент к локальному сервису через `make_llm_client`; иначе облачный.
            Клиент создаётся с `timeout=OPENAI_TIMEOUT_SEC` (защита от висящих запросов).
         2. Спускаем стейл-имена моделей через `resolve_runtime_llm_model` — только когда
            работаем с локальным сервисом (иначе облачный API знает свои имена).
         3. Собираем kwargs только с непустыми опциональными полями.
         4. ВСЕГДА добавляем в `extra_body` `chat_template_kwargs={'enable_thinking': False}`
-           — иначе Qwen3.5 на Spark уходит в thinking-mode и обёртывает строгий JSON в
+           — иначе Qwen (thinking-модель) уходит в thinking-mode и обёртывает строгий JSON в
            markdown ` ```json ... ``` `, ломая `json.loads`. Мерджится с reasoning_effort.
         5. Делаем `chat.completions.create`, возвращаем content.
     """

@@ -1,7 +1,6 @@
 {
   "doc_type": "spravka_ee",
   "doc_title": "1.6 Справка о расчёте экономического эффекта (факт)",
-  "model": "Qwen3.5-35B-A3B",
   "filename_pattern": "spravka_ee",
   "filename_keywords": [
     "справка",

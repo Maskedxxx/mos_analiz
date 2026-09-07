@@ -1,7 +1,6 @@
 {
   "doc_type": "prikaz_formirovanie_po",
   "doc_title": "3.5 Приказ о формировании ПО",
-  "model": "Qwen3.5-35B-A3B",
   "filename_keywords": [
     "приказ",
     "ПО"

@@ -3,7 +3,6 @@
   "doc_title": "3.4 Лист присутствия (Модуль 2)",
   "engine": "list_prisutstviya",
   "module": 2,
-  "model": "Qwen3.5-35B-A3B",
   "max_workers": 5,
   "temperature": 0.0,
   "allowed_trainings": [

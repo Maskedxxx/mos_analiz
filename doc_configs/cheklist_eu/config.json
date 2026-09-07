@@ -1,7 +1,6 @@
 {
   "doc_type": "cheklist_eu",
   "doc_title": "2.5 Чек-лист выбора ЭУ",
-  "model": "Qwen3.5-35B-A3B",
   "filename_keywords": [
     "Чек",
     "лист",

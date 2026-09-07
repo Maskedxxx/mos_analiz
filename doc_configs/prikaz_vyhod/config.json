@@ -1,7 +1,6 @@
 {
   "doc_type": "prikaz_vyhod",
   "doc_title": "3.6 Приказ о проведении выхода + График обхода ОМ",
-  "model": "Qwen3.5-35B-A3B",
   "filename_pattern": "3.6 Приказ о проведении выхода",
   "max_workers": 4,
   "temperature": 0.0,

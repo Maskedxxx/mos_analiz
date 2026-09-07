@@ -475,7 +475,7 @@ def run_multi_rule_audit(
     include_scopes: Optional[List[str]],
     filename: str,
     llm_base_url: str,
-    llm_model: str = "Qwen3.5-35B-A3B",
+    llm_model: Optional[str] = None,
     session_dir: Optional[Path] = None,
     layer: str = "base",
 ) -> Dict[str, Any]:
@@ -492,7 +492,7 @@ def run_multi_rule_audit(
         filename: Имя файла для подстановки в промпт.
         llm_base_url: URL LLM сервиса (обычно из `AuditConfig.llm_base_url` или
             `LLM_CONFIG.base_url`).
-        llm_model: Имя модели (по умолчанию Qwen3.5-35B-A3B).
+        llm_model: Имя модели. `None` → `LLM_CONFIG.default_model` (env LLM_MODEL).
         session_dir: Если задан — сохраняет debug-артефакты
             (system_prompt.txt, user_prompt.txt, response_raw.txt, response_parsed.json).
         layer: `base` или `methodology` — префикс для имён debug-файлов и поле
@@ -522,6 +522,7 @@ def run_multi_rule_audit(
         (session_dir / f"{prefix}_system_prompt.txt").write_text(SYSTEM_PROMPT, encoding="utf-8")
         (session_dir / f"{prefix}_user_prompt.txt").write_text(user_prompt, encoding="utf-8")
 
+    llm_model = llm_model or LLM_CONFIG.default_model
     client = make_llm_client(llm_base_url)
     # Ретрай при «каше» ответа LLM: модель иногда возвращает не JSON-массив вердиктов,
     # а одиночный объект/ошибку → парсер даёт < N годных вердиктов и весь слой молча обнуляется.

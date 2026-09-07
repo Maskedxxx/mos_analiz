@@ -1,7 +1,6 @@
 {
   "doc_type": "prikaz_otvetstvennyh",
   "doc_title": "0.2 Приказ о назначении ответственных",
-  "model": "Qwen3.5-35B-A3B",
   "filename_keywords": [
     "0.2",
     "приказ",

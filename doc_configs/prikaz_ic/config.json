@@ -1,7 +1,6 @@
 {
   "doc_type": "prikaz_ic",
   "doc_title": "1.5 Приказ о создании ИЦ предприятия с прилож.",
-  "model": "Qwen3.5-35B-A3B",
   "filename_keywords": [
     "приказ",
     "ИЦ"

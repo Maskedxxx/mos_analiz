@@ -2,7 +2,6 @@
   "doc_type": "drivers",
   "doc_title": "1.1 Расчёт драйверов производительности",
   "engine": "drivers",
-  "model": "Qwen3.5-35B-A3B",
   "temperature": 0.0,
   "primary_threshold": 9.0,
   "fallback_threshold": 7.0,

@@ -52,10 +52,11 @@ class LlmConfig(BaseSettings):
         ),
     )
     default_model: str = Field(
-        default="Qwen3.5-35B-A3B",
+        default="Qwen3.6-35B-A3B",
         validation_alias=AliasChoices("LLM_MODEL", "LLM_DEFAULT_MODEL"),
         description=(
-            "Имя модели по умолчанию в Spark-vLLM. Используется как fallback в "
+            "Имя модели по умолчанию (env: LLM_MODEL) — как её зарегистрировал LLM-сервис "
+            "(`GET <LLM_BASE_URL>/models`). Используется как fallback в "
             "`resolve_runtime_llm_model`: если doc_type указывает стейл-идентификатор "
             "(`gpt-4.1-mini`, `openai/gpt-oss-120b`) — он подменяется на это значение."
         ),
@@ -82,8 +83,8 @@ class LlmConfig(BaseSettings):
             "`extra_body={'reasoning_effort': ...}` в chat.completions.\n"
             "\n"
             "**ВАЖНО:** по умолчанию `None` — т.е. параметр НЕ отправляется, и это "
-            "сознательно. Наш рантайм-LLM (`Qwen3.5-35B-A3B` на Spark через "
-            "`resolve_runtime_llm_model`) reasoning_effort НЕ поддерживает; включение "
+            "сознательно. Рантайм-модель Qwen (через `resolve_runtime_llm_model`) "
+            "reasoning_effort НЕ поддерживает; включение "
             "ломает ответы (исторически выявлено). Связанная защита: "
             "`src/llm/client.py:call_llm` ВСЕГДА добавляет в `extra_body` "
             "`chat_template_kwargs={'enable_thinking': False}` чтобы Qwen не уходил в "

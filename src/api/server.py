@@ -65,6 +65,8 @@ try:
         print(f"[CUDA] Контекст зарезервирован на {torch.cuda.get_device_name(0)}")
     else:
         print("[CUDA] GPU не обнаружен — пропуск CUDA warmup (модели на удалённом сервере)")
+except ImportError:
+    print("[CUDA] torch не установлен — пропуск CUDA warmup (модели на удалённом сервере)")
 except Exception as e:
     print(f"[CUDA] Не удалось зарезервировать контекст: {e}")
 # END_CUDA_WARMUP

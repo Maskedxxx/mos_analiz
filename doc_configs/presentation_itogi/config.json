@@ -1,7 +1,6 @@
 {
   "doc_type": "presentation_itogi",
   "doc_title": "2.8 Отчётная презентация по итогам реализации проекта",
-  "model": "Qwen3.6-35B-A3B",
   "filename_pattern": "2.8 Итоги программы",
   "max_workers": 1,
   "temperature": 0.0,

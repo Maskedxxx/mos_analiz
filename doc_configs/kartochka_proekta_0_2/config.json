@@ -2,7 +2,6 @@
   "doc_type": "kartochka_proekta_0_2",
   "doc_title": "0.2 Карточка проекта (предварительная)",
   "engine": "kartochka_proekta_0_2",
-  "model": "Qwen3.5-35B-A3B",
   "temperature": 0.0,
   "max_workers": 5
 }

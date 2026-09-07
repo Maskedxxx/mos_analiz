@@ -5,7 +5,6 @@
     ".pdf": "paddle",
     ".docx": "docx"
   },
-  "model": "Qwen3.5-35B-A3B",
   "filename_keywords": [
     "0.5",
     "Приказ",

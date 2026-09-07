@@ -2,7 +2,6 @@
   "doc_type": "plan_grafik",
   "doc_title": "2.6 План-график мероприятий",
   "engine": "plan_grafik",
-  "model": "Qwen3.5-35B-A3B",
   "temperature": 0.0,
   "max_workers": 1
 }

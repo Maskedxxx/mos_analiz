@@ -1,5 +1,5 @@
 # START_MODULE_CONTRACT
-# PURPOSE: Generic-движок аудита для 20 docx/pptx doc_types через multi_rule LLM-путь. Используется когда `AuditConfig.parser_by_ext` задан (НЕ для special-движков kpsc/kartochka/drivers/plan_grafik — у тех свои runner-ы в `src/doc_type_validators/`).
+# PURPOSE: Generic-движок аудита для всех типов с текстовым содержимым (docx/pptx/pdf) через multi_rule LLM-путь. Используется, когда в config.json типа задан `parser_by_ext` и нет поля `engine` (спецдвижки по xlsx — в реестре `src/engines.py`, раннеры в `src/doc_type_validators/`).
 # INPUTS: doc_type (имя папки в doc_configs/), target file. Конфиг через `load_audit_config`. LLM через `run_multi_rule_audit`.
 # OUTPUTS: `AuditResult` с violations + Excel-отчёт + JSON-логи в session_dir.
 # KEYWORDS: engine, multi-rule, generic-runtime, docx, pptx, pdf.
