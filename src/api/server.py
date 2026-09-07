@@ -32,13 +32,11 @@ from fastapi.responses import FileResponse, JSONResponse
 from pydantic import BaseModel
 from sse_starlette.sse import EventSourceResponse
 
-from openai import OpenAI
-
 from config.llm import LLM_CONFIG
 from config.parsers import PARSERS_CONFIG
 from src.audit.engine import AuditEngine
 from src.engines import SPECIAL_ENGINE_RUNNERS, detect_engine
-from src.llm.client import OPENAI_TIMEOUT_SEC
+from src.llm.client import make_llm_client
 # END_IMPORTS
 
 
@@ -445,7 +443,7 @@ def _author_rule(doc_type: str, title: str, raw_check: str, sections_sel: List[s
     """Спец-модель переписывает сырьё эксперта в чёткую инструкцию (check + exclusions)."""
     cfg = json.loads((_DOC_CONFIGS_DIR / doc_type / "config.json").read_text(encoding="utf-8"))
     base_url = cfg.get("llm_base_url") or LLM_CONFIG.base_url
-    model = cfg.get("model") or LLM_CONFIG.model
+    model = cfg.get("model") or LLM_CONFIG.default_model
     doc_title = cfg.get("doc_title", doc_type)
     # Контекст выбранных секций (одна, несколько или все = «весь документ»).
     all_sections = [s for s in sections_map if s != "filename"]
@@ -460,7 +458,7 @@ def _author_rule(doc_type: str, title: str, raw_check: str, sections_sel: List[s
         "Составь строгую инструкцию проверки для указанных секций и верни JSON {check, exclusions}. "
         "Если проверка охватывает несколько секций или весь документ — учти это в формулировке."
     )
-    client = OpenAI(base_url=base_url, api_key=LLM_CONFIG.api_key, timeout=OPENAI_TIMEOUT_SEC)
+    client = make_llm_client(base_url)
     resp = client.chat.completions.create(
         model=model,
         messages=[

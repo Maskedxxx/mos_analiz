@@ -16,10 +16,9 @@ import re
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
-from openai import OpenAI
 
 from config.llm import LLM_CONFIG
-from src.llm.client import OPENAI_TIMEOUT_SEC
+from src.llm.client import make_llm_client
 # END_IMPORTS
 
 
@@ -523,7 +522,7 @@ def run_multi_rule_audit(
         (session_dir / f"{prefix}_system_prompt.txt").write_text(SYSTEM_PROMPT, encoding="utf-8")
         (session_dir / f"{prefix}_user_prompt.txt").write_text(user_prompt, encoding="utf-8")
 
-    client = OpenAI(base_url=llm_base_url, api_key=LLM_CONFIG.api_key, timeout=OPENAI_TIMEOUT_SEC)
+    client = make_llm_client(llm_base_url)
     # Ретрай при «каше» ответа LLM: модель иногда возвращает не JSON-массив вердиктов,
     # а одиночный объект/ошибку → парсер даёт < N годных вердиктов и весь слой молча обнуляется.
     # Переспрашиваем модель, меняя seed (иначе повтор даст тот же результат), берём лучшую попытку.

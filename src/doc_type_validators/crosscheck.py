@@ -5,7 +5,7 @@
 # OUTPUTS: `AuditResult` (violations/rules_checked/session_dir/...); артефакты validation_outputs/validate_N.json + validation_report.xlsx + llm_prompt/response.
 # KEYWORDS: crosscheck, multi-doc, llm, qwen, kartochka, protokol, tirazh, special-runner.
 # LINKS: src/api/server.py (SPECIAL_ENGINE_RUNNERS), src/audit/models.py (AuditResult),
-#   src/format_parsers (parse_pdf/parse_docx), config/parsers.py (PARSERS_CONFIG), config/llm.py (LLM_CONFIG), src/llm/client.py (OPENAI_TIMEOUT_SEC).
+#   src/format_parsers (parse_pdf/parse_docx), config/parsers.py (PARSERS_CONFIG), config/llm.py (LLM_CONFIG), src/llm/client.py (make_llm_client).
 # END_MODULE_CONTRACT
 
 from __future__ import annotations
@@ -19,14 +19,13 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 import openpyxl
-from openai import OpenAI
 
 from src.audit.models import AuditResult
 from src.format_parsers import parse_docx
 from src.format_parsers.pdf import parse_pdf
 from config.parsers import PARSERS_CONFIG
 from config.llm import LLM_CONFIG
-from src.llm.client import OPENAI_TIMEOUT_SEC
+from src.llm.client import make_llm_client
 
 # START_CONSTANTS
 _PROJECT_ROOT = Path(__file__).resolve().parents[2]
@@ -224,7 +223,7 @@ def run_crosscheck_special(args) -> AuditResult:
         # Вызов Qwen.
         base_url = cfg.get("llm_base_url") or LLM_CONFIG.base_url
         model = cfg.get("model") or LLM_CONFIG.default_model
-        client = OpenAI(base_url=base_url, api_key=LLM_CONFIG.api_key, timeout=OPENAI_TIMEOUT_SEC)
+        client = make_llm_client(base_url)
         resp = client.chat.completions.create(
             model=model,
             messages=[{"role": "system", "content": _SYSTEM_PROMPT}, {"role": "user", "content": user_prompt}],

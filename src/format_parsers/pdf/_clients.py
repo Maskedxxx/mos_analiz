@@ -459,9 +459,9 @@ class VLMClient:
         self.api_key = api_key
         self.max_tokens = max_tokens
         self.temperature = temperature
-        # timeout — защита от висящих запросов; см. src/llm/client.py:OPENAI_TIMEOUT_SEC.
-        from src.llm.client import OPENAI_TIMEOUT_SEC
-        self.client = AsyncOpenAI(base_url=self.base_url, api_key=self.api_key, timeout=OPENAI_TIMEOUT_SEC)
+        # Клиент создаётся фабрикой из src/llm/client.py (таймаут OPENAI_TIMEOUT_SEC — там же).
+        from src.llm.client import make_async_llm_client
+        self.client = make_async_llm_client(self.base_url, self.api_key)
         self.model_name = model or self._detect_model()
 
     def _detect_model(self) -> str:
@@ -480,8 +480,8 @@ class VLMClient:
             2. Запрашивает список моделей.
             3. Возвращает `models.data[0].id` или бросает ConnectionError.
         """
-        from src.llm.client import OPENAI_TIMEOUT_SEC
-        sync_client = OpenAI(base_url=self.base_url, api_key=self.api_key, timeout=OPENAI_TIMEOUT_SEC)
+        from src.llm.client import make_llm_client
+        sync_client = make_llm_client(self.base_url, self.api_key)
         try:
             models = sync_client.models.list()
             if models.data:

@@ -1,10 +1,10 @@
 # START_MODULE_CONTRACT
-# PURPOSE: Клиент к LLM. Одна функция — один вызов к модели через OpenAI Chat API. Плюс утилиты: парсинг JSON-ответа (с обработкой markdown-блоков и битых переносов строк) и резолвинг стейл-идентификаторов облачных моделей в локальное имя.
+# PURPOSE: Единственное место создания клиентов к OpenAI-совместимым сервисам (`make_llm_client` / `make_async_llm_client`: base_url, api_key, таймаут — из config/llm.py) и универсальный вызов `call_llm`. Плюс утилиты: парсинг JSON-ответа (с обработкой markdown-блоков и битых переносов строк) и резолвинг стейл-идентификаторов облачных моделей в локальное имя.
 # INPUTS: Список messages (OpenAI-совместимый), параметры модели (name, base_url, temperature, max_tokens, reasoning_effort, seed).
 # OUTPUTS: `call_llm` → текстовый ответ; `parse_json_response` → список нарушений. Errors: JSONDecodeError → пустой список + warning в stderr.
 # KEYWORDS: llm, openai, json-parse, sanitize, reasoning-effort, vllm.
 # LINKS: src/llm/multi_rule.py (будет на 2.4), main.py (kpsc/kartochka validators), config/parsers.py (для будущего LlmConfig).
-# RATIONALE: LLM-вызов должен иметь один источник. Раньше логика была размазана по main.py в 4 местах (общий call_llm, kpsc-валидаторы с собственными os.environ, multi_rule, несколько вариантов санитайзинга). Здесь — единая точка.
+# RATIONALE: Точка подключения модели должна быть одна — чтобы смена сервиса (адрес, ключ, таймаут) не требовала правок по модулям. Клиент создаётся только здесь; сами вызовы `chat.completions.create` с особыми параметрами остаются в модулях, где они нужны: `src/llm/multi_rule.py` (Qwen-специфичные параметры и ретраи), `src/doc_type_validators/crosscheck.py`, `src/api/server.py` (автор правил), `src/format_parsers/pdf/_clients.py` (VLM). Всё остальное ходит через `call_llm`.
 # END_MODULE_CONTRACT
 
 from __future__ import annotations
@@ -15,7 +15,7 @@ import os
 import sys
 from typing import Any, Dict, List, Optional
 
-from openai import OpenAI
+from openai import AsyncOpenAI, OpenAI
 
 from config.llm import LLM_CONFIG
 # END_IMPORTS
@@ -32,6 +32,49 @@ from config.llm import LLM_CONFIG
 OPENAI_TIMEOUT_SEC = float(os.environ.get("OPENAI_TIMEOUT_SEC", "300"))
 DISABLE_THINKING_EXTRA_BODY: Dict[str, Any] = {"chat_template_kwargs": {"enable_thinking": False}}
 # END_OPENAI_DEFAULTS
+
+
+# START_CLIENT_FACTORY
+# PURPOSE: Единственное место, где создаются клиенты к OpenAI-совместимым сервисам (LLM, VLM/OCR).
+# INPUTS: base_url (None → LLM_CONFIG.base_url), api_key (None → LLM_CONFIG.api_key).
+# OUTPUTS: `OpenAI` / `AsyncOpenAI` с таймаутом OPENAI_TIMEOUT_SEC.
+# KEYWORDS: factory, openai-compatible, timeout.
+def make_llm_client(base_url: Optional[str] = None, api_key: Optional[str] = None) -> OpenAI:
+    """
+    Назначение:
+        Создаёт синхронный клиент к OpenAI-совместимому сервису.
+
+    Вход:
+        base_url: URL сервиса до `/v1/`. `None` → `LLM_CONFIG.base_url` (env LLM_BASE_URL).
+        api_key: Ключ. `None` → `LLM_CONFIG.api_key` (для локальных серверов — любое непустое значение).
+
+    Выход:
+        `OpenAI` с таймаутом `OPENAI_TIMEOUT_SEC`.
+    """
+    return OpenAI(
+        base_url=base_url or LLM_CONFIG.base_url,
+        api_key=api_key or LLM_CONFIG.api_key,
+        timeout=OPENAI_TIMEOUT_SEC,
+    )
+
+
+def make_async_llm_client(base_url: Optional[str] = None, api_key: Optional[str] = None) -> AsyncOpenAI:
+    """
+    Назначение:
+        Создаёт асинхронный клиент к OpenAI-совместимому сервису (используется VLM-парсером PDF).
+
+    Вход:
+        base_url, api_key: как у `make_llm_client`.
+
+    Выход:
+        `AsyncOpenAI` с таймаутом `OPENAI_TIMEOUT_SEC`.
+    """
+    return AsyncOpenAI(
+        base_url=base_url or LLM_CONFIG.base_url,
+        api_key=api_key or LLM_CONFIG.api_key,
+        timeout=OPENAI_TIMEOUT_SEC,
+    )
+# END_CLIENT_FACTORY
 
 
 # START_MODEL_RESOLVER
@@ -223,8 +266,9 @@ def call_llm(
     """
     if base_url:
         model = resolve_runtime_llm_model(model)
-        client = OpenAI(base_url=base_url, api_key="none", timeout=OPENAI_TIMEOUT_SEC)
+        client = make_llm_client(base_url)
     else:
+        # Облачный OpenAI: ключ берётся SDK из OPENAI_API_KEY. Единственный путь мимо фабрики.
         client = OpenAI(timeout=OPENAI_TIMEOUT_SEC)
     kwargs: Dict[str, Any] = {"model": model, "messages": messages, "temperature": temperature}
     if max_tokens is not None:
