@@ -3,12 +3,12 @@
 # INPUTS: CLI-аргументы (argparse), doc_configs/<doc_type>/config.json (для определения engine).
 # OUTPUTS: AuditResult в stdout/Excel-отчёт; exit code 0/1 по `--fail-on-violations`.
 # KEYWORDS: cli, entrypoint, dispatch, uvicorn.
-# LINKS: src/api/server.py (FastAPI app), src/audit/engine.py (AuditEngine), src/doc_type_validators/{drivers,kpsc,kartochka_proekta,plan_grafik}.py (special-runner-ы).
+# LINKS: src/api/server.py (FastAPI app), src/audit/engine.py (AuditEngine), src/engines.py (реестр спецдвижков и detect_engine).
 # RATIONALE:
 #   После пошагового рефакторинга (steps 1..K) вся бизнес-логика и инфраструктура
 #   живёт в src/. main.py — это ровно две роли:
 #     1. CLI: парсит argparse, диспатчит на AuditEngine (multi_rule generic путь)
-#        или на один из 4 special-runner-ов по `engine` из config.json.
+#        или на спецдвижок из реестра `src/engines.py` по `engine` из config.json.
 #     2. Re-export `app` для `uvicorn main:app` (этот entrypoint исторически жил
 #        в main, тесты `tests/test_smoke_api.py` тоже используют `main.app`).
 # END_MODULE_CONTRACT
@@ -26,14 +26,8 @@ from src.api.server import app  # noqa: F401
 
 from src.audit.engine import AuditEngine
 from src.doc_type_parsers.kpsc import kpsc_parse_kpsc_header_build_payload
-from src.doc_type_validators.drivers import run_drivers_special
-from src.doc_type_validators.crosscheck import run_crosscheck_special
-from src.doc_type_validators.forma_0_3 import run_forma_0_3_special
-from src.doc_type_validators.forma_0_4 import run_forma_0_4_special
-from src.doc_type_validators.kartochka_proekta import run_kartochka_proekta_special
-from src.doc_type_validators.kpsc import _run_kpsc_parsers, run_kpsc_special
-from src.doc_type_validators.list_prisutstviya import run_list_prisutstviya_special
-from src.doc_type_validators.plan_grafik import run_plan_grafik_special
+from src.doc_type_validators.kpsc import _run_kpsc_parsers
+from src.engines import SPECIAL_ENGINE_RUNNERS, detect_engine  # noqa: F401 — реестр реэкспортируется для тестов
 # END_IMPORTS
 
 
@@ -45,35 +39,8 @@ DOC_CONFIGS_DIR = PROJECT_ROOT / "doc_configs"
 
 
 # START_DISPATCH
-# PURPOSE: Маппинг engine-key → special-runner callable. Используется CLI-`main()`
-# для выбора пайплайна по `engine`-полю в doc_configs/<doc_type>/config.json.
-SPECIAL_ENGINE_RUNNERS = {
-    "drivers": run_drivers_special,
-    "forma_0_3": run_forma_0_3_special,
-    "forma_0_4": run_forma_0_4_special,
-    "kpsc": run_kpsc_special,
-    "kartochka_proekta_2_4": run_kartochka_proekta_special,
-    "kartochka_proekta_0_2": run_kartochka_proekta_special,
-    "list_prisutstviya": run_list_prisutstviya_special,
-    "plan_grafik": run_plan_grafik_special,
-    "crosscheck_2_4_0_6_0_5": run_crosscheck_special,
-}
-
-
-def _detect_engine(doc_type: str) -> str:
-    """
-    Читает `engine` из doc_configs/<doc_type>/config.json.
-
-    Returns:
-        Имя special-движка (kpsc/kartochka_proekta/drivers/plan_grafik) или
-        'vision' для generic multi_rule пути через AuditEngine.
-    """
-    config_path = DOC_CONFIGS_DIR / doc_type / "config.json"
-    if not config_path.exists():
-        return "vision"
-    with open(config_path, "r", encoding="utf-8") as f:
-        data = json.load(f)
-    return data.get("engine", "vision")
+# PURPOSE: Диспетчер CLI берёт реестр спецдвижков и detect_engine из src/engines.py —
+# единственного места, где перечислены раннеры (общее с веб-бэкендом).
 # END_DISPATCH
 
 
@@ -113,7 +80,7 @@ def main() -> None:
     if not args.target:
         parser.error("--target обязателен")
 
-    engine_type = _detect_engine(args.doc_type)
+    engine_type = detect_engine(args.doc_type)
     if engine_type in SPECIAL_ENGINE_RUNNERS:
         result = SPECIAL_ENGINE_RUNNERS[engine_type](args)
     else:

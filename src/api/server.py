@@ -3,12 +3,11 @@
 # INPUTS: HTTP-запросы (загрузка файла + doc_type). Обязательные переменные окружения: AUDIT_LOGIN, AUDIT_PASSWORD, AUDIT_TOKEN (без них сервер не стартует); необязательная CORS_ORIGINS (через запятую). Адреса LLM/OCR — из config/llm.py и config/parsers.py.
 # OUTPUTS: app (FastAPI экземпляр) — уже подключённый со всеми middleware и роутами. Запускается через `uvicorn main:app` (main.py делает re-export).
 # KEYWORDS: api, fastapi, sse, auth, queue, audit.
-# LINKS: src/audit/engine.py (AuditEngine для multi_rule), src/doc_type_validators/{drivers,kpsc,kartochka_proekta,plan_grafik}.py (special-runner-ы).
+# LINKS: src/audit/engine.py (AuditEngine для multi_rule), src/engines.py (реестр спецдвижков и detect_engine).
 # RATIONALE:
-#   API-сервер — изолированный HTTP-слой. Все 4 special-runner-а импортируются
-#   напрямую (вариант B): нет циркулярки через main.py, нет broken string-dispatch
-#   через importlib. CUDA-warmup на импорт-тайме — намеренная инициализация GPU
-#   перед обработкой запросов.
+#   API-сервер — изолированный HTTP-слой. Реестр спецдвижков берётся из src/engines.py —
+#   общего с CLI, чтобы набор типов в интерфейсе и в командной строке не расходился.
+#   CUDA-warmup на импорт-тайме — намеренная инициализация GPU перед обработкой запросов.
 # END_MODULE_CONTRACT
 
 from __future__ import annotations
@@ -38,14 +37,7 @@ from openai import OpenAI
 from config.llm import LLM_CONFIG
 from config.parsers import PARSERS_CONFIG
 from src.audit.engine import AuditEngine
-from src.doc_type_validators.drivers import run_drivers_special
-from src.doc_type_validators.forma_0_3 import run_forma_0_3_special
-from src.doc_type_validators.forma_0_4 import run_forma_0_4_special
-from src.doc_type_validators.list_prisutstviya import run_list_prisutstviya_special
-from src.doc_type_validators.kartochka_proekta import run_kartochka_proekta_special
-from src.doc_type_validators.kpsc import run_kpsc_special
-from src.doc_type_validators.plan_grafik import run_plan_grafik_special
-from src.doc_type_validators.crosscheck import run_crosscheck_special
+from src.engines import SPECIAL_ENGINE_RUNNERS, detect_engine
 from src.llm.client import OPENAI_TIMEOUT_SEC
 # END_IMPORTS
 
@@ -146,29 +138,8 @@ sessions: Dict[str, Dict[str, Any]] = {}
 
 
 # START_DISPATCH
-# PURPOSE: Маппинг engine-key → special-runner callable. Используется
-# `_run_audit_thread` для выбора пайплайна по doc_type.
-SPECIAL_ENGINE_RUNNERS = {
-    "drivers": run_drivers_special,
-    "forma_0_3": run_forma_0_3_special,
-    "forma_0_4": run_forma_0_4_special,
-    "kpsc": run_kpsc_special,
-    "kartochka_proekta_2_4": run_kartochka_proekta_special,
-    "kartochka_proekta_0_2": run_kartochka_proekta_special,
-    "list_prisutstviya": run_list_prisutstviya_special,
-    "plan_grafik": run_plan_grafik_special,
-    "crosscheck_2_4_0_6_0_5": run_crosscheck_special,
-}
-
-
-def _detect_engine(doc_type: str) -> str:
-    """Читает `engine` из doc_configs/<doc_type>/config.json. Default — 'vision' (generic-путь)."""
-    config_path = _DOC_CONFIGS_DIR / doc_type / "config.json"
-    if not config_path.exists():
-        return "vision"
-    with open(config_path, "r", encoding="utf-8") as f:
-        data = json.load(f)
-    return data.get("engine", "vision")
+# PURPOSE: Реестр спецдвижков и detect_engine — из src/engines.py (общие с CLI).
+# END_DISPATCH
 
 
 _STANDARD_EXTENSIONS = {".docx", ".doc", ".pdf", ".odt", ".rtf"}
@@ -247,7 +218,7 @@ def _run_audit_thread(session_id: str, doc_type: str, target_path: str) -> None:
         with _audit_lock:
             progress_callback("queue", {"position": 0})
             try:
-                engine_type = _detect_engine(doc_type)
+                engine_type = detect_engine(doc_type)
                 if engine_type in SPECIAL_ENGINE_RUNNERS:
                     progress_callback("audit_start", {
                         "doc_type": doc_type, "filename": Path(target_path).name, "engine": engine_type,

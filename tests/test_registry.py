@@ -4,8 +4,9 @@
 Согласованность реестра спецдвижков и конфигов типов.
 
 Ловит ошибку «тип работает из командной строки, но молчит в веб-интерфейсе»:
-каждый `engine` из doc_configs/*/config.json должен быть в реестре спецдвижков,
-и реестр CLI (main.py) должен совпадать с реестром веб-бэкенда (src/api/server.py).
+каждый `engine` из doc_configs/*/config.json должен быть в реестре спецдвижков
+(src/engines.py), а CLI (main.py) и веб-бэкенд (src/api/server.py) должны использовать
+именно этот реестр, а не свои копии.
 """
 import json
 
@@ -26,10 +27,13 @@ def _configured_engines() -> dict:
 
 
 def test_cli_and_web_registries_identical():
-    """Реестры CLI и веб-бэкенда содержат один и тот же набор движков."""
+    """CLI и веб-бэкенд используют один объект реестра из src/engines.py."""
     import main
+    from src import engines
     from src.api import server
 
+    assert main.SPECIAL_ENGINE_RUNNERS is engines.SPECIAL_ENGINE_RUNNERS, "main.py держит свою копию реестра"
+    assert server.SPECIAL_ENGINE_RUNNERS is engines.SPECIAL_ENGINE_RUNNERS, "server.py держит свою копию реестра"
     assert set(main.SPECIAL_ENGINE_RUNNERS) == set(server.SPECIAL_ENGINE_RUNNERS), (
         "реестры разошлись: только в CLI — "
         f"{set(main.SPECIAL_ENGINE_RUNNERS) - set(server.SPECIAL_ENGINE_RUNNERS)}, "
@@ -40,15 +44,15 @@ def test_cli_and_web_registries_identical():
 @pytest.mark.parametrize("doc_type,engine", sorted(_configured_engines().items()))
 def test_every_configured_engine_is_registered(doc_type, engine):
     """Движок из config.json есть в реестре (иначе тип не запустится нигде)."""
-    import main
+    from src.engines import SPECIAL_ENGINE_RUNNERS
 
-    assert engine in main.SPECIAL_ENGINE_RUNNERS, f"{doc_type}: engine={engine!r} нет в реестре"
+    assert engine in SPECIAL_ENGINE_RUNNERS, f"{doc_type}: engine={engine!r} нет в реестре"
 
 
 def test_every_registered_engine_is_used():
     """В реестре нет мёртвых записей — каждый движок используется хотя бы одним типом."""
-    import main
+    from src.engines import SPECIAL_ENGINE_RUNNERS
 
     used = set(_configured_engines().values())
-    dead = set(main.SPECIAL_ENGINE_RUNNERS) - used
+    dead = set(SPECIAL_ENGINE_RUNNERS) - used
     assert not dead, f"движки в реестре без конфига типа: {sorted(dead)}"

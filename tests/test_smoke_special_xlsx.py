@@ -22,27 +22,27 @@ DATA_DIR = PROJECT_ROOT / "tests" / "data"
 
 
 @pytest.mark.parametrize(
-    "doc_type,runner_name,report_name,rule_filter",
+    "doc_type,report_name,rule_filter",
     [
-        ("drivers", "run_drivers_special", "03_report.xlsx", None),
-        ("kpsc", "run_kpsc_special", "validation_report.xlsx", "1.1"),
-        ("kartochka_proekta_0_2", "run_kartochka_proekta_special", "validation_report.xlsx", None),
-        ("kartochka_proekta_2_4", "run_kartochka_proekta_special", "validation_report.xlsx", "3"),
-        ("plan_grafik", "run_plan_grafik_special", "validation_report.xlsx", None),
-        ("forma_0_3", "run_forma_0_3_special", "validation_report.xlsx", None),
-        ("forma_0_4", "run_forma_0_4_special", "validation_report.xlsx", None),
-        ("list_prisutstviya_modul_1", "run_list_prisutstviya_special", "validation_report.xlsx", None),
+        ("drivers", "03_report.xlsx", None),
+        ("kpsc", "validation_report.xlsx", "1.1"),
+        ("kartochka_proekta_0_2", "validation_report.xlsx", None),
+        ("kartochka_proekta_2_4", "validation_report.xlsx", "3"),
+        ("plan_grafik", "validation_report.xlsx", None),
+        ("forma_0_3", "validation_report.xlsx", None),
+        ("forma_0_4", "validation_report.xlsx", None),
+        ("list_prisutstviya_modul_1", "validation_report.xlsx", None),
     ],
 )
-def test_special_xlsx_runtime_no_crash(doc_type, runner_name, report_name, rule_filter, tmp_path):
+def test_special_xlsx_runtime_no_crash(doc_type, report_name, rule_filter, tmp_path):
     """Спецдвижок на своём образце создаёт отчёт и не оставляет runtime-статусов."""
     sample = DATA_DIR / doc_type / "sample.xlsx"
     if not sample.exists():
         pytest.skip(f"нет фикстуры {sample.relative_to(PROJECT_ROOT)} — см. tests/data/README.md")
 
-    import main
+    from src.engines import SPECIAL_ENGINE_RUNNERS, detect_engine
 
-    runner = getattr(main, runner_name)
+    runner = SPECIAL_ENGINE_RUNNERS[detect_engine(doc_type)]
     args = SimpleNamespace(
         doc_type=doc_type,
         target=str(sample),
