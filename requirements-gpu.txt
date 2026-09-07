@@ -1,0 +1,6 @@
+# Только для ЛОКАЛЬНОГО layout-детектора (Heron-101 через transformers на GPU).
+# Нужен, если в config/parsers.py задан PdfLayoutConfig.base_url = None.
+# На рабочем стенде не используется: layout идёт по HTTP на удалённый сервер.
+# torch ставится с индексом под вашу CUDA, например:
+#   pip install torch --index-url https://download.pytorch.org/whl/cu130
+transformers==5.6.0
