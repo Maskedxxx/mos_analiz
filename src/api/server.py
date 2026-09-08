@@ -37,6 +37,7 @@ from config.llm import LLM_CONFIG
 from config.parsers import PARSERS_CONFIG
 from src.audit.engine import AuditEngine
 from src.audit.input_check import check_input_file
+from src.audit.retention import prune_oldest, start_retention_thread
 from src.engines import SPECIAL_ENGINE_RUNNERS, detect_engine
 from src.llm.client import make_llm_client
 # END_IMPORTS
@@ -56,6 +57,9 @@ _DOC_CONFIGS_DIR = _PROJECT_ROOT / "doc_configs"
 _LOGS_RESULT_DIR = _PROJECT_ROOT / "logs_result"
 UPLOAD_DIR = _PROJECT_ROOT / "uploads"
 UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
+# F28: лимиты хранения по объёму (ГБ); 0 — не удалять. Проверяются при старте и раз в сутки.
+LOGS_MAX_GB = float(os.getenv("LOGS_MAX_GB", "5"))
+UPLOADS_MAX_GB = float(os.getenv("UPLOADS_MAX_GB", "1"))
 # END_PATHS
 
 
@@ -355,14 +359,22 @@ def _run_audit_thread(session_id: str, doc_type: str, target_path: str) -> None:
                 # совпадает с DOM-событием обрыва соединения — см. api.js::subscribeToProgress.
                 progress_callback("audit_error", {"message": user_msg, "technical": technical})
     finally:
+        # F28: загрузка переезжает из uploads/<id>/ в original/ сессии — одна копия вместо двух (3.6b);
+        # пустой uploads/<id>/ удаляется. original/ остаётся — владелец: «чтобы понимать, что грузил юзер».
+        # Для сверки target_path — каталог с тремя файлами; для ошибочных сессий каталог тоже есть (F19).
         try:
             sd = session.get("session_dir")
-            if sd:
+            src = Path(target_path)
+            if sd and src.exists():
                 orig_dir = Path(sd) / "original"
                 orig_dir.mkdir(exist_ok=True)
-                shutil.copy2(target_path, orig_dir / Path(target_path).name)
-        except Exception:
-            pass
+                for f in (list(src.iterdir()) if src.is_dir() else [src]):
+                    shutil.move(str(f), str(orig_dir / f.name))
+                upload_dir = src if src.is_dir() else src.parent
+                if upload_dir.parent == UPLOAD_DIR:
+                    shutil.rmtree(upload_dir, ignore_errors=True)
+        except Exception as e:
+            print(f"[SESSION] не удалось перенести загрузку в original/: {e}", file=sys.stderr, flush=True)
         # Итог сессии — на диск, чтобы /result и /download пережили рестарт (F12).
         try:
             _persist_session(session_id, session)
@@ -378,6 +390,32 @@ def _run_audit_thread(session_id: str, doc_type: str, target_path: str) -> None:
 async def _require_auth_env() -> None:
     """При старте сервера требуем AUDIT_* в окружении — иначе падаем с понятным сообщением."""
     check_auth_env()
+
+
+def _retention_job() -> None:
+    """F28: очистка logs_result/ и uploads/ по лимитам LOGS_MAX_GB / UPLOADS_MAX_GB; выполняющиеся сессии не трогаются."""
+    running = [s for s in sessions.values() if s.get("status") == "running"]
+    running_sessions = {Path(s["session_dir"]).name for s in running if s.get("session_dir")}
+    running_uploads = set()
+    for s in running:
+        up = Path(s.get("upload_path") or "")
+        if up.name:
+            running_uploads.add(up.name if up.is_dir() else up.parent.name)
+    for root, max_gb, pattern, skip, label in (
+        (_LOGS_RESULT_DIR, LOGS_MAX_GB, "*/session_*", running_sessions, "LOGS_MAX_GB"),
+        (UPLOAD_DIR, UPLOADS_MAX_GB, "*", running_uploads, "UPLOADS_MAX_GB"),
+    ):
+        removed = prune_oldest(root, max_gb, pattern, skip)
+        if removed:
+            names = ", ".join(p.name for p in removed[:5]) + ("…" if len(removed) > 5 else "")
+            print(f"[RETENTION] {root.name}: лимит {label}={max_gb} ГБ превышен — удалено каталогов: {len(removed)} ({names})", file=sys.stderr, flush=True)
+
+
+@app.on_event("startup")
+async def _start_retention() -> None:
+    """F28: ротация по объёму — сразу при старте (в фоне, чтобы не задерживать запуск) и затем раз в сутки."""
+    threading.Thread(target=_retention_job, daemon=True, name="retention-startup").start()
+    start_retention_thread(_retention_job)
 
 
 @app.get("/api/health")

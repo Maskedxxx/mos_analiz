@@ -116,3 +116,4 @@ def test_failed_audit_has_error_txt_and_session_json(tmp_path, monkeypatch):
     persisted = json.loads((sd / "session.json").read_text(encoding="utf-8"))
     assert persisted["status"] == "error" and persisted["session_dir"] == str(sd)
     assert (sd / "original" / "t.docx").exists()
+    assert not (srv.UPLOAD_DIR / sid).exists(), "F28: загрузка переезжает в original/, uploads/<id>/ удаляется"
