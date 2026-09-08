@@ -354,7 +354,9 @@ async def _require_auth_env() -> None:
 
 @app.get("/api/health")
 async def health_check():
-    """Проверка здоровья всех сервисов. Без авторизации. Адреса — из конфига (env LLM_BASE_URL / OCR_BASE_URL)."""
+    """Проверка здоровья всех сервисов. Без авторизации. Адреса — из конфига (env LLM_BASE_URL / OCR_BASE_URL / LAYOUT_BASE_URL).
+    HTTP 200 — все сервисы доступны; 503 — `degraded`: хотя бы один внешний сервис недоступен (F6).
+    """
     from urllib.request import urlopen
     services = {}
     ocr_models_url = PARSERS_CONFIG.pdf.vlm.base_url.rstrip("/") + "/models"
@@ -369,6 +371,17 @@ async def health_check():
         services["llm"] = {"status": "ok", "code": r.status, "url": llm_models_url}
     except Exception as e:
         services["llm"] = {"status": "error", "detail": str(e), "url": llm_models_url}
+    # F6: layout-детектор PDF раньше в health не входил — при его отказе сканы «читались» строкой ошибки (1.5b).
+    layout_base = PARSERS_CONFIG.pdf.layout.base_url
+    if layout_base:
+        layout_health_url = layout_base.rstrip("/") + "/health"
+        try:
+            r = urlopen(layout_health_url, timeout=5)
+            services["layout"] = {"status": "ok", "code": r.status, "url": layout_health_url}
+        except Exception as e:
+            services["layout"] = {"status": "error", "detail": str(e), "url": layout_health_url}
+    else:
+        services["layout"] = {"status": "skip", "device": "локальный детектор (LAYOUT_BASE_URL не задан)"}
     try:
         import torch as _torch
         cuda_ok = _torch.cuda.is_available()
@@ -381,11 +394,13 @@ async def health_check():
     except Exception as e:
         services["cuda"] = {"status": "error", "detail": str(e)}
     overall = all((s["status"] in ("ok", "skip") for s in services.values()))
-    return {
+    body = {
         "status": "ok" if overall else "degraded",
         "services": services,
         "timestamp": datetime.now().isoformat(),
     }
+    # F6: degraded → 503, чтобы Docker HEALTHCHECK, scripts/healthcheck.sh и мониторинг видели реальное состояние.
+    return JSONResponse(body, status_code=200 if overall else 503)
 
 
 @app.post("/api/login")

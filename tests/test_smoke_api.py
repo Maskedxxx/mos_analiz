@@ -32,15 +32,16 @@ def test_api_import():
 
 
 def test_api_health():
-    """GET /api/health отвечает (status=ok или error — без 500)."""
+    """GET /api/health отвечает: 200 (status=ok) или 503 (degraded, F6) — без 500."""
     from fastapi.testclient import TestClient
     import main
 
     client = TestClient(main.app)
     response = client.get("/api/health")
-    assert response.status_code == 200, f"Health endpoint упал: {response.status_code}"
+    assert response.status_code in (200, 503), f"Health endpoint упал: {response.status_code}"
     data = response.json()
     assert "status" in data
+    assert (response.status_code == 200) == (data["status"] == "ok")
 
 
 def test_list_types_requires_auth():
