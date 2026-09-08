@@ -234,6 +234,38 @@ def _user_error_message(exc: BaseException) -> str:
 # END_USER_ERROR
 
 
+# START_SESSION_PERSIST
+# PURPOSE: Сессии живут в памяти процесса; после рестарта /result и /download отвечали 404, хотя
+# отчёт лежал на диске (аудит устойчивости, находки 2.8, 4.5b). Итог сессии дописывается в
+# `<session_dir>/session.json`, а эндпоинты при промахе в памяти ищут сессию по этому файлу.
+_SESSION_FILE = "session.json"
+_PERSISTED_KEYS = ("doc_type", "filename", "status", "result", "error_message", "error_technical", "session_dir")
+
+
+def _persist_session(session_id: str, session: Dict[str, Any]) -> None:
+    """Записать итог сессии в session.json её каталога (только если каталог известен)."""
+    sd = session.get("session_dir")
+    if not sd:
+        return
+    data = {"session_id": session_id, "finished_at": datetime.now().isoformat(timespec="seconds")}
+    data.update({k: session.get(k) for k in _PERSISTED_KEYS})
+    (Path(sd) / _SESSION_FILE).write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
+
+
+def _find_session_on_disk(session_id: str) -> Optional[Dict[str, Any]]:
+    """Найти завершённую сессию по session.json в logs_result/*/session_*/ (после рестарта сервера)."""
+    for path in _LOGS_RESULT_DIR.glob(f"*/session_*/{_SESSION_FILE}"):
+        try:
+            data = json.loads(path.read_text(encoding="utf-8"))
+        except (json.JSONDecodeError, OSError):
+            continue
+        if data.get("session_id") == session_id:
+            data.setdefault("session_dir", str(path.parent))
+            return data
+    return None
+# END_SESSION_PERSIST
+
+
 def _run_audit_thread(session_id: str, doc_type: str, target_path: str) -> None:
     """
     Запуск аудита в фоновом потоке с очередью и progress_callback.
@@ -300,6 +332,11 @@ def _run_audit_thread(session_id: str, doc_type: str, target_path: str) -> None:
                 shutil.copy2(target_path, orig_dir / Path(target_path).name)
         except Exception:
             pass
+        # Итог сессии — на диск, чтобы /result и /download пережили рестарт (F12).
+        try:
+            _persist_session(session_id, session)
+        except Exception as e:
+            print(f"[SESSION] не удалось записать session.json для {session_id}: {e}", file=sys.stderr, flush=True)
         with _queue_counter_lock:
             _queue_counter -= 1
 # END_DISPATCH
@@ -780,7 +817,8 @@ async def audit_events(session_id: str):
 async def get_result(request: Request, session_id: str):
     """Получить результат аудита (violations + статистика)."""
     _check_auth(request)
-    session = sessions.get(session_id)
+    # В памяти нет (рестарт сервера) — ищем завершённую сессию на диске по session.json.
+    session = sessions.get(session_id) or _find_session_on_disk(session_id)
     if not session:
         raise HTTPException(status_code=404, detail="Сессия не найдена")
     if session["status"] == "running":
@@ -801,7 +839,7 @@ async def get_result(request: Request, session_id: str):
 async def download_report(request: Request, session_id: str):
     """Скачать Excel-отчёт."""
     _check_auth(request)
-    session = sessions.get(session_id)
+    session = sessions.get(session_id) or _find_session_on_disk(session_id)
     if not session or not session.get("session_dir"):
         raise HTTPException(status_code=404, detail="Отчёт не найден")
     session_dir = Path(session["session_dir"])
