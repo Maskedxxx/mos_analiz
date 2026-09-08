@@ -482,7 +482,7 @@ export default function ScreenUpload({ onAuditStarted, initialType = '' }) {
 
                 <button
                   onClick={doFormulate}
-                  disabled={!fTitle || !fRaw || fSections.length === 0 || drafting}
+                  disabled={!fTitle.trim() || !fRaw.trim() || fSections.length === 0 || drafting}
                   className="flex items-center gap-2 text-sm text-blue-600 hover:text-blue-700 font-medium disabled:text-gray-300 cursor-pointer disabled:cursor-not-allowed"
                 >
                   {drafting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
@@ -521,7 +521,7 @@ export default function ScreenUpload({ onAuditStarted, initialType = '' }) {
 
                 <button
                   onClick={doSave}
-                  disabled={!fTitle || !fCheck || fSections.length === 0 || saving}
+                  disabled={!fTitle.trim() || !fCheck.trim() || fSections.length === 0 || saving}
                   className="w-full py-3 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-200 text-white font-medium rounded-xl flex items-center justify-center gap-2 transition-colors cursor-pointer disabled:cursor-not-allowed"
                 >
                   {saving ? <Loader2 className="w-5 h-5 animate-spin" /> : <><Check className="w-5 h-5" /> Сохранить</>}

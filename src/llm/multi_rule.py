@@ -707,16 +707,19 @@ def load_multi_rule_config(doc_configs_dir: Path, doc_type: str) -> Optional[Dic
     # если файл есть. Индексы кастома — с 200 (не пересекаются с base 1-99). Читается
     # заново на каждый аудит → правки в UI применяются без рестарта сервиса.
     custom_path = base / "rules_custom.json"
+    warnings: List[str] = []
     if custom_path.exists():
         try:
             custom_data = json.loads(custom_path.read_text(encoding="utf-8"))
             rules.extend(custom_data.get("rules", []))
-        except (json.JSONDecodeError, KeyError):
-            pass
+        except (json.JSONDecodeError, KeyError) as e:
+            # F4: битый файл пользовательских правил — проверка идёт без них, но с предупреждением в результате.
+            warnings.append(f"Пользовательские правила не применены: файл rules_custom.json повреждён ({e}). Обратитесь к администратору.")
     return {
         "sections": sections_data["sections"],
         "rules": rules,
         "include_scopes": rules_data.get("include_scopes"),
+        "warnings": warnings,
     }
 
 

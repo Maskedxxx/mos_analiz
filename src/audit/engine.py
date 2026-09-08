@@ -321,6 +321,10 @@ class AuditEngine:
                 f"Для doc_type={self.doc_type} не найдены sections.json + rules_multi.json. "
                 f"Без них multi-rule аудит запустить нельзя; legacy single-rule путь удалён."
             )
+        # F4: предупреждения загрузчика правил (битый rules_custom.json) — к предупреждениям парсера.
+        for w in mr_config.get("warnings", []):
+            warnings.append(w)
+            self.logger.log(f"⚠️ {w}")
         self.logger.log(f"🔍 Запуск multi-rule аудита (базовый слой, {len(mr_config['rules'])} правил)...")
         _emit("checking_rules", {"total": len(mr_config["rules"])})
         mr_result = run_multi_rule_audit(

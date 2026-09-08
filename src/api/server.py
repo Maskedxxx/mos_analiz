@@ -419,7 +419,7 @@ async def _unhandled_exception(request: Request, exc: Exception) -> JSONResponse
     )
 
 
-def _require_doc_type(doc_type: str) -> Dict[str, Any]:
+def _require_doc_type(doc_type: str, missing_status: int = 400) -> Dict[str, Any]:
     """
     Тип должен существовать и быть рабочим — иначе 400 с причиной ДО создания сессии.
     Неизвестный тип (2.4b) и тип с повреждённой конфигурацией (1.6a/1.6b/1.6d) раньше
@@ -433,7 +433,7 @@ def _require_doc_type(doc_type: str) -> Dict[str, Any]:
                     detail=f"Тип документа «{t.get('doc_title') or doc_type}» настроен некорректно: {t['broken_reason']}. Обратитесь к администратору.",
                 )
             return t
-    raise HTTPException(status_code=400, detail=f"Неизвестный тип документа: {doc_type}")
+    raise HTTPException(status_code=missing_status, detail=f"Тип документа не найден: {doc_type}")
 
 
 @app.get("/api/types")
@@ -508,18 +508,25 @@ def _custom_rules_path(doc_type: str) -> Path:
 
 
 def _load_custom_rules(doc_type: str) -> list:
+    """Пользовательские правила типа. Битый файл — 409 (F4, находка 1.6c): раньше он молча
+    считался пустым, а следующая запись перезаписывала его, теряя правила пользователя."""
     p = _custom_rules_path(doc_type)
     if not p.exists():
         return []
     try:
         return json.loads(p.read_text(encoding="utf-8")).get("rules", [])
-    except (json.JSONDecodeError, OSError):
-        return []
+    except (json.JSONDecodeError, OSError) as e:
+        raise HTTPException(
+            status_code=409,
+            detail=f"Файл пользовательских правил повреждён: {p.name} ({e}). Восстановите его из {p.name}.bak или удалите файл.",
+        )
 
 
 def _save_custom_rules(doc_type: str, rules: list) -> None:
-    """Атомарная запись overlay: temp-файл + replace."""
+    """Атомарная запись overlay: копия .bak предыдущей версии + temp-файл + replace."""
     p = _custom_rules_path(doc_type)
+    if p.exists():
+        shutil.copy2(p, p.with_name(p.name + ".bak"))  # F4: страховка от потери правил
     tmp = p.with_name(p.name + ".tmp")
     tmp.write_text(json.dumps({"rules": rules}, ensure_ascii=False, indent=2), encoding="utf-8")
     tmp.replace(p)
@@ -606,6 +613,25 @@ def _author_rule(doc_type: str, title: str, raw_check: str, sections_sel: List[s
     }
 
 
+# START_RULE_VALIDATION
+# PURPOSE: Серверная проверка полей правила (F13, находки 2.3c, 2.3d, 4.6a): пустые или пробельные
+# title/check уходили в промпт модели пустыми, а draft с пустым сырьём заставлял модель выдумывать
+# правило; 50 КБ текста принимались без ограничений.
+RULE_TEXT_MAX = 4000
+
+
+def _validate_rule_text(title: str, text: str, text_label: str) -> None:
+    """Заголовок и текст правила непустые после trim и не длиннее RULE_TEXT_MAX — иначе 400."""
+    if not title or not title.strip():
+        raise HTTPException(status_code=400, detail="Заголовок правила не заполнен")
+    if not text or not text.strip():
+        raise HTTPException(status_code=400, detail=f"{text_label} не заполнен")
+    for value, label in ((title, "Заголовок правила"), (text, text_label)):
+        if len(value.strip()) > RULE_TEXT_MAX:
+            raise HTTPException(status_code=400, detail=f"{label} слишком длинный: {len(value.strip())} символов, максимум {RULE_TEXT_MAX}")
+# END_RULE_VALIDATION
+
+
 class RuleDraftRequest(BaseModel):
     """Сырьё эксперта для формулировки правила спец-моделью."""
     title: str
@@ -625,7 +651,7 @@ class RuleSaveRequest(BaseModel):
 async def get_type_rules(doc_type: str, request: Request):
     """Правила типа: база (view-only) + кастом (overlay). editable=true только для generic-LLM типа."""
     _check_auth(request)
-    _require_doc_type(doc_type)
+    _require_doc_type(doc_type, missing_status=404)
     if not (_DOC_CONFIGS_DIR / doc_type / "rules_multi.json").exists():
         # special-runner или тип без текстовых правил — редактирование недоступно
         return {"editable": False, "sections": [], "rules": []}
@@ -643,6 +669,8 @@ async def get_type_rules(doc_type: str, request: Request):
 async def draft_type_rule(doc_type: str, body: RuleDraftRequest, request: Request):
     """Спец-модель формулирует правило из сырья эксперта. Ничего не пишет на диск."""
     _check_auth(request)
+    _require_doc_type(doc_type, missing_status=404)
+    _validate_rule_text(body.title, body.raw_check, "Текст проверки")
     if not _type_is_editable(doc_type):
         raise HTTPException(status_code=400, detail="Для этого типа нельзя добавлять правила (проверка задана алгоритмом)")
     sections_map = _load_sections_map(doc_type)
@@ -659,6 +687,8 @@ async def draft_type_rule(doc_type: str, body: RuleDraftRequest, request: Reques
 async def create_type_rule(doc_type: str, body: RuleSaveRequest, request: Request):
     """Сохранить пользовательское правило в overlay rules_custom.json (индекс с 200)."""
     _check_auth(request)
+    _require_doc_type(doc_type, missing_status=404)
+    _validate_rule_text(body.title, body.check, "Текст проверки")
     if not _type_is_editable(doc_type):
         raise HTTPException(status_code=400, detail="Для этого типа нельзя добавлять правила")
     sections_map = _load_sections_map(doc_type)
@@ -684,6 +714,8 @@ async def create_type_rule(doc_type: str, body: RuleSaveRequest, request: Reques
 async def update_type_rule(doc_type: str, index: int, body: RuleSaveRequest, request: Request):
     """Изменить пользовательское правило (только index ≥ 200; база не редактируется)."""
     _check_auth(request)
+    _require_doc_type(doc_type, missing_status=404)
+    _validate_rule_text(body.title, body.check, "Текст проверки")
     if index < CUSTOM_INDEX_START:
         raise HTTPException(status_code=400, detail="Редактировать можно только пользовательские правила")
     sections_map = _load_sections_map(doc_type)

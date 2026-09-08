@@ -52,7 +52,7 @@ def test_unknown_doc_type_is_400():
     c = _client()
     r = c.post("/api/audit", files={"file": ("a.docx", b"PK\x03\x04", "application/octet-stream")}, data={"doc_type": "no_such_type"})
     assert r.status_code == 400
-    assert "Неизвестный тип документа" in r.json()["detail"]
+    assert "Тип документа не найден" in r.json()["detail"]
 
 
 def test_broken_doc_type_is_400(monkeypatch):
