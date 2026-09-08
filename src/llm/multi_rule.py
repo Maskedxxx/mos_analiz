@@ -489,6 +489,26 @@ def _verdict_to_violations(verdicts: List[Dict[str, Any]], rules: List[Dict[str,
 # INPUTS: parsed, sections, rules, include_scopes, filename, llm_base_url, llm_model, session_dir, layer.
 # OUTPUTS: `{verdicts, violations, usage, prompt_chars}`.
 # KEYWORDS: run-audit, qwen-call, session-artifacts.
+def build_prompts(
+    *,
+    parsed: Dict[str, Any],
+    sections: Dict[str, Dict[str, str]],
+    rules: List[Dict[str, Any]],
+    include_scopes: Optional[List[str]],
+    filename: str,
+) -> tuple[str, str]:
+    """
+    Назначение:
+        Собирает пару (system_prompt, user_prompt) для слоя правил — ровно то, что уйдёт модели.
+        Используется `run_multi_rule_audit` и режимом `--print-prompts` (F18: промпты без вызова модели).
+
+    Вход: как у `run_multi_rule_audit` (parsed, sections, rules, include_scopes, filename).
+    Выход: `(SYSTEM_PROMPT, user_prompt)`.
+    """
+    doc_text = _collect_doc_text(parsed, include_scopes)
+    return SYSTEM_PROMPT, build_user_prompt(filename, doc_text, sections, rules)
+
+
 def run_multi_rule_audit(
     *,
     parsed: Dict[str, Any],
@@ -540,8 +560,7 @@ def run_multi_rule_audit(
         6. Парсит через `_parse_response`, сохраняет parsed JSON.
         7. Конвертирует в violations через `_verdict_to_violations`.
     """
-    doc_text = _collect_doc_text(parsed, include_scopes)
-    user_prompt = build_user_prompt(filename, doc_text, sections, rules)
+    _, user_prompt = build_prompts(parsed=parsed, sections=sections, rules=rules, include_scopes=include_scopes, filename=filename)
     prefix = "multi_rule" if layer == "base" else f"multi_rule_{layer}"
     if session_dir:
         session_dir = Path(session_dir)

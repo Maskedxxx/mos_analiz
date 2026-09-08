@@ -21,6 +21,9 @@ import json
 import sys
 from pathlib import Path
 
+from docx.opc.exceptions import PackageNotFoundError
+from openpyxl.utils.exceptions import InvalidFileException
+
 # Re-export для `uvicorn main:app` и tests/test_smoke_api.py.
 from src.api.server import app  # noqa: F401
 
@@ -99,20 +102,32 @@ def main() -> None:
         sys.exit(2)
 
     engine_type = detect_engine(args.doc_type)
-    if engine_type in SPECIAL_ENGINE_RUNNERS:
-        result = SPECIAL_ENGINE_RUNNERS[engine_type](args)
-    else:
-        engine = AuditEngine(args.doc_type)
-        result = engine.run(
-            target_path=args.target,
-            model=args.model,
-            temperature=args.temperature,
-            parse_only=args.parse_only,
-            print_prompts=args.print_prompts,
-            session_dir=args.session_dir,
-            out_xlsx=args.out_xlsx,
-            secondary_path=args.secondary,
-        )
+    if args.rule_filter and engine_type not in SPECIAL_ENGINE_RUNNERS:
+        # F18: у generic-типов правила проверяются моделью все сразу — фильтр молча игнорировался (3.7c).
+        print(f"Предупреждение: --rule-filter действует только для спецдвижков (kpsc, kartochka_proekta); "
+              f"для типа «{args.doc_type}» проигнорирован, проверяются все правила", file=sys.stderr)
+    # F18: ошибки парсеров и движков — одна строка в stderr и exit 2 вместо traceback (3.7a).
+    try:
+        if engine_type in SPECIAL_ENGINE_RUNNERS:
+            result = SPECIAL_ENGINE_RUNNERS[engine_type](args)
+        else:
+            engine = AuditEngine(args.doc_type)
+            result = engine.run(
+                target_path=args.target,
+                model=args.model,
+                temperature=args.temperature,
+                parse_only=args.parse_only,
+                print_prompts=args.print_prompts,
+                session_dir=args.session_dir,
+                out_xlsx=args.out_xlsx,
+                secondary_path=args.secondary,
+            )
+    except InvalidFileException as e:
+        print(f"Ошибка: файл не открывается как таблица Excel: {e}", file=sys.stderr)
+        sys.exit(2)
+    except (FileNotFoundError, ValueError, PackageNotFoundError) as e:
+        print(f"Ошибка: {e}", file=sys.stderr)
+        sys.exit(2)
 
     if result.violations and not args.fail_on_violations:
         sys.exit(0)

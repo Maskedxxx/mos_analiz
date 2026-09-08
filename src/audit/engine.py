@@ -30,6 +30,7 @@ from src.format_parsers import parse_docx, parse_pptx
 from src.format_parsers.pdf import parse_pdf
 from src.format_parsers.pdf._clients import VLMClient
 from src.llm import load_methodology_config, load_multi_rule_config, run_multi_rule_audit
+from src.llm.multi_rule import build_prompts
 # END_IMPORTS
 
 
@@ -226,7 +227,8 @@ class AuditEngine:
             model: модель LLM (переопределяет конфиг).
             temperature: температура (переопределяет конфиг).
             parse_only: режим только парсинга.
-            print_prompts: режим отладки — выводить промпты без LLM.
+            print_prompts: режим отладки — напечатать промпты обоих слоёв (base, methodology)
+                и выйти без вызова модели (F18; раньше флаг принимался, но аудит шёл через модель).
             session_dir: директория для логов.
             out_xlsx: путь для сохранения Excel.
             secondary_path: путь к вторичному файлу (XLSX для multi-file аудитов).
@@ -325,6 +327,21 @@ class AuditEngine:
         for w in mr_config.get("warnings", []):
             warnings.append(w)
             self.logger.log(f"⚠️ {w}")
+        if print_prompts:
+            # F18: показать, что увидит модель, по обоим слоям — и выйти, модель не вызывать.
+            meth_pp = load_methodology_config(doc_configs_dir, self.doc_type)
+            layers = [("base", mr_config["rules"], mr_config.get("include_scopes"))]
+            if meth_pp is not None:
+                layers.append(("methodology", meth_pp["rules"], meth_pp.get("include_scopes") or mr_config.get("include_scopes")))
+            for layer, layer_rules, scopes in layers:
+                system_prompt, user_prompt = build_prompts(
+                    parsed=target_doc, sections=mr_config["sections"], rules=layer_rules,
+                    include_scopes=scopes, filename=target_doc.get("filename", Path(target_path).name),
+                )
+                print(f"\n{'=' * 60}\n{layer.upper()} — SYSTEM PROMPT ({len(layer_rules)} правил)\n{'=' * 60}\n{system_prompt}")
+                print(f"\n{'=' * 60}\n{layer.upper()} — USER PROMPT\n{'=' * 60}\n{user_prompt}")
+            self.logger.log(f"✅ Режим --print-prompts: промпты {len(layers)} слоёв напечатаны, модель не вызывалась")
+            return AuditResult(doc_type=self.doc_type, session_dir=session_path, target_path=target_path, duration_sec=time.time() - start_time)
         self.logger.log(f"🔍 Запуск multi-rule аудита (базовый слой, {len(mr_config['rules'])} правил)...")
         _emit("checking_rules", {"total": len(mr_config["rules"])})
         mr_result = run_multi_rule_audit(
