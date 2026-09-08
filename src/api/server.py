@@ -36,6 +36,7 @@ from sse_starlette.sse import EventSourceResponse
 from config.llm import LLM_CONFIG
 from config.parsers import PARSERS_CONFIG
 from src.audit.engine import AuditEngine
+from src.audit.input_check import check_input_file
 from src.engines import SPECIAL_ENGINE_RUNNERS, detect_engine
 from src.llm.client import make_llm_client
 # END_IMPORTS
@@ -693,6 +694,13 @@ async def start_audit(request: Request, file: UploadFile = File(...), doc_type: 
     upload_path.parent.mkdir(parents=True, exist_ok=True)
     with open(upload_path, "wb") as f:
         shutil.copyfileobj(file.file, f)
+    # Пустой/повреждённый/запароленный файл или чужой формат под маской — 400 до создания
+    # сессии, загрузка удаляется (находки 2.4c, 2.4d, 2.4i).
+    try:
+        check_input_file(upload_path)
+    except ValueError as e:
+        shutil.rmtree(upload_path.parent, ignore_errors=True)
+        raise HTTPException(status_code=400, detail=str(e))
     event_queue = asyncio.Queue()
     loop = asyncio.get_event_loop()
     sessions[session_id] = {
@@ -726,6 +734,12 @@ async def start_cross_audit(request: Request, files: List[UploadFile] = File(...
         with open(dest, "wb") as out:
             shutil.copyfileobj(f.file, out)
         names.append(f.filename)
+        # Та же проверка входа, что и в start_audit: битый файл отклоняется до старта.
+        try:
+            check_input_file(dest)
+        except ValueError as e:
+            shutil.rmtree(folder, ignore_errors=True)
+            raise HTTPException(status_code=400, detail=f"{f.filename}: {e}")
     event_queue = asyncio.Queue()
     loop = asyncio.get_event_loop()
     sessions[session_id] = {

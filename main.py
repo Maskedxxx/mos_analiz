@@ -25,6 +25,7 @@ from pathlib import Path
 from src.api.server import app  # noqa: F401
 
 from src.audit.engine import AuditEngine
+from src.audit.input_check import check_input_file
 from src.doc_type_parsers.kpsc import kpsc_parse_kpsc_header_build_payload
 from src.doc_type_validators.kpsc import _run_kpsc_parsers
 from src.engines import SPECIAL_ENGINE_RUNNERS, detect_engine  # noqa: F401 — реестр реэкспортируется для тестов
@@ -81,6 +82,21 @@ def main() -> None:
         parser.error("--doc-type обязателен (или используйте --list-types)")
     if not args.target:
         parser.error("--target обязателен")
+
+    # Тип и файл проверяются до запуска — одна строка в stderr и exit 2 вместо traceback
+    # из глубины парсера (находки 2.4b, 2.4c, 2.4d, 2.4i; CLI 3.7a).
+    known = {t["doc_type"]: t for t in AuditEngine.list_doc_types()}
+    if args.doc_type not in known:
+        print(f"Ошибка: тип документа не найден: {args.doc_type} (см. --list-types)", file=sys.stderr)
+        sys.exit(2)
+    if known[args.doc_type].get("broken"):
+        print(f"Ошибка: тип документа «{args.doc_type}» настроен некорректно: {known[args.doc_type]['broken_reason']}", file=sys.stderr)
+        sys.exit(2)
+    try:
+        check_input_file(Path(args.target))
+    except ValueError as e:
+        print(f"Ошибка: {e}", file=sys.stderr)
+        sys.exit(2)
 
     engine_type = detect_engine(args.doc_type)
     if engine_type in SPECIAL_ENGINE_RUNNERS:
