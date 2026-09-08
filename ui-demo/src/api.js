@@ -5,8 +5,42 @@
 
 const BASE = '/api';
 
+/**
+ * Единый разбор ответа бэкенда (F26.1). Сеть/прокси без JSON → «Сервер недоступен»;
+ * 401 → событие `audit:unauthorized` (App показывает экран входа); detail-массив
+ * (422 от pydantic) → читаемая строка; иначе — detail или запасной текст.
+ */
+function formatDetail(d) {
+  if (!d) return '';
+  if (typeof d === 'string') return d;
+  if (Array.isArray(d)) {
+    return d.map((x) => (x && x.msg ? `${(x.loc || []).slice(-1)[0] || ''}: ${x.msg}`.replace(/^: /, '') : String(x))).join('; ');
+  }
+  if (typeof d === 'object' && d.detail) return formatDetail(d.detail);
+  return JSON.stringify(d);
+}
+
+async function request(url, options, fallback) {
+  let res;
+  try {
+    res = await fetch(url, { credentials: 'include', ...options });
+  } catch {
+    throw new Error('Сервер недоступен, попробуйте позже');
+  }
+  if (res.ok) return res;
+  if (res.status === 401) {
+    window.dispatchEvent(new Event('audit:unauthorized'));
+    throw new Error('Сессия истекла — войдите снова');
+  }
+  let err = null;
+  try { err = await res.json(); } catch { err = null; }
+  if (!err) throw new Error(res.status >= 500 ? 'Сервер недоступен, попробуйте позже' : fallback);
+  throw new Error(formatDetail(err.detail) || fallback);
+}
+
 /** POST /api/login — авторизация */
 export async function login(username, password) {
+  // Прямой fetch: 401 здесь — неверный логин/пароль, а не истёкшая сессия (без события unauthorized).
   const res = await fetch(`${BASE}/login`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -15,80 +49,58 @@ export async function login(username, password) {
   });
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
-    throw new Error(err.detail || 'Ошибка авторизации');
+    throw new Error(formatDetail(err.detail) || 'Ошибка авторизации');
   }
   return res.json();
 }
 
 /** GET /api/types — список типов документов */
 export async function fetchDocTypes() {
-  const res = await fetch(`${BASE}/types`, { credentials: 'include' });
-  if (!res.ok) throw new Error('Не удалось загрузить типы документов');
+  const res = await request(`${BASE}/types`, {}, 'Не удалось загрузить типы документов');
   return res.json();
 }
 
 /** GET /api/types/{docType}/rules — {editable, sections, rules[]} (база + кастом) */
 export async function fetchRules(docType) {
-  const res = await fetch(`${BASE}/types/${docType}/rules`, { credentials: 'include' });
-  if (!res.ok) throw new Error('Не удалось загрузить правила проверки');
+  const res = await request(`${BASE}/types/${docType}/rules`, {}, 'Не удалось загрузить правила проверки');
   return res.json();
 }
 
 /** POST /api/types/{docType}/rules/draft — спец-модель формулирует правило из сырья */
 export async function draftRule(docType, payload) {
-  const res = await fetch(`${BASE}/types/${docType}/rules/draft`, {
+  const res = await request(`${BASE}/types/${docType}/rules/draft`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload),
-    credentials: 'include',
-  });
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({}));
-    throw new Error(err.detail || 'Не удалось сформулировать правило');
-  }
+  }, 'Не удалось сформулировать правило');
   return res.json();
 }
 
 /** POST /api/types/{docType}/rules — сохранить пользовательское правило */
 export async function createRule(docType, payload) {
-  const res = await fetch(`${BASE}/types/${docType}/rules`, {
+  const res = await request(`${BASE}/types/${docType}/rules`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload),
-    credentials: 'include',
-  });
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({}));
-    throw new Error(err.detail || 'Не удалось сохранить правило');
-  }
+  }, 'Не удалось сохранить правило');
   return res.json();
 }
 
 /** PUT /api/types/{docType}/rules/{index} — изменить пользовательское правило */
 export async function updateRule(docType, index, payload) {
-  const res = await fetch(`${BASE}/types/${docType}/rules/${index}`, {
+  const res = await request(`${BASE}/types/${docType}/rules/${index}`, {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload),
-    credentials: 'include',
-  });
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({}));
-    throw new Error(err.detail || 'Не удалось изменить правило');
-  }
+  }, 'Не удалось изменить правило');
   return res.json();
 }
 
 /** DELETE /api/types/{docType}/rules/{index} — удалить пользовательское правило */
 export async function deleteRule(docType, index) {
-  const res = await fetch(`${BASE}/types/${docType}/rules/${index}`, {
+  const res = await request(`${BASE}/types/${docType}/rules/${index}`, {
     method: 'DELETE',
-    credentials: 'include',
-  });
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({}));
-    throw new Error(err.detail || 'Не удалось удалить правило');
-  }
+  }, 'Не удалось удалить правило');
   return res.json();
 }
 
@@ -98,15 +110,10 @@ export async function startAudit(file, docType) {
   form.append('file', file);
   form.append('doc_type', docType);
 
-  const res = await fetch(`${BASE}/audit`, {
+  const res = await request(`${BASE}/audit`, {
     method: 'POST',
     body: form,
-    credentials: 'include',
-  });
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({}));
-    throw new Error(err.detail || 'Ошибка запуска аудита');
-  }
+  }, 'Ошибка запуска аудита');
   return res.json();
 }
 
@@ -115,15 +122,10 @@ export async function startCrossAudit(files) {
   const form = new FormData();
   files.forEach((f) => form.append('files', f));
 
-  const res = await fetch(`${BASE}/audit/cross`, {
+  const res = await request(`${BASE}/audit/cross`, {
     method: 'POST',
     body: form,
-    credentials: 'include',
-  });
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({}));
-    throw new Error(err.detail || 'Ошибка запуска сквозной проверки');
-  }
+  }, 'Ошибка запуска сквозной проверки');
   return res.json();
 }
 
@@ -188,6 +190,19 @@ export function getDownloadUrl(sessionId) {
   return `${BASE}/audit/${sessionId}/download`;
 }
 
+/**
+ * Скачать Excel-отчёт с проверкой ответа (F26.3): при 404/500 бросает Error с текстом
+ * (у <a download> ошибка была бы «тихой» — браузер молча ничего не сохраняет, 4.5b).
+ * Возвращает {blob, filename}.
+ */
+export async function downloadReport(sessionId) {
+  const res = await request(getDownloadUrl(sessionId), {}, 'Отчёт недоступен');
+  const cd = res.headers.get('Content-Disposition') || '';
+  const m = /filename\*?=(?:UTF-8''|")?([^";]+)/i.exec(cd);
+  const filename = m ? decodeURIComponent(m[1].replace(/"/g, '')) : `audit_${sessionId}.xlsx`;
+  return { blob: await res.blob(), filename };
+}
+
 /* ───────────── Генерация документов (бэкенд :8090 через прокси /gen) ───────────── */
 
 // Префикс /gen срезается прокси: оба бэкенда отдают /api/types/*, без него была бы коллизия
@@ -195,30 +210,26 @@ const GEN_BASE = '/gen/api';
 
 /** GET /gen/api/graph — узлы графа генерации: {doc_type, title, code, position} */
 export async function fetchGenTypes() {
-  const res = await fetch(`${GEN_BASE}/graph`, { credentials: 'include' });
-  if (!res.ok) throw new Error('Не удалось загрузить типы документов для генерации');
+  const res = await request(`${GEN_BASE}/graph`, {}, 'Не удалось загрузить типы документов для генерации');
   const data = await res.json();
   return data.nodes || [];
 }
 
 /** GET /gen/api/types/{docType}/schema — {title, fields:[{key,label,required,source,hint}]} */
 export async function fetchGenSchema(docType) {
-  const res = await fetch(`${GEN_BASE}/types/${docType}/schema`, { credentials: 'include' });
-  if (!res.ok) throw new Error('Не удалось загрузить форму документа');
+  const res = await request(`${GEN_BASE}/types/${docType}/schema`, {}, 'Не удалось загрузить форму документа');
   return res.json();
 }
 
 /** GET /gen/api/orgs — список известных организаций (подсказки для поля ООО) */
 export async function fetchOrgs() {
-  const res = await fetch(`${GEN_BASE}/orgs`, { credentials: 'include' });
-  if (!res.ok) throw new Error('Не удалось загрузить список организаций');
+  const res = await request(`${GEN_BASE}/orgs`, {}, 'Не удалось загрузить список организаций');
   return res.json();
 }
 
 /** GET /gen/api/org/suggest?org=… — {field_key: [values]} ранее введённых значений по этому ООО */
 export async function fetchOrgSuggest(org) {
-  const res = await fetch(`${GEN_BASE}/org/suggest?org=${encodeURIComponent(org)}`, { credentials: 'include' });
-  if (!res.ok) throw new Error('Не удалось загрузить подсказки по организации');
+  const res = await request(`${GEN_BASE}/org/suggest?org=${encodeURIComponent(org)}`, {}, 'Не удалось загрузить подсказки по организации');
   return res.json();
 }
 

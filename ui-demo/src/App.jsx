@@ -40,6 +40,7 @@ export default function App() {
   const [sessionId, setSessionId] = useState(null);
   const [filename, setFilename] = useState('');
   const [result, setResult] = useState(null);
+  const [lastDocType, setLastDocType] = useState(''); // выбранный тип переживает возврат после ошибки (4.3b)
 
   // Проба сессии при монтировании: жива ли кука
   useEffect(() => {
@@ -64,9 +65,10 @@ export default function App() {
     setScreen('upload');
   }, []);
 
-  const handleAuditStarted = useCallback((sid, fname) => {
+  const handleAuditStarted = useCallback((sid, fname, docType) => {
     setSessionId(sid);
     setFilename(fname);
+    setLastDocType(docType || '');
     // Сохраняем сессию, чтобы пережить перезагрузку страницы (F5) во время аудита.
     try { sessionStorage.setItem('audit_session', JSON.stringify({ sessionId: sid, filename: fname })); } catch { /* приватный режим — просто не сохраняем */ }
     setScreen('progress');
@@ -101,9 +103,17 @@ export default function App() {
     setSessionId(null);
     setFilename('');
     setResult(null);
+    setLastDocType('');
     setScreen('login');
     setMode('audit');
   }, []);
+
+  // Бэкенд ответил 401 (сессия истекла/отозвана) — сразу экран входа, а не «Не авторизован» в плашке (4.2b).
+  useEffect(() => {
+    const onUnauthorized = () => handleLogout();
+    window.addEventListener('audit:unauthorized', onUnauthorized);
+    return () => window.removeEventListener('audit:unauthorized', onUnauthorized);
+  }, [handleLogout]);
 
   // Переключение режима: генерацию монтируем один раз и дальше только прячем
   const handleModeSelect = useCallback((next) => {
@@ -134,7 +144,7 @@ export default function App() {
           {/* Аудит остаётся смонтированным при уходе на генерацию: не рвём SSE и не теряем прогресс */}
           <div className={mode === 'audit' ? '' : 'hidden'}>
             {screen === 'upload' && (
-              <ScreenUpload onAuditStarted={handleAuditStarted} />
+              <ScreenUpload onAuditStarted={handleAuditStarted} initialType={lastDocType} />
             )}
             {screen === 'progress' && (
               <ScreenProgress

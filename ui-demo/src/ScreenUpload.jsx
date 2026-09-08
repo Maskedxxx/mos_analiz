@@ -74,9 +74,9 @@ function CrossSlot({ slot, file, onPick }) {
   );
 }
 
-export default function ScreenUpload({ onAuditStarted }) {
+export default function ScreenUpload({ onAuditStarted, initialType = '' }) {
   const [docTypes, setDocTypes] = useState([]);
-  const [selectedType, setSelectedType] = useState('');
+  const [selectedType, setSelectedType] = useState(initialType); // после ошибки возвращаемся с тем же типом
   const [file, setFile] = useState(null);
   const [crossFiles, setCrossFiles] = useState({ kartochka: null, protokol: null, tirazh: null });
   const [isDragging, setIsDragging] = useState(false);
@@ -149,10 +149,10 @@ export default function ScreenUpload({ onAuditStarted }) {
       if (selectedType === CROSS_TYPE) {
         const files = [crossFiles.kartochka, crossFiles.protokol, crossFiles.tirazh].filter(Boolean);
         const { session_id } = await startCrossAudit(files);
-        onAuditStarted(session_id, files.map((f) => f.name).join(', '));
+        onAuditStarted(session_id, files.map((f) => f.name).join(', '), selectedType);
       } else {
         const { session_id } = await startAudit(file, selectedType);
-        onAuditStarted(session_id, file.name);
+        onAuditStarted(session_id, file.name, selectedType);
       }
     } catch (err) {
       setError(err.message);
@@ -225,6 +225,10 @@ export default function ScreenUpload({ onAuditStarted }) {
   };
 
   const isCross = selectedType === CROSS_TYPE;
+  // Допустимые форматы выбранного типа (из /api/types) — для accept и подсказки (4.3a)
+  const allowedExt = (docTypes.find((t) => t.doc_type === selectedType) || {}).allowed_extensions || [];
+  const acceptList = allowedExt.length ? allowedExt.join(',') : '.docx,.pptx,.xlsx,.pdf';
+  const extHint = allowedExt.length ? allowedExt.join(', ') : '.docx, .pptx, .xlsx, .pdf';
   const canStart = !loading && selectedType && (isCross
     ? (crossFiles.kartochka && crossFiles.protokol && crossFiles.tirazh)
     : file);
@@ -280,11 +284,11 @@ export default function ScreenUpload({ onAuditStarted }) {
               <Upload className="w-12 h-12 text-gray-400 mx-auto mb-4" />
               <p className="text-gray-600 font-medium">Перетащите файл сюда</p>
               <p className="text-gray-400 text-sm mt-1">или нажмите для выбора</p>
-              <p className="text-gray-400 text-xs mt-3">.docx, .pptx, .xlsx, .pdf</p>
+              <p className="text-gray-400 text-xs mt-3">{extHint}</p>
               <input
                 ref={fileInputRef}
                 type="file"
-                accept=".docx,.pptx,.xlsx,.pdf"
+                accept={acceptList}
                 onChange={(e) => handleFile(e.target.files[0])}
                 className="hidden"
               />

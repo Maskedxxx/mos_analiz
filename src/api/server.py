@@ -438,6 +438,9 @@ async def get_types(request: Request):
     """Список типов документов, отсортированный по коду подтипа (0.1 → 3.10)."""
     _check_auth(request)
     types = AuditEngine.list_doc_types()
+    for t in types:
+        # Допустимые расширения — фронт ставит accept и подсказку под зоной загрузки (F26.2).
+        t["allowed_extensions"] = [] if t.get("broken") else sorted(_get_allowed_extensions(t["doc_type"]))
     types.sort(key=_title_code_key)
     return types
 

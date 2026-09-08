@@ -2,10 +2,33 @@ import { useState } from 'react';
 import {
   AlertCircle, CheckCircle, Clock, Download, RefreshCw, ChevronDown, ChevronUp,
 } from 'lucide-react';
-import { getDownloadUrl } from './api';
+import { downloadReport } from './api';
 
 export default function ScreenResults({ result, sessionId, filename, onReset }) {
   const [expandedKey, setExpandedKey] = useState(null);
+  const [dlError, setDlError] = useState('');
+  const [dlBusy, setDlBusy] = useState(false);
+
+  // Скачивание через fetch: при 404/500 показываем причину, а не «тихую» пустоту (4.5b)
+  const handleDownload = async () => {
+    setDlError('');
+    setDlBusy(true);
+    try {
+      const { blob, filename: name } = await downloadReport(sessionId);
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = name;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+    } catch (e) {
+      setDlError(`Отчёт недоступен: ${e.message}`);
+    } finally {
+      setDlBusy(false);
+    }
+  };
 
   const violations = result.violations || [];
   const rulesChecked = result.rules_checked || 0;
@@ -92,20 +115,27 @@ export default function ScreenResults({ result, sessionId, filename, onReset }) 
           <RefreshCw className="w-5 h-5" />
           Новый аудит
         </button>
-        <a
-          href={getDownloadUrl(sessionId)}
-          download
-          className="flex-1 py-3 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-xl flex items-center justify-center gap-2 transition-colors"
+        <button
+          onClick={handleDownload}
+          disabled={dlBusy}
+          className="flex-1 py-3 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-300 text-white font-medium rounded-xl flex items-center justify-center gap-2 transition-colors cursor-pointer"
         >
           <Download className="w-5 h-5" />
-          Скачать Excel
-        </a>
+          {dlBusy ? 'Скачивание…' : 'Скачать Excel'}
+        </button>
       </div>
+      {dlError && (
+        <div className="flex items-center gap-2 bg-red-50 text-red-700 rounded-xl px-4 py-3 text-sm">
+          <AlertCircle className="w-4 h-4 shrink-0" />
+          {dlError}
+        </div>
+      )}
     </div>
   );
 }
 
-const HIDDEN_FIELDS = ['rule_index', 'rule_title', 'Целевой документ', 'Различие', 'layer'];
+// Поля, которые уже показаны отдельно (заголовок берётся из rule_title или «правило» — так отдаёт API, 4.5a)
+const HIDDEN_FIELDS = ['rule_index', 'rule_title', 'правило', 'Целевой документ', 'Различие', 'layer'];
 
 function ViolationBlock({ title, violations, expandedKey, setExpandedKey, keyPrefix, accentColor }) {
   const borderColor = accentColor === 'amber' ? 'border-amber-300' : 'border-red-300';
@@ -145,7 +175,7 @@ function ViolationBlock({ title, violations, expandedKey, setExpandedKey, keyPre
                     #{v.rule_index}
                   </span>
                   <span className="text-gray-900 font-medium flex-1 truncate">
-                    {v.rule_title}
+                    {v.rule_title || v['правило']}
                   </span>
                   {isExpanded ? (
                     <ChevronUp className="w-4 h-4 text-gray-400 shrink-0" />
@@ -173,7 +203,7 @@ function ViolationBlock({ title, violations, expandedKey, setExpandedKey, keyPre
                       </div>
                     )}
                     {Object.entries(v)
-                      .filter(([k]) => !HIDDEN_FIELDS.includes(k))
+                      .filter(([k, val]) => !HIDDEN_FIELDS.includes(k) && val !== '' && val != null)
                       .map(([k, val]) => (
                         <div key={k}>
                           <p className="text-xs text-gray-400 uppercase mb-1">{k}</p>
