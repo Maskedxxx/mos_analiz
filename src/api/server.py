@@ -810,10 +810,20 @@ async def start_cross_audit(request: Request, files: List[UploadFile] = File(...
     """Запуск сквозной сверки 3 документов (2.4 Карточка + 0.6 Протокол + 0.5 Приказ о тираже)."""
     _check_auth(request)
     doc_type = "crosscheck_2_4_0_6_0_5"
-    if not files or len(files) < 2:
+    # F11: ровно три файла и без повторов имён — раньше 2 и 4 файла принимались (находка 2.5),
+    # а движок сообщал о некомплекте уже как о «нарушении» документа.
+    if not files or len(files) != 3:
         raise HTTPException(
             status_code=400,
             detail="Нужно загрузить 3 документа: 2.4 Карточка проекта, 0.6 Протокол выполнения, 0.5 Приказ о тираже",
+        )
+    names = [f.filename or "" for f in files]
+    duplicates = sorted({n for n in names if names.count(n) > 1})
+    if duplicates:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Файлы повторяются: {', '.join(duplicates)}. Нужно загрузить 3 разных документа: "
+                   "2.4 Карточка проекта, 0.6 Протокол выполнения, 0.5 Приказ о тираже",
         )
     session_id = uuid.uuid4().hex[:8]
     folder = UPLOAD_DIR / session_id
