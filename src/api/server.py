@@ -530,7 +530,11 @@ async def draft_type_rule(doc_type: str, body: RuleDraftRequest, request: Reques
     sections_map = _load_sections_map(doc_type)
     if not body.sections or any(s not in sections_map for s in body.sections):
         raise HTTPException(status_code=400, detail="Неизвестная секция")
-    return _author_rule(doc_type, body.title.strip(), body.raw_check.strip(), body.sections, sections_map)
+    # Вызов модели синхронный и долгий — выносим в поток, чтобы не блокировать event-loop
+    # (иначе одна зависшая «Сформулировать» замораживает health/SSE всем, замер 2.10c).
+    return await asyncio.to_thread(
+        _author_rule, doc_type, body.title.strip(), body.raw_check.strip(), body.sections, sections_map
+    )
 
 
 @app.post("/api/types/{doc_type}/rules")
