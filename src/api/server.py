@@ -40,6 +40,13 @@ from src.llm.client import make_llm_client
 # END_IMPORTS
 
 
+# START_ERROR_HANDLER
+# PURPOSE: Любое необработанное исключение в эндпоинте → JSON {detail, technical} с кодом 500,
+# а не пустой «Internal Server Error» (аудит устойчивости, находки 1.6a, 1.6d, 1.7b): интерфейс
+# показывает detail, администратор видит класс и текст, полный traceback — в лог.
+# END_ERROR_HANDLER
+
+
 # START_PATHS
 # PURPOSE: parents[2] = repo root (server.py лежит в src/api/).
 _PROJECT_ROOT = Path(__file__).resolve().parents[2]
@@ -326,6 +333,34 @@ def _title_code_key(t):
     return (int(m.group(1)), int(m.group(2))) if m else (99, 99)
 
 
+@app.exception_handler(Exception)
+async def _unhandled_exception(request: Request, exc: Exception) -> JSONResponse:
+    """Необработанное исключение → 500 с JSON-телом (см. START_ERROR_HANDLER)."""
+    traceback.print_exc(file=sys.stderr)
+    print(f"[API ERROR] {request.method} {request.url.path}: {type(exc).__name__}: {exc}", file=sys.stderr, flush=True)
+    return JSONResponse(
+        status_code=500,
+        content={"detail": f"Внутренняя ошибка сервера: {type(exc).__name__}", "technical": str(exc)},
+    )
+
+
+def _require_doc_type(doc_type: str) -> Dict[str, Any]:
+    """
+    Тип должен существовать и быть рабочим — иначе 400 с причиной ДО создания сессии.
+    Неизвестный тип (2.4b) и тип с повреждённой конфигурацией (1.6a/1.6b/1.6d) раньше
+    давали 200 + ошибку в SSE или пустой 500.
+    """
+    for t in AuditEngine.list_doc_types():
+        if t["doc_type"] == doc_type:
+            if t.get("broken"):
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Тип документа «{t.get('doc_title') or doc_type}» настроен некорректно: {t['broken_reason']}. Обратитесь к администратору.",
+                )
+            return t
+    raise HTTPException(status_code=400, detail=f"Неизвестный тип документа: {doc_type}")
+
+
 @app.get("/api/types")
 async def get_types(request: Request):
     """Список типов документов, отсортированный по коду подтипа (0.1 → 3.10)."""
@@ -382,7 +417,11 @@ def _load_base_rules(doc_type: str) -> list:
     p = _DOC_CONFIGS_DIR / doc_type / "rules_multi.json"
     if not p.exists():
         return []
-    data = json.loads(p.read_text(encoding="utf-8"))
+    try:
+        data = json.loads(p.read_text(encoding="utf-8"))
+    except json.JSONDecodeError as e:
+        # Битый файл правил — 400 с именем файла и строкой, а не пустой 500 (находка 1.6d).
+        raise HTTPException(status_code=400, detail=f"Файл правил повреждён: rules_multi.json (строка {e.lineno}). Обратитесь к администратору.")
     return data["rules"] if isinstance(data, dict) else data
 
 
@@ -508,6 +547,7 @@ class RuleSaveRequest(BaseModel):
 async def get_type_rules(doc_type: str, request: Request):
     """Правила типа: база (view-only) + кастом (overlay). editable=true только для generic-LLM типа."""
     _check_auth(request)
+    _require_doc_type(doc_type)
     if not (_DOC_CONFIGS_DIR / doc_type / "rules_multi.json").exists():
         # special-runner или тип без текстовых правил — редактирование недоступно
         return {"editable": False, "sections": [], "rules": []}
@@ -605,6 +645,7 @@ async def delete_type_rule(doc_type: str, index: int, request: Request):
 async def start_audit(request: Request, file: UploadFile = File(...), doc_type: str = Form(...)):
     """Запуск аудита: принимает файл + тип, возвращает session_id."""
     _check_auth(request)
+    _require_doc_type(doc_type)
     file_ext = Path(file.filename).suffix.lower() if file.filename else ""
     allowed = _get_allowed_extensions(doc_type)
     if file_ext not in allowed:

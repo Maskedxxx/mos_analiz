@@ -249,7 +249,10 @@ export default function ScreenUpload({ onAuditStarted }) {
             >
               <option value="" disabled>Выберите тип документа...</option>
               {docTypes.map((t) => (
-                <option key={t.doc_type} value={t.doc_type}>{t.doc_title}</option>
+                // Тип с повреждённой конфигурацией (broken) — виден, но недоступен для выбора
+                <option key={t.doc_type} value={t.doc_type} disabled={!!t.broken}>
+                  {t.broken ? `${t.doc_title} — недоступен: ${t.broken_reason}` : t.doc_title}
+                </option>
               ))}
             </select>
             <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 pointer-events-none" />

@@ -71,7 +71,9 @@ def main() -> None:
         print("-" * 50)
         for dt in doc_types:
             title = f" — {dt['doc_title']}" if dt["doc_title"] else ""
-            print(f"  {dt['doc_type']}{title}")
+            # Повреждённая конфигурация — показать причину, тип к запуску не пригоден.
+            broken = f"  [НЕДОСТУПЕН: {dt['broken_reason']}]" if dt.get("broken") else ""
+            print(f"  {dt['doc_type']}{title}{broken}")
         print("\nИспользование: python main.py --doc-type <doc_type> --target <file>")
         sys.exit(0)
 

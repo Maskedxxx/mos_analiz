@@ -104,6 +104,68 @@ def get_parser(name: str) -> Callable[[str], Dict[str, str]]:
 # END_SECONDARY_PARSER_DISPATCH
 
 
+# START_DOC_TYPE_VALIDATION
+# PURPOSE: Проверка каталога типа при листинге — чтобы повреждённый тип не выглядел рабочим и
+# не падал пустым 500 в середине запуска. Проверяется ровно то, без чего аудит не стартует:
+# config.json парсится, задан ровно один источник правды (parser_by_ext XOR engine), у generic-типа
+# есть и парсятся sections.json и rules_multi.json.
+def _json_error_reason(path: Path, exc: json.JSONDecodeError) -> str:
+    """Человекочитаемая причина для битого JSON: имя файла и строка."""
+    return f"{path.name} повреждён (строка {exc.lineno}, позиция {exc.colno})"
+
+
+def _validate_doc_type_dir(config_dir: Path, entry: Dict[str, Any]) -> Optional[str]:
+    """
+    Назначение:
+        Проверяет конфигурацию одного типа и заполняет `entry` (doc_type, doc_title).
+
+    Вход:
+        config_dir: каталог doc_configs/<тип>.
+        entry: словарь записи списка типов — дополняется реальными doc_type/doc_title,
+            если config.json читается.
+
+    Выход:
+        None, если тип рабочий; иначе строка причины (для `broken_reason`).
+    """
+    config_file = config_dir / "config.json"
+    try:
+        with open(config_file, "r", encoding="utf-8") as f:
+            data = json.load(f)
+    except json.JSONDecodeError as e:
+        return _json_error_reason(config_file, e)
+    except OSError as e:
+        return f"config.json не читается: {e.strerror or e}"
+    if not isinstance(data, dict):
+        return "config.json: ожидался объект"
+    entry["doc_type"] = data.get("doc_type", config_dir.name)
+    entry["doc_title"] = data.get("doc_title", "")
+    parser_by_ext = data.get("parser_by_ext", {})
+    engine = data.get("engine")
+    has_parser_map = isinstance(parser_by_ext, dict) and bool(parser_by_ext)
+    has_engine = isinstance(engine, str) and bool(engine)
+    if has_parser_map and has_engine:
+        return "config.json: одновременно заданы parser_by_ext и engine"
+    if not has_parser_map and not has_engine:
+        return "config.json: не задан ни parser_by_ext (generic), ни engine (special)"
+    if has_engine:
+        return None
+    # generic-LLM тип: без sections.json + rules_multi.json multi-rule аудит не стартует
+    for name, key in (("sections.json", "sections"), ("rules_multi.json", "rules")):
+        path = config_dir / name
+        if not path.exists():
+            return f"нет файла {name}"
+        try:
+            content = json.loads(path.read_text(encoding="utf-8"))
+        except json.JSONDecodeError as e:
+            return _json_error_reason(path, e)
+        except OSError as e:
+            return f"{name} не читается: {e.strerror or e}"
+        if not isinstance(content, dict) or key not in content:
+            return f"{name}: нет ключа «{key}»"
+    return None
+# END_DOC_TYPE_VALIDATION
+
+
 # START_AUDIT_ENGINE
 class AuditEngine:
     """
@@ -396,11 +458,14 @@ class AuditEngine:
         return prefixed
 
     @staticmethod
-    def list_doc_types(base_dir: Optional[str] = None) -> List[Dict[str, str]]:
+    def list_doc_types(base_dir: Optional[str] = None) -> List[Dict[str, Any]]:
         """
         Список доступных типов документов.
 
-        Сканирует doc_configs/ и возвращает список {doc_type, doc_title}.
+        Сканирует doc_configs/ и возвращает список {doc_type, doc_title}. Тип с повреждённой
+        конфигурацией остаётся в списке, но помечается `broken: True` и `broken_reason`
+        (текст для администратора) — интерфейс показывает его серым, запуск аудита
+        отклоняется до старта (аудит устойчивости, находки 1.6a, 1.6b, 1.6d).
         """
         configs_dir = Path(base_dir) / "doc_configs" if base_dir else _DOC_CONFIGS_DIR
         result = []
@@ -410,11 +475,11 @@ class AuditEngine:
             config_file = config_dir / "config.json"
             if not config_file.exists():
                 continue
-            try:
-                with open(config_file, "r", encoding="utf-8") as f:
-                    data = json.load(f)
-                result.append({"doc_type": data.get("doc_type", config_dir.name), "doc_title": data.get("doc_title", "")})
-            except (json.JSONDecodeError, KeyError):
-                result.append({"doc_type": config_dir.name, "doc_title": "(ошибка чтения config.json)"})
+            entry: Dict[str, Any] = {"doc_type": config_dir.name, "doc_title": "(ошибка чтения config.json)"}
+            reason = _validate_doc_type_dir(config_dir, entry)
+            if reason:
+                entry["broken"] = True
+                entry["broken_reason"] = reason
+            result.append(entry)
         return result
 # END_AUDIT_ENGINE
