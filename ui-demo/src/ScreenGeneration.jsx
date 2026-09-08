@@ -42,7 +42,6 @@ export default function ScreenGeneration() {
   }, []);
 
   const ddRef = useRef(null);
-  const iframeRef = useRef(null);
   const orgRef = useRef(null);
 
   // Список типов при монтировании; первый тип выбирается автоматически
@@ -110,8 +109,11 @@ export default function ScreenGeneration() {
   const currentNode = nodes.find((n) => n.doc_type === current);
   const setValue = (key, v) => setValues((p) => ({ ...p, [key]: v }));
 
-  // Генерация: сначала проверяем обязательные, потом отдаём браузеру ссылку на скачивание
-  const generate = () => {
+  // Генерация: проверяем обязательные, затем СКАЧИВАЕМ через fetch и показываем «Готово»
+  // только после реального ответа. Скрытый iframe не годился: при 400/500/502 ответ прокси
+  // невидим, и статус «Готово» ставился при отсутствии файла (находка 5.7b). Blob-скачивание
+  // надёжно сохраняет, если якорь добавлен в DOM до click и объект-URL освобождён с задержкой.
+  const generate = async () => {
     if (!current) return;
     const params = { session_id: 'web' };
     const missing = [];
@@ -124,10 +126,32 @@ export default function ScreenGeneration() {
       setStatus({ kind: 'err', text: 'Заполните обязательные поля: ' + missing.join(', ') });
       return;
     }
-    // Нативное скачивание через скрытый iframe: браузер сам сохраняет ответ (Content-Disposition).
-    // Никаких blob/anchor/revoke — тот механизм тихо не сохранял файл.
-    if (iframeRef.current) iframeRef.current.src = getGenDownloadUrl(current, params);
-    setStatus({ kind: 'ok', text: 'Готово — документ скачан ✓' });
+    setStatus({ kind: 'ok', text: 'Формируется документ…' });
+    try {
+      const res = await fetch(getGenDownloadUrl(current, params), { credentials: 'include' });
+      if (!res.ok) {
+        let detail = 'Сервис генерации недоступен, попробуйте позже';
+        try { const j = await res.json(); if (j && j.detail) detail = j.detail; } catch { /* ответ не JSON */ }
+        setStatus({ kind: 'err', text: detail });
+        return;
+      }
+      const blob = await res.blob();
+      // Имя файла из Content-Disposition, иначе — по типу документа.
+      const cd = res.headers.get('Content-Disposition') || '';
+      const m = /filename\*?=(?:UTF-8''|")?([^";]+)/i.exec(cd);
+      const name = m ? decodeURIComponent(m[1].replace(/"/g, '')) : `${current}.docx`;
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = name;
+      document.body.appendChild(a);   // якорь в DOM — иначе часть браузеров не сохраняет
+      a.click();
+      document.body.removeChild(a);
+      setTimeout(() => URL.revokeObjectURL(url), 1000);   // освобождаем URL после сохранения
+      setStatus({ kind: 'ok', text: 'Готово — документ скачан ✓' });
+    } catch {
+      setStatus({ kind: 'err', text: 'Сервер недоступен, попробуйте позже' });
+    }
   };
 
   return (
@@ -251,8 +275,6 @@ export default function ScreenGeneration() {
         </div>
       )}
 
-      {/* Скрытый приёмник скачивания */}
-      <iframe ref={iframeRef} title="Скачивание документа" className="hidden" />
     </div>
   );
 }
