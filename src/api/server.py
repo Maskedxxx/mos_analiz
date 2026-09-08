@@ -266,6 +266,26 @@ def _find_session_on_disk(session_id: str) -> Optional[Dict[str, Any]]:
             data.setdefault("session_dir", str(path.parent))
             return data
     return None
+
+
+def _write_error_artifacts(session_dir: Optional[str], doc_type: str, technical: str, tb: str) -> str:
+    """
+    F19: записать причину ошибки аудита в артефакты сессии — `pipeline.log` (дописать) и `ERROR.txt`
+    (создать, если спецдвижок ещё не написал свой). Раньше traceback был только в stderr процесса
+    (находка 3.6a). Если каталог сессии ещё не создан — создаётся по doc_type/времени.
+    Возвращает путь каталога сессии.
+    """
+    if not session_dir:
+        session_dir = str(_LOGS_RESULT_DIR / doc_type / f"session_{datetime.now().strftime('%Y%m%d_%H%M%S')}")
+    sd = Path(session_dir)
+    sd.mkdir(parents=True, exist_ok=True)
+    stamp = datetime.now().strftime("%H:%M:%S")
+    with open(sd / "pipeline.log", "a", encoding="utf-8") as f:
+        f.write(f"[{stamp}] ❌ Аудит завершился с ошибкой: {technical}\n{tb}\n")
+    error_file = sd / "ERROR.txt"
+    if not error_file.exists():
+        error_file.write_text(f"{technical}\n\n{tb}", encoding="utf-8")
+    return str(sd)
 # END_SESSION_PERSIST
 
 
@@ -280,7 +300,9 @@ def _run_audit_thread(session_id: str, doc_type: str, target_path: str) -> None:
     queue = session["events"]
 
     def progress_callback(event_type: str, data: dict) -> None:
-        """Колбэк из engine — пушит события в SSE-очередь."""
+        """Колбэк из engine — пушит события в SSE-очередь; из audit_start запоминает каталог сессии (F19)."""
+        if event_type == "audit_start" and data.get("session_dir"):
+            session["session_dir"] = data["session_dir"]
         asyncio.run_coroutine_threadsafe(queue.put({"type": event_type, "data": data}), loop)
 
     with _queue_counter_lock:
@@ -300,6 +322,7 @@ def _run_audit_thread(session_id: str, doc_type: str, target_path: str) -> None:
                     })
                     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
                     session_dir = str(_LOGS_RESULT_DIR / doc_type / f"session_{timestamp}")
+                    session["session_dir"] = session_dir  # F19: известен и при ошибке движка
                     result = _run_special_engine(engine_type, doc_type, target_path, session_dir)
                 else:
                     engine = AuditEngine(doc_type)
@@ -323,6 +346,11 @@ def _run_audit_thread(session_id: str, doc_type: str, target_path: str) -> None:
                 session["status"] = "error"
                 session["error_message"] = user_msg
                 session["error_technical"] = technical
+                # F19: причина — в артефакты сессии; каталог теперь есть и у ошибочной сессии (→ session.json, original/).
+                try:
+                    session["session_dir"] = _write_error_artifacts(session.get("session_dir"), doc_type, technical, traceback.format_exc())
+                except Exception as write_err:
+                    print(f"[AUDIT ERROR] не удалось записать ERROR.txt: {write_err}", file=sys.stderr, flush=True)
                 # Событие называется audit_error (НЕ error): у EventSource на фронте имя error
                 # совпадает с DOM-событием обрыва соединения — см. api.js::subscribeToProgress.
                 progress_callback("audit_error", {"message": user_msg, "technical": technical})

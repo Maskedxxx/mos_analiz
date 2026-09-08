@@ -280,7 +280,8 @@ class AuditEngine:
         if secondary_path and (not Path(secondary_path).exists()):
             self.logger.log(f"❌ Вторичный файл не найден: {secondary_path}")
             raise FileNotFoundError(f"Вторичный файл не найден: {secondary_path}")
-        _emit("audit_start", {"doc_type": self.doc_type, "filename": Path(target_path).name})
+        # session_dir в событии — чтобы веб-бэкенд знал каталог сессии и при ошибке (F19).
+        _emit("audit_start", {"doc_type": self.doc_type, "filename": Path(target_path).name, "session_dir": str(session_path)})
         target_ext = Path(target_path).suffix.lower()
         if self.config.secondary_file and target_ext == f".{self.config.secondary_file.type}" and (not secondary_path):
             self.logger.log(f"📊 Загружен {target_ext} — парсим как вторичный файл")
