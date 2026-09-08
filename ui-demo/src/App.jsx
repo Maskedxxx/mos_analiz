@@ -44,7 +44,19 @@ export default function App() {
   // Проба сессии при монтировании: жива ли кука
   useEffect(() => {
     fetchDocTypes()
-      .then(() => setScreen('upload'))
+      .then(() => {
+        // Восстановление после перезагрузки страницы (F5): есть сохранённая сессия аудита —
+        // сразу открываем экран прогресса, он сам подтянет результат или покажет ошибку.
+        let saved = null;
+        try { saved = JSON.parse(sessionStorage.getItem('audit_session') || 'null'); } catch { saved = null; }
+        if (saved && saved.sessionId) {
+          setSessionId(saved.sessionId);
+          setFilename(saved.filename || '');
+          setScreen('progress');
+        } else {
+          setScreen('upload');
+        }
+      })
       .catch(() => setScreen('login'));
   }, []);
 
@@ -55,19 +67,29 @@ export default function App() {
   const handleAuditStarted = useCallback((sid, fname) => {
     setSessionId(sid);
     setFilename(fname);
+    // Сохраняем сессию, чтобы пережить перезагрузку страницы (F5) во время аудита.
+    try { sessionStorage.setItem('audit_session', JSON.stringify({ sessionId: sid, filename: fname })); } catch { /* приватный режим — просто не сохраняем */ }
     setScreen('progress');
   }, []);
 
+  // Сессия аудита завершилась (успех/ошибка/сброс) — снимаем сохранение для восстановления.
+  const clearSavedSession = () => {
+    try { sessionStorage.removeItem('audit_session'); } catch { /* приватный режим */ }
+  };
+
   const handleComplete = useCallback((data) => {
+    clearSavedSession();
     setResult(data);
     setScreen('results');
   }, []);
 
   const handleError = useCallback(() => {
+    clearSavedSession();
     setScreen('upload');
   }, []);
 
   const handleReset = useCallback(() => {
+    clearSavedSession();
     setSessionId(null);
     setFilename('');
     setResult(null);
@@ -75,6 +97,7 @@ export default function App() {
   }, []);
 
   const handleLogout = useCallback(() => {
+    clearSavedSession();
     setSessionId(null);
     setFilename('');
     setResult(null);

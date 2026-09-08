@@ -3,7 +3,7 @@ import {
   FileText, ScanLine, LayoutTemplate, ClipboardCheck, FileSpreadsheet,
   Loader2, CheckCircle, Clock, AlertCircle, XCircle,
 } from 'lucide-react';
-import { subscribeToProgress } from './api';
+import { subscribeToProgress, fetchAuditResult } from './api';
 
 const STEPS = [
   { id: 'convert',    label: 'Конвертация документа',    icon: FileText },
@@ -23,14 +23,28 @@ export default function ScreenProgress({ sessionId, filename, onComplete, onErro
   const sourceRef = useRef(null);
   const startRef = useRef(Date.now());
   const timerRef = useRef(null);
+  // Метка последней активности потока (событие/ping) — для сторожевого таймера.
+  const lastActivityRef = useRef(Date.now());
+  const watchdogRef = useRef(null);
 
   useEffect(() => {
+    let cancelled = false;
     timerRef.current = setInterval(() => {
       setElapsed((Date.now() - startRef.current) / 1000);
     }, 100);
 
-    // SSE-подписка
-    sourceRef.current = subscribeToProgress(sessionId, (type, data) => {
+    // Показать результат завершённого аудита и остановить таймеры.
+    const finishWith = (data) => {
+      if (cancelled) return;
+      clearInterval(timerRef.current);
+      setStepStatuses(STEPS.map(() => 'done'));
+      setTimeout(() => { if (!cancelled) onComplete(data); }, 300);
+    };
+
+    // Обработчик события прогресса. Любое событие (в т.ч. ping) продлевает «жизнь» потока.
+    const handleEvent = (type, data) => {
+      lastActivityRef.current = Date.now();
+      if (type === 'ping') return;
       // Обработка очереди — вне setStepStatuses, т.к. не меняет шаги
       if (type === 'queue') {
         setQueuePosition(data.position || 0);
@@ -80,10 +94,62 @@ export default function ScreenProgress({ sessionId, filename, onComplete, onErro
 
         return next;
       });
+    };
+
+    // Сторожевой таймер: если 60 с нет ни событий, ни ping — спросить /result напрямую.
+    // Так ловится «тихий» обрыв через прокси, при котором onerror у EventSource не срабатывает
+    // (аудит устойчивости, находки 4.4b / 6.1). 202 — аудит ещё идёт, продлеваем ожидание;
+    // 200 — показать результат; 404/500 — соединение потеряно / аудит прерван.
+    const checkSilence = async () => {
+      if (cancelled || Date.now() - lastActivityRef.current < 60000) return;
+      try {
+        const { status, data } = await fetchAuditResult(sessionId);
+        if (cancelled) return;
+        if (status === 200) {
+          finishWith(data);
+        } else if (status === 202) {
+          lastActivityRef.current = Date.now();
+        } else {
+          clearInterval(timerRef.current);
+          setErrorMsg(data.detail || 'Соединение с сервером потеряно, аудит прерван.');
+        }
+      } catch {
+        // Сеть недоступна — не мигаем ошибкой сразу, ждём следующий цикл.
+      }
+    };
+    watchdogRef.current = setInterval(checkSilence, 10000);
+
+    // Немедленная проба результата. Нужна при восстановлении после перезагрузки страницы (F5):
+    // если аудит уже завершился, показываем результат сразу; если сессия потеряна — ошибку;
+    // при обычном старте /result ещё выполняется (202) — подписываемся на прогресс.
+    fetchAuditResult(sessionId).then(({ status, data }) => {
+      if (cancelled) return;
+      if (status === 200) {
+        finishWith(data);
+        return;
+      }
+      if (status === 404) {
+        clearInterval(timerRef.current);
+        setErrorMsg('Аудит не найден: сессия недоступна. Запустите проверку заново.');
+        return;
+      }
+      if (status === 500) {
+        clearInterval(timerRef.current);
+        setErrorMsg(data.detail || 'Аудит завершился с ошибкой.');
+        return;
+      }
+      // 202 или прочее — подписываемся на прогресс.
+      lastActivityRef.current = Date.now();
+      sourceRef.current = subscribeToProgress(sessionId, handleEvent);
+    }).catch(() => {
+      // Первичный опрос не удался (сеть) — всё равно подписываемся, обрыв поймает watchdog.
+      if (!cancelled) sourceRef.current = subscribeToProgress(sessionId, handleEvent);
     });
 
     return () => {
+      cancelled = true;
       clearInterval(timerRef.current);
+      clearInterval(watchdogRef.current);
       sourceRef.current?.close();
     };
   }, [sessionId]);

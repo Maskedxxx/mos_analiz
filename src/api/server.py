@@ -245,7 +245,9 @@ def _run_audit_thread(session_id: str, doc_type: str, target_path: str) -> None:
                 print(f"[AUDIT ERROR] {err_msg}", file=sys.stderr, flush=True)
                 session["status"] = "error"
                 session["error_message"] = err_msg
-                progress_callback("error", {"message": err_msg})
+                # Событие называется audit_error (НЕ error): у EventSource на фронте имя error
+                # совпадает с DOM-событием обрыва соединения — см. api.js::subscribeToProgress.
+                progress_callback("audit_error", {"message": err_msg})
     finally:
         try:
             sd = session.get("session_dir")
@@ -674,7 +676,7 @@ async def audit_events(session_id: str):
                 yield {"event": "ping", "data": "{}"}
                 continue
             yield {"event": event["type"], "data": json.dumps(event["data"], ensure_ascii=False)}
-            if event["type"] in ("complete", "error"):
+            if event["type"] in ("complete", "audit_error"):
                 break
 
     return EventSourceResponse(event_generator())

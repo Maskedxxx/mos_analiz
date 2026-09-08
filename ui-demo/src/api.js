@@ -134,27 +134,32 @@ export async function startCrossAudit(files) {
 export function subscribeToProgress(sessionId, onEvent) {
   const source = new EventSource(`${BASE}/audit/${sessionId}/events`);
 
-  // flag: terminalnoe sobytie (complete/error) polucheno
+  // Флаг: получено терминальное событие (complete / audit_error).
   let finished = false;
 
+  // Серверное событие ошибки называется `audit_error`, НЕ `error`: имя `error` совпало бы
+  // с DOM-событием обрыва соединения EventSource, и этот же слушатель поймал бы обрыв,
+  // упав на JSON.parse(undefined) («"undefined" is not valid JSON») и пометив поток
+  // завершённым — тогда onerror счёл бы закрытие штатным и молчал про реальный обрыв
+  // (аудит устойчивости, находки 4.4b / 6.1). `ping` — keepalive сервера, держит поток «живым».
   const eventTypes = [
     'audit_start', 'parsing_target', 'parsing_target_done',
     'checking_rules', 'checking_rules_done',
-    'complete', 'error',
+    'ping', 'complete', 'audit_error',
   ];
 
   eventTypes.forEach((type) => {
     source.addEventListener(type, (e) => {
-      // terminalnoe sobytie - pomechaem potok kak zavershyonnyy
-      if (type === 'complete' || type === 'error') {
+      if (type === 'complete' || type === 'audit_error') {
         finished = true;
       }
-      onEvent(type, JSON.parse(e.data));
+      // Внутренний контракт onEvent не меняем: серверный `audit_error` доходит как 'error'.
+      onEvent(type === 'audit_error' ? 'error' : type, JSON.parse(e.data));
     });
   });
 
   source.onerror = () => {
-    // shtatnoe zakrytie SSE posle terminalnogo sobytiya - ne lozhnaya oshibka
+    // Штатное закрытие SSE после терминального события — не ложная ошибка.
     if (finished) {
       source.close();
       return;
@@ -164,6 +169,18 @@ export function subscribeToProgress(sessionId, onEvent) {
   };
 
   return source;
+}
+
+/**
+ * GET /api/audit/{id}/result — разовый опрос результата.
+ * Возвращает {status, data}: 200 — готов (result), 202 — ещё выполняется,
+ * 404 — сессия не найдена, 500 — аудит завершился с ошибкой.
+ * Используется сторожевым таймером экрана прогресса и при восстановлении сессии.
+ */
+export async function fetchAuditResult(sessionId) {
+  const res = await fetch(`${BASE}/audit/${sessionId}/result`, { credentials: 'include' });
+  const data = await res.json().catch(() => ({}));
+  return { status: res.status, data };
 }
 
 /** URL для скачивания Excel */
