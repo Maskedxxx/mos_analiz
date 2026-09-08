@@ -1,7 +1,7 @@
 # START_MODULE_CONTRACT
 # PURPOSE: Генератор Excel-отчёта по результатам аудита. Показывает ВСЕ правила (PASS+FAIL), разделяет «Базовая»/«Методическая» проверки цветом и колонкой «Тип проверки».
 # INPUTS: violations (list of dict), output_path (str), all_rules (legacy RuleSpec) или multi_rules (rules_multi.json + rules_methodology.json), warnings (list of str — предупреждения парсера), unchecked (list of dict — правила без вердикта модели, F15).
-# OUTPUTS: .xlsx файл с шапкой, цветными ячейками PASS=зелёная/FAIL=розовая (для базовых) или голубая/розовая (для методических).
+# OUTPUTS: .xlsx файл с шапкой, цветными ячейками PASS=зелёная/FAIL=розовая (для базовых) или голубая/розовая (для методических). Значения ячеек обезврежены `_safe_cell`: строки-формулы пишутся как текст, длинные — усекаются.
 # KEYWORDS: excel, openpyxl, report, multi-rule, methodology.
 # LINKS: src/audit/engine.py (AuditEngine.run пишет финальный отчёт через `save_to_excel`), src/doc_type_validators/plan_grafik.py (тоже использует).
 # RATIONALE: Excel-отчёт — отдельная отчётная утилита; не зависит ни от engine, ни от runner-ов. Все стили/размеры/цвета — модуль-локальные приватные константы.
@@ -44,6 +44,10 @@ _METH_FAIL_FILL = PatternFill(start_color="FADBD8", end_color="FADBD8", fill_typ
 _UNCHECKED_FILL = PatternFill(start_color="FFF2CC", end_color="FFF2CC", fill_type="solid")
 _UNCHECKED_FONT = Font(name="Calibri", size=_FONT_SIZE, bold=True, color="BF8F00")
 _UNCHECKED_STATUS = "НЕ ПРОВЕРЕНО"
+# Обезвреживание ячеек (F17): предел длины (Excel — 32767) и префиксы формул/инъекций.
+_EXCEL_CELL_LIMIT = 32000
+_TRUNC_NOTE = " … [обрезано, полный текст в final_results.json]"
+_FORMULA_PREFIXES = ("=", "+", "-", "@")
 # END_STYLE_CONSTANTS
 
 
@@ -52,6 +56,33 @@ def _layer_label(layer: str) -> str:
     if layer == "methodology":
         return "Методическая"
     return "Базовая"
+
+
+def _safe_cell(value: Any) -> Any:
+    """
+    Назначение:
+        Обезвреживает значение ячейки Excel перед записью (F17). Модель может вернуть текст,
+        начинающийся с `=`, `+`, `-`, `@` — Excel/openpyxl примет его за формулу
+        (`=HYPERLINK(...)` → кликабельная ссылка, `=1+1` → вычисление, `= ...` → `#NAME?`).
+        Слишком длинный текст Excel молча режет на 32767 символах — теряется хвост.
+
+    Вход:
+        value: любое значение ячейки (строки обезвреживаются, прочее возвращается как есть).
+
+    Выход:
+        Строка (при необходимости усечённая с пометкой) или исходное значение.
+        Признак «это была формула» ставится вызывающим кодом через `cell.data_type = 's'`.
+    """
+    if not isinstance(value, str):
+        return value
+    if len(value) > _EXCEL_CELL_LIMIT:
+        return value[:_EXCEL_CELL_LIMIT] + _TRUNC_NOTE
+    return value
+
+
+def _is_formula_like(value: Any) -> bool:
+    """Строка начинается с символа формулы/инъекции Excel (=, +, -, @)."""
+    return isinstance(value, str) and value[:1] in _FORMULA_PREFIXES
 
 
 def _format_source(source_ref: str, nature: str) -> str:
@@ -183,7 +214,11 @@ def save_to_excel(
                   row["status"], row.get("source", ""), row["target"], row["diff"],
                   row.get("reasoning", "")]
         for col_idx, value in enumerate(values, start=1):
-            cell = ws.cell(row=row_idx, column=col_idx, value=value)
+            safe = _safe_cell(value)
+            cell = ws.cell(row=row_idx, column=col_idx, value=safe)
+            # Строку-формулу принудительно помечаем как текст, иначе Excel её вычислит (F17).
+            if _is_formula_like(safe):
+                cell.data_type = "s"
             cell.font = _CELL_FONT
             cell.border = _THIN_BORDER
             cell.fill = fill
@@ -220,7 +255,10 @@ def save_to_excel(
         head.fill = _HEADER_FILL
         head.border = _THIN_BORDER
         for row_idx, text in enumerate(warnings, start=2):
-            cell = ws_warn.cell(row=row_idx, column=1, value=text)
+            safe = _safe_cell(text)
+            cell = ws_warn.cell(row=row_idx, column=1, value=safe)
+            if _is_formula_like(safe):
+                cell.data_type = "s"
             cell.font = _CELL_FONT
             cell.alignment = _WRAP_ALIGNMENT
             cell.border = _THIN_BORDER
