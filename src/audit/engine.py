@@ -1,7 +1,7 @@
 # START_MODULE_CONTRACT
 # PURPOSE: Generic-движок аудита для всех типов с текстовым содержимым (docx/pptx/pdf) через multi_rule LLM-путь. Используется, когда в config.json типа задан `parser_by_ext` и нет поля `engine` (спецдвижки по xlsx — в реестре `src/engines.py`, раннеры в `src/doc_type_validators/`).
 # INPUTS: doc_type (имя папки в doc_configs/), target file. Конфиг через `load_audit_config`. LLM через `run_multi_rule_audit`.
-# OUTPUTS: `AuditResult` с violations и warnings + Excel-отчёт + JSON-логи в session_dir. Пустой/нераспознанный документ — ValueError до вызова модели (`check_document_text`).
+# OUTPUTS: `AuditResult` с violations, warnings и unchecked_rules + Excel-отчёт + JSON-логи в session_dir. Пустой/нераспознанный документ — ValueError до вызова модели (`check_document_text`). Непроверенные правила (модель не вернула вердикт) помечаются «НЕ ПРОВЕРЕНО» (F15); 0 проверенных — ValueError.
 # KEYWORDS: engine, multi-rule, generic-runtime, docx, pptx, pdf.
 # LINKS: src/audit/models.py (AuditConfig/AuditResult), src/audit/logger.py (PipelineLogger), src/audit/excel_reporter.py (save_to_excel), src/llm/multi_rule.py (run_multi_rule_audit), src/format_parsers/ (parse_docx/parse_pptx/parse_pdf), config/parsers.py (PARSERS_CONFIG).
 # RATIONALE:
@@ -273,6 +273,11 @@ class AuditEngine:
             layer="base",
         )
         violations = mr_result["violations"]
+        # F15: правила без вердикта — по слоям, чтобы пометить «НЕ ПРОВЕРЕНО», а не «пройдено».
+        unchecked_rules: List[Dict[str, Any]] = [
+            {"index": r.get("index"), "title": r.get("title", ""), "layer": "base"}
+            for r in mr_result.get("unchecked", [])
+        ]
         self.logger.log(f"   Base usage: prompt={mr_result['usage']['prompt_tokens']} completion={mr_result['usage']['completion_tokens']} total={mr_result['usage']['total_tokens']}")
         meth_config = load_methodology_config(doc_configs_dir, self.doc_type)
         if meth_config is not None:
@@ -289,11 +294,23 @@ class AuditEngine:
                 layer="methodology",
             )
             violations.extend(meth_result["violations"])
+            unchecked_rules.extend(
+                {"index": r.get("index"), "title": r.get("title", ""), "layer": "methodology"}
+                for r in meth_result.get("unchecked", [])
+            )
             self.logger.log(f"   Methodology usage: prompt={meth_result['usage']['prompt_tokens']} completion={meth_result['usage']['completion_tokens']} total={meth_result['usage']['total_tokens']}")
             self.logger.log(f"   Methodology violations: {len(meth_result['violations'])}")
         _all_multi_rules = [{**r, "layer": "base"} for r in mr_config["rules"]]
         if meth_config is not None:
             _all_multi_rules.extend(({**r, "layer": "methodology"} for r in meth_config["rules"]))
+        # F15: фактически проверено = все правила минус непроверенные. Если 0 — ошибка,
+        # а не «успешный» аудит с пустым/выдуманным результатом.
+        checked_count = len(_all_multi_rules) - len(unchecked_rules)
+        if checked_count <= 0:
+            self.logger.log("❌ Модель не вернула ни одного вердикта — проверка не выполнена")
+            raise ValueError("Модель не вернула ни одного вердикта — проверка не выполнена.")
+        if unchecked_rules:
+            self.logger.log(f"⚠️ Не проверено правил: {len(unchecked_rules)} из {len(_all_multi_rules)} (помечены «НЕ ПРОВЕРЕНО»)")
         _emit("checking_rules_done", {"violations": len(violations)})
         self.logger.log_final_results(violations)
         print(json.dumps(violations, ensure_ascii=False, indent=2))
@@ -301,7 +318,7 @@ class AuditEngine:
             xlsx_path = out_xlsx
         else:
             xlsx_path = str(session_path / "audit_result.xlsx")
-        save_to_excel(violations, xlsx_path, multi_rules=_all_multi_rules, warnings=warnings)
+        save_to_excel(violations, xlsx_path, multi_rules=_all_multi_rules, warnings=warnings, unchecked=unchecked_rules)
         self.logger.log(f"📊 Excel сохранён: {xlsx_path}")
         duration = time.time() - start_time
         self.logger.log(f"{'=' * 60}")
@@ -320,8 +337,8 @@ class AuditEngine:
         self.logger.log(f"✅ Аудит завершён за {duration:.1f} сек. Сессия: {session_path}")
         return AuditResult(
             violations=violations, doc_type=self.doc_type, session_dir=session_path,
-            duration_sec=duration, rules_checked=len(_all_multi_rules), target_path=target_path,
-            warnings=warnings,
+            duration_sec=duration, rules_checked=checked_count, target_path=target_path,
+            warnings=warnings, unchecked_rules=unchecked_rules,
         )
 
     def _parse_document(self, file_path: str, parse_log_dir: Path) -> Dict[str, Any]:

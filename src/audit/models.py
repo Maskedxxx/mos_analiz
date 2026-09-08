@@ -104,6 +104,8 @@ class AuditResult:
         target_path — путь к проверенному документу
         warnings — предупреждения парсера (например, не распознанные страницы PDF);
                    показываются пользователю и попадают в Excel листом «Предупреждения»
+        unchecked_rules — правила, по которым модель не вернула вердикт (F15):
+                   [{index, title, layer}]. Помечаются «НЕ ПРОВЕРЕНО», не выдаются за пройденные
     """
     violations: List[Dict[str, Any]] = field(default_factory=list)
     doc_type: str = ""
@@ -112,6 +114,7 @@ class AuditResult:
     rules_checked: int = 0
     target_path: str = ""
     warnings: List[str] = field(default_factory=list)
+    unchecked_rules: List[Dict[str, Any]] = field(default_factory=list)
 # END_AUDIT_RESULT
 
 

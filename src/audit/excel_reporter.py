@@ -1,6 +1,6 @@
 # START_MODULE_CONTRACT
 # PURPOSE: Генератор Excel-отчёта по результатам аудита. Показывает ВСЕ правила (PASS+FAIL), разделяет «Базовая»/«Методическая» проверки цветом и колонкой «Тип проверки».
-# INPUTS: violations (list of dict), output_path (str), all_rules (legacy RuleSpec) или multi_rules (rules_multi.json + rules_methodology.json), warnings (list of str — предупреждения парсера).
+# INPUTS: violations (list of dict), output_path (str), all_rules (legacy RuleSpec) или multi_rules (rules_multi.json + rules_methodology.json), warnings (list of str — предупреждения парсера), unchecked (list of dict — правила без вердикта модели, F15).
 # OUTPUTS: .xlsx файл с шапкой, цветными ячейками PASS=зелёная/FAIL=розовая (для базовых) или голубая/розовая (для методических).
 # KEYWORDS: excel, openpyxl, report, multi-rule, methodology.
 # LINKS: src/audit/engine.py (AuditEngine.run пишет финальный отчёт через `save_to_excel`), src/doc_type_validators/plan_grafik.py (тоже использует).
@@ -40,6 +40,10 @@ _OK_FONT = Font(name="Calibri", size=_FONT_SIZE, bold=True, color="1F7A1F")
 _FAIL_FONT = Font(name="Calibri", size=_FONT_SIZE, bold=True, color="CC0000")
 _METH_OK_FILL = PatternFill(start_color="D6EAF8", end_color="D6EAF8", fill_type="solid")
 _METH_FAIL_FILL = PatternFill(start_color="FADBD8", end_color="FADBD8", fill_type="solid")
+# Правило без вердикта модели (F15) — янтарная заливка, чтобы не путать с зелёным «ОК».
+_UNCHECKED_FILL = PatternFill(start_color="FFF2CC", end_color="FFF2CC", fill_type="solid")
+_UNCHECKED_FONT = Font(name="Calibri", size=_FONT_SIZE, bold=True, color="BF8F00")
+_UNCHECKED_STATUS = "НЕ ПРОВЕРЕНО"
 # END_STYLE_CONSTANTS
 
 
@@ -72,6 +76,7 @@ def save_to_excel(
     output_path: str,
     multi_rules: Optional[List[Dict[str, Any]]] = None,
     warnings: Optional[List[str]] = None,
+    unchecked: Optional[List[Dict[str, Any]]] = None,
 ) -> None:
     """
     Назначение:
@@ -87,6 +92,8 @@ def save_to_excel(
             `violations` (без PASS-строк).
         warnings: предупреждения парсера (например, не распознанные страницы PDF). Если
             список непустой — добавляется второй лист «Предупреждения», по строке на каждое.
+        unchecked: правила [{index, layer}], по которым модель не вернула вердикт (F15). Такие
+            правила показываются со статусом «НЕ ПРОВЕРЕНО» (янтарным), а не «ОК».
 
     Выход:
         None (пишет файл по `output_path`).
@@ -114,6 +121,9 @@ def save_to_excel(
         cell.border = _THIN_BORDER
     ws.row_dimensions[1].height = 30
 
+    # F15: множество (index, layer) правил без вердикта модели — их не выдаём за «ОК».
+    unchecked_keys = {(u.get("index"), u.get("layer", "base")) for u in (unchecked or [])}
+
     # Группируем violations по (rule_index, layer)
     violations_by_rule: Dict[Any, List[Dict[str, Any]]] = {}
     for v in violations:
@@ -137,6 +147,12 @@ def save_to_excel(
                         "target": v.get("Целевой документ", ""), "diff": v.get("Различие", ""),
                         "reasoning": v.get("Обоснование", ""),
                     })
+            elif (idx, layer) in unchecked_keys:
+                rows_data.append({
+                    "index": idx, "title": rule.get("title", ""), "layer": layer,
+                    "status": _UNCHECKED_STATUS, "source": source, "target": "", "diff": "",
+                    "reasoning": "Модель не вернула вердикт по этому правилу — проверка не выполнена.",
+                })
             else:
                 rows_data.append({
                     "index": idx, "title": rule.get("title", ""), "layer": layer,
@@ -155,8 +171,11 @@ def save_to_excel(
     # Раскраска ячеек
     for row_idx, row in enumerate(rows_data, start=2):
         is_ok = row["status"] == "ОК"
+        is_unchecked = row["status"] == _UNCHECKED_STATUS
         is_meth = row.get("layer") == "methodology"
-        if is_meth:
+        if is_unchecked:
+            fill = _UNCHECKED_FILL
+        elif is_meth:
             fill = _METH_OK_FILL if is_ok else _METH_FAIL_FILL
         else:
             fill = _OK_FILL if is_ok else _FAIL_FILL
@@ -173,7 +192,7 @@ def save_to_excel(
             elif col_idx in (3, 4):
                 cell.alignment = _CENTER_ALIGNMENT
                 if col_idx == 4:
-                    cell.font = _OK_FONT if is_ok else _FAIL_FONT
+                    cell.font = _UNCHECKED_FONT if is_unchecked else (_OK_FONT if is_ok else _FAIL_FONT)
             else:
                 cell.alignment = _WRAP_ALIGNMENT
 

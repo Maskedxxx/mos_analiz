@@ -10,6 +10,7 @@ export default function ScreenResults({ result, sessionId, filename, onReset }) 
   const violations = result.violations || [];
   const rulesChecked = result.rules_checked || 0;
   const duration = result.duration_sec || 0;
+  const unchecked = result.unchecked || [];
 
   const baseViolations = violations.filter((v) => !v.layer || v.layer === 'base');
   const methViolations = violations.filter((v) => v.layer === 'methodology');
@@ -43,6 +44,24 @@ export default function ScreenResults({ result, sessionId, filename, onReset }) 
           icon={<Clock className="w-5 h-5" />}
         />
       </div>
+
+      {/* Не проверено моделью (F15): правила без вердикта — не путать с пройденными */}
+      {unchecked.length > 0 && (
+        <div className="bg-amber-50 border border-amber-300 rounded-xl p-5 space-y-2">
+          <div className="flex items-center gap-2">
+            <AlertCircle className="w-5 h-5 text-amber-600 shrink-0" />
+            <p className="font-semibold text-amber-800">Не проверено: {unchecked.length} правил</p>
+          </div>
+          <p className="text-sm text-amber-700">
+            Модель не вернула вердикт по этим правилам — проверка по ним не выполнена. Повторите аудит.
+          </p>
+          <ul className="text-sm text-amber-800 list-disc list-inside">
+            {unchecked.map((u) => (
+              <li key={`${u.layer}-${u.index}`}>#{u.index} {u.title}</li>
+            ))}
+          </ul>
+        </div>
+      )}
 
       {/* Формальные проверки (base) */}
       <ViolationBlock

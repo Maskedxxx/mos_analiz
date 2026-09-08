@@ -1,7 +1,7 @@
 # START_MODULE_CONTRACT
 # PURPOSE: Multi-rule LLM-аудит — единственный активный путь отправки документа в LLM. Документ целиком + семантическая карта секций + список правил → один запрос к Qwen → массив вердиктов → список нарушений.
 # INPUTS: `parsed` (ParsedDocument с raw_text), `sections` (dict от `sections.json`), `rules` (list от `rules_multi.json` / `rules_methodology.json`), `filename`, `llm_base_url`, `llm_model`, опциональная `session_dir` для debug-артефактов.
-# OUTPUTS: `{verdicts, violations, usage, prompt_chars}`.
+# OUTPUTS: `{verdicts, violations, unchecked, checked_count, usage, prompt_chars}`.
 # KEYWORDS: multi-rule, llm, qwen, audit, system-prompt, user-prompt-template.
 # LINKS: config/llm.py (LLM_CONFIG), src/llm/client.py (call_llm — не используется тут, т.к. multi_rule имеет Qwen-специфичные параметры), main.py::AuditEngine.run, doc_configs/<тип>/rules_multi.json, doc_configs/<тип>/rules_methodology.json.
 # RATIONALE: Единственный активный LLM-путь. Остальные (single-rule, template comparison, scope-based rules) — мёртвое legacy после step 1. SYSTEM_PROMPT и шаблоны user-промпта вынесены как module-level константы: глядя на верх файла, сразу видно, что именно уходит в Qwen.
@@ -499,7 +499,8 @@ def run_multi_rule_audit(
             нарушений.
 
     Выход:
-        Dict `{verdicts, violations, usage, prompt_chars}`.
+        Dict `{verdicts, violations, unchecked, checked_count, usage, prompt_chars}`.
+        `unchecked` — правила без годного вердикта после всех попыток (F15).
 
     Логика:
         1. Достаёт текст документа через `_collect_doc_text`.
@@ -586,6 +587,29 @@ def run_multi_rule_audit(
     response_text = best_text
     if best_response is not None:
         response = best_response
+
+    # F15: какие правила модель НЕ проверила (нет годного вердикта после всех попыток).
+    # Они не должны выглядеть пройденными — движок пометит их «НЕ ПРОВЕРЕНО».
+    checked_indices = set()
+    for v in verdicts:
+        if not isinstance(v, dict):
+            continue
+        ri = v.get("rule_index")
+        verd = v.get("verdict")
+        status = verd.get("status") if isinstance(verd, dict) else None
+        has_status = isinstance(status, str) and status.strip() != ""
+        if not has_status:
+            continue
+        if isinstance(ri, int):
+            checked_indices.add(ri)
+        elif isinstance(ri, str) and ri.strip().isdigit():
+            checked_indices.add(int(ri.strip()))
+    unchecked = [r for r in rules if r.get("index") not in checked_indices]
+    if unchecked:
+        logger.warning(
+            f"multi_rule[{layer}]: не проверено {len(unchecked)}/{len(rules)} правил "
+            f"(индексы {[r.get('index') for r in unchecked]}) — помечены «НЕ ПРОВЕРЕНО»"
+        )
     if session_dir:
         (session_dir / f"{prefix}_response_raw.txt").write_text(response_text, encoding="utf-8")
         (session_dir / f"{prefix}_response_parsed.json").write_text(
@@ -597,6 +621,8 @@ def run_multi_rule_audit(
     return {
         "verdicts": verdicts,
         "violations": violations,
+        "unchecked": unchecked,
+        "checked_count": len(rules) - len(unchecked),
         "usage": {
             "prompt_tokens": response.usage.prompt_tokens,
             "completion_tokens": response.usage.completion_tokens,

@@ -234,6 +234,7 @@ def _run_audit_thread(session_id: str, doc_type: str, target_path: str) -> None:
                     "rules_checked": result.rules_checked,
                     "duration_sec": result.duration_sec,
                     "warnings": result.warnings,
+                    "unchecked": result.unchecked_rules,
                 }
                 session["session_dir"] = str(result.session_dir)
                 session["status"] = "done"
