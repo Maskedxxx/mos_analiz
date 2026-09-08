@@ -19,3 +19,5 @@ for i in $(seq 1 60); do
 done
 echo "[frontend] http://127.0.0.1:$UI_PORT/ -> ${code:-нет ответа}  (лог: $LOG_DIR/frontend.log)"
 if [ "$code" != "200" ]; then tail -5 "$LOG_DIR/frontend.log"; exit 1; fi
+# F29: 200 мог ответить чужой процесс на этом порту — сверяем PID слушателя с нашей screen-сессией.
+check_port_owner "$UI_PORT" "frontend" "frontend" || { tail -5 "$LOG_DIR/frontend.log"; exit 1; }

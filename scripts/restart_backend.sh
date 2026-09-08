@@ -17,3 +17,5 @@ done
 echo "[backend] http://$API_HOST:$API_PORT/api/health -> ${code:-нет ответа}  (лог: $LOG_DIR/backend.log)"
 if [ "$code" = "503" ]; then echo "[backend] состояние degraded — проверьте адреса LLM_BASE_URL/OCR_BASE_URL/LAYOUT_BASE_URL в .env: curl -s http://127.0.0.1:$API_PORT/api/health"; fi
 if [ "$code" != "200" ] && [ "$code" != "503" ]; then tail -5 "$LOG_DIR/backend.log"; exit 1; fi
+# F29: ответ мог дать чужой процесс на этом порту (старый прод, забытый uvicorn) — сверяем PID слушателя.
+check_port_owner "$API_PORT" "backend" "backend" || { tail -5 "$LOG_DIR/backend.log"; exit 1; }
