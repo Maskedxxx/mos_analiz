@@ -67,7 +67,20 @@ export default function ScreenGeneration() {
     if (!current) return undefined;
     let cancelled = false;
     fetchGenSchema(current)
-      .then((s) => { if (!cancelled) { setSchema(s); setLoadError(''); } })
+      .then((s) => {
+        if (cancelled) return;
+        setSchema(s);
+        setLoadError('');
+        // Значения по умолчанию из схемы (F27, находка 5.7a): поля РЦК/доверенность бэкенд заполняет
+        // сам, а форма показывала их пустыми и обязательными — подставляем default, юзер может поправить.
+        setValues((prev) => {
+          const next = { ...prev };
+          (s.fields || []).forEach((f) => {
+            if (f.default != null && f.default !== '' && !String(next[f.key] || '').trim()) next[f.key] = String(f.default);
+          });
+          return next;
+        });
+      })
       .catch((e) => { if (!cancelled) setLoadError(e.message); })
       .finally(() => { if (!cancelled) setSchemaLoading(false); });
     return () => { cancelled = true; };
