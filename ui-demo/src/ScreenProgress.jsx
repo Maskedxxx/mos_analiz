@@ -12,11 +12,15 @@ const STEPS = [
   { id: 'rules',      label: 'Проверка правил',          icon: ClipboardCheck },
   { id: 'report',     label: 'Формирование отчёта',      icon: FileSpreadsheet },
 ];
+// Подписи слоёв правил для строки «ожидаем ответ модели» (событие llm_attempt, F5).
+const LAYER_LABELS = { base: 'базовый слой', methodology: 'методический слой' };
 
 export default function ScreenProgress({ sessionId, filename, onComplete, onError }) {
   // 'waiting' | 'active' | 'done' | 'error'
   const [stepStatuses, setStepStatuses] = useState(STEPS.map(() => 'waiting'));
   const [rulesProgress, setRulesProgress] = useState({ current: 0, total: 0 });
+  // F5: {layer, attempt, max} — модель вызвана, ждём ответ (попытка N из 5).
+  const [llmAttempt, setLlmAttempt] = useState(null);
   const [elapsed, setElapsed] = useState(0);
   const [errorMsg, setErrorMsg] = useState('');
   const [errorTech, setErrorTech] = useState('');   // исходный текст исключения — под «Подробности»
@@ -51,6 +55,11 @@ export default function ScreenProgress({ sessionId, filename, onComplete, onErro
         setQueuePosition(data.position || 0);
         return;
       }
+      // F5: ожидание ответа модели — показываем слой и номер попытки под шагом «Проверка правил».
+      if (type === 'llm_attempt') {
+        setLlmAttempt(data);
+        return;
+      }
 
       setStepStatuses((prev) => {
         const next = [...prev];
@@ -73,6 +82,7 @@ export default function ScreenProgress({ sessionId, filename, onComplete, onErro
         if (type === 'checking_rules_done') {
           next[3] = 'done';
           next[4] = 'active';
+          setLlmAttempt(null);
         }
         if (type === 'complete') {
           next[4] = 'done';
@@ -251,7 +261,9 @@ export default function ScreenProgress({ sessionId, filename, onComplete, onErro
                 </p>
                 <p className="text-xs text-gray-400 mt-0.5">
                   {status === 'done' && 'Завершено'}
-                  {status === 'active' && 'Выполняется...'}
+                  {status === 'active' && (step.id === 'rules' && llmAttempt
+                    ? `Ожидаем ответ модели (${LAYER_LABELS[llmAttempt.layer] || llmAttempt.layer}, попытка ${llmAttempt.attempt} из ${llmAttempt.max})`
+                    : 'Выполняется...')}
                   {status === 'error' && 'Ошибка'}
                   {status === 'waiting' && 'Ожидание'}
                 </p>

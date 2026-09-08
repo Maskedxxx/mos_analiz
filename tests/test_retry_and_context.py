@@ -86,3 +86,16 @@ def test_context_error_mapping():
     resp = httpx.Response(400, request=httpx.Request("POST", "http://x"), json={"error": {"message": "request (374868 tokens) exceeds the available context size (262144 tokens)"}})
     exc = openai.BadRequestError("request (374868 tokens) exceeds the available context size", response=resp, body=None)
     assert "слишком большой" in _user_error_message(exc)
+
+
+def test_llm_attempt_progress_events(monkeypatch):
+    """F5: перед каждым вызовом модели уходит событие llm_attempt с номером попытки и слоем."""
+    import src.llm.multi_rule as mr
+    client = _Client(["не JSON", GOOD])
+    events = []
+    monkeypatch.setattr(mr, "make_llm_client", lambda base_url=None: client)
+    mr.run_multi_rule_audit(parsed={"filename": "d", "path": "d", "raw_text": "текст"}, sections={}, rules=RULES,
+                            include_scopes=None, filename="d", llm_base_url="http://stub/v1/", llm_model="m",
+                            layer="methodology", progress_callback=lambda t, d: events.append((t, d)))
+    assert events == [("llm_attempt", {"layer": "methodology", "attempt": 1, "max": 5}),
+                      ("llm_attempt", {"layer": "methodology", "attempt": 2, "max": 5})]

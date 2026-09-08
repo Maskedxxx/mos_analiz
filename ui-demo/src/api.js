@@ -146,7 +146,7 @@ export function subscribeToProgress(sessionId, onEvent) {
   // (аудит устойчивости, находки 4.4b / 6.1). `ping` — keepalive сервера, держит поток «живым».
   const eventTypes = [
     'audit_start', 'parsing_target', 'parsing_target_done',
-    'checking_rules', 'checking_rules_done',
+    'checking_rules', 'llm_attempt', 'checking_rules_done',
     'ping', 'complete', 'audit_error',
   ];
 

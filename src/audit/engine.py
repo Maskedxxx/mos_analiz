@@ -337,6 +337,7 @@ class AuditEngine:
             llm_model=self.config.model,
             session_dir=session_path,
             layer="base",
+            progress_callback=_emit,
         )
         violations = mr_result["violations"]
         # F15: правила без вердикта — по слоям, чтобы пометить «НЕ ПРОВЕРЕНО», а не «пройдено».
@@ -358,6 +359,7 @@ class AuditEngine:
                 llm_model=self.config.model,
                 session_dir=session_path,
                 layer="methodology",
+                progress_callback=_emit,
             )
             violations.extend(meth_result["violations"])
             unchecked_rules.extend(

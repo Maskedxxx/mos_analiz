@@ -14,7 +14,7 @@ import json
 import logging
 import re
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Callable, Any, Dict, List, Optional
 
 
 from config.llm import LLM_CONFIG
@@ -500,6 +500,7 @@ def run_multi_rule_audit(
     llm_model: Optional[str] = None,
     session_dir: Optional[Path] = None,
     layer: str = "base",
+    progress_callback: Optional[Callable[[str, Dict[str, Any]], None]] = None,
 ) -> Dict[str, Any]:
     """
     Назначение:
@@ -519,6 +520,9 @@ def run_multi_rule_audit(
             (system_prompt.txt, user_prompt.txt, response_raw.txt, response_parsed.json).
         layer: `base` или `methodology` — префикс для имён debug-файлов и поле
             нарушений.
+        progress_callback: колбэк прогресса `(type, data)`; перед каждым вызовом модели
+            уходит событие `llm_attempt` {layer, attempt, max} — UI показывает, что ждём
+            ответ модели и какая это попытка (F5, находка 1.3).
 
     Выход:
         Dict `{verdicts, violations, unchecked, checked_count, usage, prompt_chars}`.
@@ -578,6 +582,9 @@ def run_multi_rule_audit(
     best_response = None
     response = None
     for attempt in range(max_attempts):
+        # F5: сообщаем UI, что ждём ответ модели — иначе на долгом таймауте пользователь видит тишину.
+        if progress_callback:
+            progress_callback("llm_attempt", {"layer": layer, "attempt": attempt + 1, "max": max_attempts})
         response = client.chat.completions.create(
             model=llm_model,
             messages=[
