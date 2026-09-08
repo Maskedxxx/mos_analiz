@@ -102,6 +102,8 @@ class AuditResult:
         duration_sec — продолжительность аудита в секундах
         rules_checked — количество проверенных правил
         target_path — путь к проверенному документу
+        warnings — предупреждения парсера (например, не распознанные страницы PDF);
+                   показываются пользователю и попадают в Excel листом «Предупреждения»
     """
     violations: List[Dict[str, Any]] = field(default_factory=list)
     doc_type: str = ""
@@ -109,6 +111,7 @@ class AuditResult:
     duration_sec: float = 0.0
     rules_checked: int = 0
     target_path: str = ""
+    warnings: List[str] = field(default_factory=list)
 # END_AUDIT_RESULT
 
 

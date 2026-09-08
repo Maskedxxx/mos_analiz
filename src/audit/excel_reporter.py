@@ -1,6 +1,6 @@
 # START_MODULE_CONTRACT
 # PURPOSE: Генератор Excel-отчёта по результатам аудита. Показывает ВСЕ правила (PASS+FAIL), разделяет «Базовая»/«Методическая» проверки цветом и колонкой «Тип проверки».
-# INPUTS: violations (list of dict), output_path (str), all_rules (legacy RuleSpec) или multi_rules (rules_multi.json + rules_methodology.json).
+# INPUTS: violations (list of dict), output_path (str), all_rules (legacy RuleSpec) или multi_rules (rules_multi.json + rules_methodology.json), warnings (list of str — предупреждения парсера).
 # OUTPUTS: .xlsx файл с шапкой, цветными ячейками PASS=зелёная/FAIL=розовая (для базовых) или голубая/розовая (для методических).
 # KEYWORDS: excel, openpyxl, report, multi-rule, methodology.
 # LINKS: src/audit/engine.py (AuditEngine.run пишет финальный отчёт через `save_to_excel`), src/doc_type_validators/plan_grafik.py (тоже использует).
@@ -71,6 +71,7 @@ def save_to_excel(
     violations: List[Dict[str, Any]],
     output_path: str,
     multi_rules: Optional[List[Dict[str, Any]]] = None,
+    warnings: Optional[List[str]] = None,
 ) -> None:
     """
     Назначение:
@@ -84,6 +85,8 @@ def save_to_excel(
         multi_rules: список dict-правил из rules_multi.json + rules_methodology.json.
             Если задан — итерируем по нему (показываем PASS+FAIL); иначе — только по
             `violations` (без PASS-строк).
+        warnings: предупреждения парсера (например, не распознанные страницы PDF). Если
+            список непустой — добавляется второй лист «Предупреждения», по строке на каждое.
 
     Выход:
         None (пишет файл по `output_path`).
@@ -95,6 +98,7 @@ def save_to_excel(
         4. Цвет ячеек: base PASS=зелёная, base FAIL=розовая, methodology PASS=голубая, methodology FAIL=светло-розовая.
         5. Авто-ширина колонок в пределах [_MIN_WIDTHS..._MAX_WIDTHS].
         6. Закреплена шапка (`freeze_panes='A2'`).
+        7. Если есть `warnings` — второй лист «Предупреждения».
     """
     Path(output_path).parent.mkdir(parents=True, exist_ok=True)
     wb = Workbook()
@@ -188,5 +192,20 @@ def save_to_excel(
         ws.column_dimensions[get_column_letter(col_idx)].width = width
 
     ws.freeze_panes = "A2"
+
+    # Лист «Предупреждения» — только если парсер их вернул (например, не распознанные страницы PDF).
+    if warnings:
+        ws_warn = wb.create_sheet("Предупреждения")
+        head = ws_warn.cell(row=1, column=1, value="Предупреждение")
+        head.font = _HEADER_FONT
+        head.fill = _HEADER_FILL
+        head.border = _THIN_BORDER
+        for row_idx, text in enumerate(warnings, start=2):
+            cell = ws_warn.cell(row=row_idx, column=1, value=text)
+            cell.font = _CELL_FONT
+            cell.alignment = _WRAP_ALIGNMENT
+            cell.border = _THIN_BORDER
+        ws_warn.column_dimensions["A"].width = 120
+
     wb.save(output_path)
 # END_SAVE_TO_EXCEL

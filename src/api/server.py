@@ -233,6 +233,7 @@ def _run_audit_thread(session_id: str, doc_type: str, target_path: str) -> None:
                     "violations": result.violations,
                     "rules_checked": result.rules_checked,
                     "duration_sec": result.duration_sec,
+                    "warnings": result.warnings,
                 }
                 session["session_dir"] = str(result.session_dir)
                 session["status"] = "done"
@@ -243,6 +244,7 @@ def _run_audit_thread(session_id: str, doc_type: str, target_path: str) -> None:
                 sys.stderr.flush()
                 print(f"[AUDIT ERROR] {err_msg}", file=sys.stderr, flush=True)
                 session["status"] = "error"
+                session["error_message"] = err_msg
                 progress_callback("error", {"message": err_msg})
     finally:
         try:
@@ -688,7 +690,7 @@ async def get_result(request: Request, session_id: str):
     if session["status"] == "running":
         raise HTTPException(status_code=202, detail="Аудит ещё выполняется")
     if session["status"] == "error":
-        raise HTTPException(status_code=500, detail="Аудит завершился с ошибкой")
+        raise HTTPException(status_code=500, detail=f"Аудит завершился с ошибкой: {session.get('error_message', '')}".rstrip(": "))
     return session["result"]
 
 

@@ -1,7 +1,7 @@
 # START_MODULE_CONTRACT
 # PURPOSE: Типы-контракты формат-парсеров. Единая форма возвращаемого словаря для docx/pptx/... .
 # INPUTS: —
-# OUTPUTS: `ParsedDocument` (TypedDict) — словарь с полями `filename`, `path`, `raw_text`.
+# OUTPUTS: `ParsedDocument` (TypedDict) — словарь с полями `filename`, `path`, `raw_text` и необязательным `warnings`.
 # KEYWORDS: typeddict, contract, parsed-document.
 # LINKS: src/format_parsers/docx.py, src/format_parsers/pptx.py, src/format_parsers/__init__.py.
 # RATIONALE: Явный типизированный контракт фиксирует форму результата парсеров без рантайм-оверхеда: сохраняет dict-API, добавляет IDE-автодополнение и возможность статического type-check.
@@ -10,7 +10,7 @@
 from __future__ import annotations
 
 # START_IMPORTS
-from typing import TypedDict
+from typing import List, NotRequired, TypedDict
 # END_IMPORTS
 
 
@@ -29,6 +29,9 @@ class ParsedDocument(TypedDict):
         path: Абсолютный путь к исходному файлу.
         raw_text: Полный текст документа как единая строка, без разбивки по страницам
             или чанкам.
+        warnings: Необязательный список предупреждений парсера (например, «страница 3 не
+            распознана: …»). Ставит только парсер, которому есть что сообщить; верхние
+            слои читают через `.get("warnings")`.
 
     Логика:
         Формат-парсер читает файл своего типа и отдаёт строго эту форму.
@@ -38,4 +41,5 @@ class ParsedDocument(TypedDict):
     filename: str
     path: str
     raw_text: str
+    warnings: NotRequired[List[str]]
 # END_PARSED_DOCUMENT

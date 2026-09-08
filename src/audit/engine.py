@@ -1,7 +1,7 @@
 # START_MODULE_CONTRACT
 # PURPOSE: Generic-движок аудита для всех типов с текстовым содержимым (docx/pptx/pdf) через multi_rule LLM-путь. Используется, когда в config.json типа задан `parser_by_ext` и нет поля `engine` (спецдвижки по xlsx — в реестре `src/engines.py`, раннеры в `src/doc_type_validators/`).
 # INPUTS: doc_type (имя папки в doc_configs/), target file. Конфиг через `load_audit_config`. LLM через `run_multi_rule_audit`.
-# OUTPUTS: `AuditResult` с violations + Excel-отчёт + JSON-логи в session_dir.
+# OUTPUTS: `AuditResult` с violations и warnings + Excel-отчёт + JSON-логи в session_dir. Пустой/нераспознанный документ — ValueError до вызова модели (`check_document_text`).
 # KEYWORDS: engine, multi-rule, generic-runtime, docx, pptx, pdf.
 # LINKS: src/audit/models.py (AuditConfig/AuditResult), src/audit/logger.py (PipelineLogger), src/audit/excel_reporter.py (save_to_excel), src/llm/multi_rule.py (run_multi_rule_audit), src/format_parsers/ (parse_docx/parse_pptx/parse_pdf), config/parsers.py (PARSERS_CONFIG).
 # RATIONALE:
@@ -15,6 +15,7 @@ from __future__ import annotations
 
 # START_IMPORTS
 import json
+import re
 import time
 from datetime import datetime
 from pathlib import Path
@@ -37,6 +38,54 @@ from src.llm import load_methodology_config, load_multi_rule_config, run_multi_r
 _PROJECT_ROOT = Path(__file__).resolve().parents[2]
 _DOC_CONFIGS_DIR = _PROJECT_ROOT / "doc_configs"
 # END_PATHS
+
+
+# START_TEXT_GUARD
+# PURPOSE: Проверка, что парсер извлёк из документа текст, прежде чем звать модель. Пустой документ
+# (blank.docx, pptx из одних картинок, PDF с пустыми страницами) или документ из одних маркеров
+# модель «проверяет» и выдумывает нарушения — аудит устойчивости, находки 1.5, 1.5b, 2.4f, 3.1b.
+# Маркеры, которые текстом документа не считаются: границы страниц/слайдов и ошибки распознавания.
+_STRUCTURAL_MARKER_RE = re.compile(r"^\[(СТРАНИЦА|СЛАЙД) \d+\]$")
+_ERROR_MARKER_PREFIX = "[ОШИБКА"
+# Минимум полезных символов (без маркеров), чтобы документ считался прочитанным. 1 = «хоть что-то»:
+# больший порог мог бы отбраковать короткие настоящие документы.
+_MIN_DOC_TEXT_CHARS = 1
+
+
+def check_document_text(raw_text: str) -> None:
+    """
+    Назначение:
+        Убедиться, что в `raw_text` есть текст документа, а не только маркеры.
+
+    Вход:
+        raw_text: полный текст документа от формат-парсера.
+
+    Выход:
+        None. Если полезного текста меньше `_MIN_DOC_TEXT_CHARS` — ValueError с человекочитаемой
+        причиной (с текстом первой ошибки распознавания, если она была).
+
+    Логика:
+        Строки-маркеры границ отбрасываются, строки-маркеры ошибок собираются отдельно,
+        остальное считается текстом документа.
+    """
+    useful_chars = 0
+    errors: List[str] = []
+    for line in raw_text.splitlines():
+        s = line.strip()
+        if not s or _STRUCTURAL_MARKER_RE.match(s):
+            continue
+        if s.startswith(_ERROR_MARKER_PREFIX):
+            errors.append(s)
+            continue
+        useful_chars += len(s)
+    if useful_chars >= _MIN_DOC_TEXT_CHARS:
+        return
+    if errors:
+        raise ValueError(f"Документ не удалось распознать, проверка не выполнена. {errors[0]}")
+    raise ValueError(
+        "Документ не содержит распознаваемого текста (пустой файл или только изображения), проверка не выполнена."
+    )
+# END_TEXT_GUARD
 
 
 # START_SECONDARY_PARSER_DISPATCH
@@ -188,6 +237,19 @@ class AuditEngine:
             print("TARGET:")
             print(json.dumps(target_doc, ensure_ascii=False, indent=2))
             return AuditResult(doc_type=self.doc_type, session_dir=session_path, target_path=target_path, duration_sec=time.time() - start_time)
+        # Guard: пустой/нераспознанный документ к модели не идёт. Путь «xlsx как вторичный файл»
+        # отдаёт чанки без raw_text — его guard не касается.
+        raw_text = target_doc.get("raw_text")
+        if isinstance(raw_text, str):
+            try:
+                check_document_text(raw_text)
+            except ValueError as e:
+                self.logger.log(f"❌ {e}")
+                raise
+        # Предупреждения парсера (например, не распознанные страницы PDF) — в лог, результат и Excel.
+        warnings: List[str] = list(target_doc.get("warnings") or [])
+        for w in warnings:
+            self.logger.log(f"⚠️ {w}")
         # Активный LLM-путь — multi_rule: парсер отдаёт raw_text, промпт собирается
         # по sections.json + rules_multi.json / rules_methodology.json.
         doc_configs_dir = self.config.config_dir.parent
@@ -239,11 +301,13 @@ class AuditEngine:
             xlsx_path = out_xlsx
         else:
             xlsx_path = str(session_path / "audit_result.xlsx")
-        save_to_excel(violations, xlsx_path, multi_rules=_all_multi_rules)
+        save_to_excel(violations, xlsx_path, multi_rules=_all_multi_rules, warnings=warnings)
         self.logger.log(f"📊 Excel сохранён: {xlsx_path}")
         duration = time.time() - start_time
         self.logger.log(f"{'=' * 60}")
         self.logger.log(f"📊 Итого нарушений: {len(violations)}")
+        if warnings:
+            self.logger.log(f"⚠️ Предупреждений парсера: {len(warnings)}")
         if violations:
             by_rule: Dict[Any, int] = {}
             for v in violations:
@@ -257,6 +321,7 @@ class AuditEngine:
         return AuditResult(
             violations=violations, doc_type=self.doc_type, session_dir=session_path,
             duration_sec=duration, rules_checked=len(_all_multi_rules), target_path=target_path,
+            warnings=warnings,
         )
 
     def _parse_document(self, file_path: str, parse_log_dir: Path) -> Dict[str, Any]:

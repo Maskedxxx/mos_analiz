@@ -1,7 +1,7 @@
 # START_MODULE_CONTRACT
 # PURPOSE: Оркестратор PDF-парсинга и публичный entry `parse_pdf`. Связывает клиенты (IO) и чистую логику (парсинг) в один конвейер: открыть PDF → детектировать пустые страницы → layout + VLM на каждой странице → склеить всё в `raw_text`.
 # INPUTS: Путь к PDF-файлу, `PdfParserConfig` (из `config/parsers.json`), опциональная директория для debug-логов.
-# OUTPUTS: `ParsedDocument` с полями `filename`, `path`, `raw_text`. Полный текст всех страниц, разделитель — `[СТРАНИЦА N]`.
+# OUTPUTS: `ParsedDocument` с полями `filename`, `path`, `raw_text` (+ `warnings`, если часть страниц не распозналась). Полный текст всех распознанных страниц, разделитель — `[СТРАНИЦА N]`. Если не распозналась ни одна непустая страница — ValueError.
 # KEYWORDS: pdf, orchestrator, paddle-extractor, parse-pdf, raw-text, public-api.
 # LINKS: src/format_parsers/pdf/_config.py, src/format_parsers/pdf/_clients.py, src/format_parsers/pdf/_parsing.py, src/format_parsers/_types.py.
 # RATIONALE: Публичный API пакета — одна функция `parse_pdf(file_path, config)`. Всё остальное в пакете — внутренности, скрытые от потребителя.
@@ -41,6 +41,15 @@ from src.format_parsers.pdf._parsing import (
 extractor_logger = logging.getLogger(__name__ + ".extractor")
 parse_pdf_logger = logging.getLogger(__name__ + ".parse_pdf")
 # END_LOGGER
+
+
+# START_OCR_ERROR_MARKER
+# PURPOSE: Префикс текста-маркера, которым `_process_pages_from_pdf` заменяет страницу при сбое OCR.
+# `parse_pdf` по этому префиксу отделяет упавшие страницы от распознанных: в raw_text маркер не
+# попадает (иначе модель проверяет строку ошибки как текст документа), а сама ошибка уходит
+# в `warnings` или в исключение, если не распозналась ни одна страница.
+_OCR_ERROR_MARKER = "[ОШИБКА Paddle OCR:"
+# END_OCR_ERROR_MARKER
 
 
 # START_PADDLE_EXTRACTOR
@@ -261,7 +270,7 @@ class PaddleExtractor:
                 page_texts[page_num] = md
             except Exception as e:
                 extractor_logger.error(f"Ошибка Paddle OCR стр.{page_num}: {e}")
-                page_texts[page_num] = f"[ОШИБКА Paddle OCR: {e}]"
+                page_texts[page_num] = f"{_OCR_ERROR_MARKER} {e}]"
         return page_texts
 
     async def _process_single_page(self, page_image: Image.Image, page_num: int) -> str:
@@ -448,14 +457,20 @@ def parse_pdf(
         log_dir: Директория для debug-артефактов (layout-визуализации, crop'ы, raw JSON).
 
     Выход:
-        `ParsedDocument{filename, path, raw_text}`. Полный текст всех непустых страниц,
-        разделитель — `[СТРАНИЦА N]` (N — 1-based номер).
+        `ParsedDocument{filename, path, raw_text[, warnings]}`. Полный текст всех распознанных
+        страниц, разделитель — `[СТРАНИЦА N]` (N — 1-based номер). `warnings` — по одной строке
+        на страницу, которую OCR не смог распознать (в raw_text такие страницы не входят).
+
+    Исключения:
+        ValueError — ни одна непустая страница не распозналась (OCR/layout недоступны и т.п.).
 
     Логика:
         1. Открывает PDF, детектирует пустые страницы на низком DPI.
         2. Для всех непустых — layout + VLM OCR через `PaddleExtractor`.
-        3. Склеивает `page_texts` в один `raw_text` с сохранением порядка и маркерами.
-        4. Возвращает унифицированный `ParsedDocument`.
+        3. Отделяет страницы с маркером ошибки OCR; если упали все — ValueError,
+           если часть — предупреждения в `warnings`.
+        4. Склеивает распознанные `page_texts` в один `raw_text` с сохранением порядка и маркерами.
+        5. Возвращает унифицированный `ParsedDocument`.
     """
     file_path_obj = Path(file_path)
     if not file_path_obj.exists():
@@ -474,21 +489,45 @@ def parse_pdf(
     # Шаг 2: layout-aware OCR для всех непустых страниц.
     page_texts = extractor.extract_pages(str(file_path_obj), non_blank_indices) if non_blank_indices else {}
 
-    # Шаг 3: склеиваем страницы в raw_text. Порядок — по возрастанию номера.
+    # Шаг 3: отделяем страницы, на которых OCR упал (маркер `_OCR_ERROR_MARKER` из
+    # `_process_pages_from_pdf`), и склеиваем остальные в raw_text. Порядок — по возрастанию номера.
+    failed_pages: Dict[int, str] = {}
     parts: List[str] = []
     for page_num in sorted(page_texts.keys()):
         text = page_texts[page_num].strip()
         if not text:
             continue
+        if text.startswith(_OCR_ERROR_MARKER):
+            # Текст ошибки без обёртки маркера — для предупреждения/исключения.
+            failed_pages[page_num] = text[len(_OCR_ERROR_MARKER):].strip().rstrip("]")
+            continue
         # Маркер `[СТРАНИЦА N]` сохраняет порядок и визуальные границы в сыром тексте.
         parts.append(f"[СТРАНИЦА {page_num}]\n{text}")
     raw_text = "\n\n".join(parts)
 
-    parse_pdf_logger.info(f"  raw_text: {len(raw_text)} символов из {len(parts)} страниц")
+    # Упали все непустые страницы — распознавания не было, проверять нечего: ошибка наверх,
+    # а не пустой raw_text, который модель «проверила» бы как документ.
+    if failed_pages and not parts:
+        first_page = min(failed_pages)
+        raise ValueError(
+            f"Не удалось распознать ни одной страницы PDF ({len(failed_pages)} из {total_pages}). "
+            f"Ошибка на стр.{first_page}: {failed_pages[first_page]}"
+        )
+    warnings: List[str] = [
+        f"Страница {page_num} не распознана и в проверку не вошла: {err}"
+        for page_num, err in sorted(failed_pages.items())
+    ]
 
-    return {
+    parse_pdf_logger.info(
+        f"  raw_text: {len(raw_text)} символов из {len(parts)} страниц; не распознано: {len(failed_pages)}"
+    )
+
+    parsed: ParsedDocument = {
         "filename": file_path_obj.name,
         "path": str(file_path_obj.resolve()),
         "raw_text": raw_text,
     }
+    if warnings:
+        parsed["warnings"] = warnings
+    return parsed
 # END_PARSE_PDF
