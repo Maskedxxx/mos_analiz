@@ -26,6 +26,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
+import openai
 from fastapi import FastAPI, File, Form, HTTPException, Request, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse
@@ -201,6 +202,37 @@ def _run_special_engine(engine_type: str, doc_type: str, target_path: str, sessi
     return runner(args)
 
 
+# START_USER_ERROR
+# PURPOSE: Ошибка аудита для пользователя. Исключение движка/клиентов → короткий текст без
+# классов, URL и traceback (что случилось и что делать); исходный текст сохраняется в
+# `technical` (свёрнутые «Подробности» на экране, лог сервера). Аудит устойчивости: 1.2, 1.3,
+# 1.4a, 1.5a, 1.7a. Порядок веток важен: APITimeoutError — подкласс APIConnectionError.
+_ADMIN = "Обратитесь к администратору."
+
+
+def _user_error_message(exc: BaseException) -> str:
+    """Человекочитаемый текст ошибки аудита по классу исключения (см. START_USER_ERROR)."""
+    if isinstance(exc, openai.APITimeoutError):
+        return f"Сервер языковой модели не ответил за отведённое время. Попробуйте позже. {_ADMIN}"
+    if isinstance(exc, openai.APIConnectionError):
+        return f"Сервер языковой модели недоступен или не отвечает. {_ADMIN}"
+    if isinstance(exc, openai.NotFoundError):
+        return f"Модель «{LLM_CONFIG.default_model}» не найдена на сервере языковой модели. Проверьте настройку LLM_MODEL. {_ADMIN}"
+    if isinstance(exc, openai.APIStatusError):
+        return f"Сервер языковой модели вернул ошибку (код {exc.status_code}). {_ADMIN}"
+    if isinstance(exc, ConnectionError):
+        return f"Сервис распознавания сканов недоступен. {_ADMIN}"
+    if isinstance(exc, (PermissionError, OSError)) and not isinstance(exc, FileNotFoundError):
+        return f"Ошибка записи на сервере (нет прав или места на диске). {_ADMIN}"
+    if isinstance(exc, json.JSONDecodeError):
+        return f"Модель вернула ответ в неожиданном формате. Повторите проверку. {_ADMIN}"
+    if isinstance(exc, ValueError):
+        # Наши собственные проверки (пустой документ, 0 вердиктов, конфиг) уже говорят по-человечески.
+        return str(exc)
+    return f"Не удалось выполнить проверку ({type(exc).__name__}). {_ADMIN}"
+# END_USER_ERROR
+
+
 def _run_audit_thread(session_id: str, doc_type: str, target_path: str) -> None:
     """
     Запуск аудита в фоновом потоке с очередью и progress_callback.
@@ -247,15 +279,17 @@ def _run_audit_thread(session_id: str, doc_type: str, target_path: str) -> None:
                 session["status"] = "done"
                 progress_callback("complete", session["result"])
             except Exception as e:
-                err_msg = f"{type(e).__name__}: {e}"
+                technical = f"{type(e).__name__}: {e}"
+                user_msg = _user_error_message(e)
                 traceback.print_exc(file=sys.stderr)
                 sys.stderr.flush()
-                print(f"[AUDIT ERROR] {err_msg}", file=sys.stderr, flush=True)
+                print(f"[AUDIT ERROR] {technical}", file=sys.stderr, flush=True)
                 session["status"] = "error"
-                session["error_message"] = err_msg
+                session["error_message"] = user_msg
+                session["error_technical"] = technical
                 # Событие называется audit_error (НЕ error): у EventSource на фронте имя error
                 # совпадает с DOM-событием обрыва соединения — см. api.js::subscribeToProgress.
-                progress_callback("audit_error", {"message": err_msg})
+                progress_callback("audit_error", {"message": user_msg, "technical": technical})
     finally:
         try:
             sd = session.get("session_dir")
@@ -738,7 +772,14 @@ async def get_result(request: Request, session_id: str):
     if session["status"] == "running":
         raise HTTPException(status_code=202, detail="Аудит ещё выполняется")
     if session["status"] == "error":
-        raise HTTPException(status_code=500, detail=f"Аудит завершился с ошибкой: {session.get('error_message', '')}".rstrip(": "))
+        # Человеческая причина — в detail, исходный текст исключения — в technical.
+        return JSONResponse(
+            status_code=500,
+            content={
+                "detail": session.get("error_message") or "Аудит завершился с ошибкой",
+                "technical": session.get("error_technical", ""),
+            },
+        )
     return session["result"]
 
 

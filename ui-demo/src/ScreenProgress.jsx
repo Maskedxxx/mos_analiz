@@ -19,6 +19,7 @@ export default function ScreenProgress({ sessionId, filename, onComplete, onErro
   const [rulesProgress, setRulesProgress] = useState({ current: 0, total: 0 });
   const [elapsed, setElapsed] = useState(0);
   const [errorMsg, setErrorMsg] = useState('');
+  const [errorTech, setErrorTech] = useState('');   // исходный текст исключения — под «Подробности»
   const [queuePosition, setQueuePosition] = useState(0);
   const sourceRef = useRef(null);
   const startRef = useRef(Date.now());
@@ -90,6 +91,7 @@ export default function ScreenProgress({ sessionId, filename, onComplete, onErro
           clearInterval(timerRef.current);
 
           setErrorMsg(data.message || 'Неизвестная ошибка');
+          setErrorTech(data.technical || '');
         }
 
         return next;
@@ -112,6 +114,7 @@ export default function ScreenProgress({ sessionId, filename, onComplete, onErro
         } else {
           clearInterval(timerRef.current);
           setErrorMsg(data.detail || 'Соединение с сервером потеряно, аудит прерван.');
+          setErrorTech(data.technical || '');
         }
       } catch {
         // Сеть недоступна — не мигаем ошибкой сразу, ждём следующий цикл.
@@ -136,6 +139,7 @@ export default function ScreenProgress({ sessionId, filename, onComplete, onErro
       if (status === 500) {
         clearInterval(timerRef.current);
         setErrorMsg(data.detail || 'Аудит завершился с ошибкой.');
+        setErrorTech(data.technical || '');
         return;
       }
       // 202 или прочее — подписываемся на прогресс.
@@ -284,6 +288,12 @@ export default function ScreenProgress({ sessionId, filename, onComplete, onErro
             <div>
               <p className="font-bold text-red-800">Ошибка при обработке документа</p>
               <p className="text-sm text-red-600 mt-1">{errorMsg}</p>
+              {errorTech && (
+                <details className="mt-2 text-xs text-red-500">
+                  <summary className="cursor-pointer select-none">Подробности</summary>
+                  <pre className="mt-1 whitespace-pre-wrap break-all font-mono">{errorTech}</pre>
+                </details>
+              )}
             </div>
           </div>
           <button
