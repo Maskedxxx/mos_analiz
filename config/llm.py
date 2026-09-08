@@ -1,5 +1,5 @@
 # START_MODULE_CONTRACT
-# PURPOSE: Конфиг LLM-сервиса. Pydantic-settings-модель: дефолты в коде, поверх — переменные окружения (LLM_BASE_URL, LLM_MODEL, LLM_API_KEY, LLM_MAX_TOKENS, LLM_SEED) и файл `.env` в корне проекта. Каждое поле с `description`.
+# PURPOSE: Конфиг LLM-сервиса. Pydantic-settings-модель: дефолты в коде, поверх — переменные окружения (LLM_BASE_URL, LLM_MODEL, LLM_API_KEY, LLM_MAX_TOKENS, LLM_SEED, LLM_CONTEXT_TOKENS) и файл `.env` в корне проекта. Каждое поле с `description`.
 # INPUTS: —
 # OUTPUTS: `LlmConfig` и `LLM_CONFIG` (singleton на весь рантайм).
 # KEYWORDS: config, pydantic-settings, env, llm, openai-compatible.
@@ -59,6 +59,15 @@ class LlmConfig(BaseSettings):
             "(`GET <LLM_BASE_URL>/models`). Используется как fallback в "
             "`resolve_runtime_llm_model`: если doc_type указывает стейл-идентификатор "
             "(`gpt-4.1-mini`, `openai/gpt-oss-120b`) — он подменяется на это значение."
+        ),
+    )
+    context_tokens: int = Field(
+        default=262144,
+        description=(
+            "Размер контекста модели в токенах (env: LLM_CONTEXT_TOKENS). До вызова модели размер "
+            "промпта оценивается по символам (`multi_rule._CHARS_PER_TOKEN`) и сравнивается с этим "
+            "лимитом — документ больше контекста отклоняется с понятным текстом, а не ошибкой 400 "
+            "от сервера модели (аудит устойчивости, находка 2.4g)."
         ),
     )
     default_max_tokens: int = Field(

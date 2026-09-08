@@ -219,6 +219,9 @@ def _user_error_message(exc: BaseException) -> str:
         return f"Сервер языковой модели недоступен или не отвечает. {_ADMIN}"
     if isinstance(exc, openai.NotFoundError):
         return f"Модель «{LLM_CONFIG.default_model}» не найдена на сервере языковой модели. Проверьте настройку LLM_MODEL. {_ADMIN}"
+    if isinstance(exc, openai.BadRequestError) and ("context" in str(exc) or "exceed" in str(exc)):
+        # Оценка в multi_rule не сработала (нестандартный токенизатор) — сервер модели отклонил размер.
+        return "Документ слишком большой для проверки: не помещается в контекст модели. Разделите документ или уберите приложения."
     if isinstance(exc, openai.APIStatusError):
         return f"Сервер языковой модели вернул ошибку (код {exc.status_code}). {_ADMIN}"
     if isinstance(exc, ConnectionError):

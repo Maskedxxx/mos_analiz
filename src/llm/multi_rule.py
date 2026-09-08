@@ -27,6 +27,28 @@ logger = logging.getLogger(__name__)
 # END_LOGGER
 
 
+# START_CONTEXT_GUARD
+# PURPOSE: Оценка размера промпта до вызова модели (F10, находка 2.4g). Точного токенизатора на
+# стороне сервиса нет; берём консервативную оценку «1 токен ≈ 3 символа» (для кириллицы Qwen
+# даёт больше символов на токен, так что оценка завышена — лучше отклонить редкий гигантский
+# документ заранее, чем получить сырой 400 от llama.cpp). Лимит — LLM_CONFIG.context_tokens.
+_CHARS_PER_TOKEN = 3
+_CHARS_PER_PAGE = 3000  # для подсказки «≈N страниц» в тексте ошибки
+
+
+def check_prompt_fits_context(prompt_chars: int, context_tokens: int) -> None:
+    """Бросает ValueError с человекочитаемым текстом, если промпт не помещается в контекст модели."""
+    est_tokens = prompt_chars // _CHARS_PER_TOKEN
+    if est_tokens > context_tokens:
+        pages = max(1, prompt_chars // _CHARS_PER_PAGE)
+        max_pages = max(1, (context_tokens * _CHARS_PER_TOKEN) // _CHARS_PER_PAGE)
+        raise ValueError(
+            f"Документ слишком большой для проверки: примерно {pages} страниц текста, "
+            f"максимум около {max_pages}. Разделите документ или уберите приложения."
+        )
+# END_CONTEXT_GUARD
+
+
 # START_SYSTEM_PROMPT
 # PURPOSE: Системный промпт для multi-rule аудита. Инструктирует LLM формат ответа (строго JSON-массив, по одному вердикту на правило, reasoning + verdict в каждом).
 # INPUTS: —
@@ -523,6 +545,9 @@ def run_multi_rule_audit(
         (session_dir / f"{prefix}_system_prompt.txt").write_text(SYSTEM_PROMPT, encoding="utf-8")
         (session_dir / f"{prefix}_user_prompt.txt").write_text(user_prompt, encoding="utf-8")
 
+    # F10: документ больше контекста — понятный отказ до обращения к модели.
+    check_prompt_fits_context(len(SYSTEM_PROMPT) + len(user_prompt), LLM_CONFIG.context_tokens)
+
     llm_model = llm_model or LLM_CONFIG.default_model
     client = make_llm_client(llm_base_url)
     # Ретрай при «каше» ответа LLM: модель иногда возвращает не JSON-массив вердиктов,
@@ -571,7 +596,13 @@ def run_multi_rule_audit(
             },
         )
         response_text = response.choices[0].message.content or ""
-        verdicts = _parse_response(response_text)
+        # F16: нечитаемый ответ (текст отказа, пустой content, обрезанный JSON) — та же «каша»,
+        # что и неполный массив: не падаем на первой попытке, а идём на следующий seed.
+        try:
+            verdicts = _parse_response(response_text)
+        except json.JSONDecodeError as e:
+            logger.warning(f"multi_rule[{layer}]: попытка {attempt + 1}/{max_attempts} — ответ не разобран ({e}) — ретрай со сменой seed")
+            verdicts = []
         if _valid_count(verdicts) > _valid_count(best_verdicts):
             best_verdicts = verdicts
             best_text = response_text
@@ -587,6 +618,15 @@ def run_multi_rule_audit(
     response_text = best_text
     if best_response is not None:
         response = best_response
+    elif _valid_count(best_verdicts) == 0:
+        # Ни одна из попыток не дала разбираемого ответа — говорим по-человечески, без JSONDecodeError.
+        # Сырой ответ последней попытки сохраняем для разбора администратором.
+        if session_dir:
+            (session_dir / f"{prefix}_response_raw.txt").write_text(response.choices[0].message.content or "", encoding="utf-8")
+        raise ValueError(
+            f"Модель не вернула результат в ожидаемом формате после {max_attempts} попыток. "
+            "Повторите проверку позже; если повторяется — обратитесь к администратору."
+        )
 
     # F15: какие правила модель НЕ проверила (нет годного вердикта после всех попыток).
     # Они не должны выглядеть пройденными — движок пометит их «НЕ ПРОВЕРЕНО».
