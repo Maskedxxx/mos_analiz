@@ -1,0 +1,87 @@
+# МосМониторинг (проверка + генерация) — демо-стандарт Spark (скил spark-deploy).
+# Зеркало ветки dev: разработка на стенде → push dev → здесь `git pull` в обоих репо и
+# `docker compose up -d --build`. Репо mos_generated должен лежать рядом: ../../mos_generated.
+# Модели (LLM, OCR, layout) — на стенде Влада 172.16.10.35 через OpenVPN Spark, адреса в .env.
+# Наружу торчит только ui (nginx проксирует /api → api, /gen → gen). Запуск: cd deploy && docker compose up -d --build
+name: mos-demo
+
+# Ротация логов Docker: на Spark по умолчанию её нет
+x-logging: &logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "3"
+
+services:
+  api:                                  # проверка документов (FastAPI + LibreOffice)
+    build:
+      context: ..
+      dockerfile: Dockerfile            # Dockerfile проекта; healthcheck в нём: /api/health (503 degraded, если модели недоступны)
+    image: mos-demo-api:demo
+    container_name: mos-demo-api
+    env_file: .env                      # AUDIT_*, LLM_*, OCR_*, LAYOUT_* — как на стенде
+    environment:
+      API_HOST: "0.0.0.0"
+    volumes:                            # правится без пересборки, как в compose проекта
+      - ../doc_configs:/app/doc_configs
+      - ../logs_result:/app/logs_result
+      - ../uploads:/app/uploads
+    deploy:
+      resources:
+        limits:
+          memory: ${MEM_API:-4g}
+    restart: "no"
+    logging: *logging
+
+  gen:                                  # генерация docx
+    build:
+      context: ../../mos_generated      # соседний репозиторий, ветка dev
+    image: mos-demo-gen:demo
+    container_name: mos-demo-gen
+    volumes:
+      - ../../mos_generated/logs_generated:/app/logs_generated
+      - ../../mos_generated/templates:/app/templates
+      - gen_org_store:/app/data
+    environment:
+      GEN_ORG_STORE: /app/data/_org_store.json
+    deploy:
+      resources:
+        limits:
+          memory: ${MEM_GEN:-1g}
+    restart: "no"
+    logging: *logging
+
+  ui:                                   # фронт (nginx): единственный сервис с портом наружу
+    build:
+      context: ../ui-demo
+    image: mos-demo-ui:demo
+    container_name: mos-demo-ui
+    depends_on:
+      api:
+        condition: service_healthy
+      gen:
+        condition: service_healthy
+    ports:
+      - "127.0.0.1:${PORT}:80"          # только loopback: гости идут через tuna
+    deploy:
+      resources:
+        limits:
+          memory: ${MEM_UI:-256m}
+    restart: "no"
+    logging: *logging
+
+  tunnel:                               # публичный URL; открывается, когда ui healthy
+    image: yuccastream/tuna:0.34.2
+    container_name: mos-demo-tunnel
+    network_mode: host
+    command: http 127.0.0.1:${PORT} --subdomain=${TUNA_SUBDOMAIN} --location=ru ${TUNA_EXTRA_ARGS}
+    environment:
+      TUNA_TOKEN: "${TUNA_TOKEN}"
+    depends_on:
+      ui:
+        condition: service_healthy
+    restart: "no"
+    logging: *logging
+
+volumes:
+  gen_org_store:                        # стор значений по организациям (генерация)

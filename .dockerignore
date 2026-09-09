@@ -17,3 +17,7 @@ docs/методички
 *.bak
 .env
 .claude
+
+# Демо-деплой Spark: compose и .env не нужны внутри образа
+deploy
+**/.env
