@@ -71,6 +71,7 @@ services:
     logging: *logging
 
   tunnel:                               # публичный URL; открывается, когда ui healthy
+    profiles: ["public"]           # туннель только с --profile public (стандарт spark-deploy)
     image: yuccastream/tuna:0.34.2
     container_name: mos-demo-tunnel
     network_mode: host
