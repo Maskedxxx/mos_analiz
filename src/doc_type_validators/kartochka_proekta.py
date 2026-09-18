@@ -187,7 +187,7 @@ def _rule_2_validate(data: dict, rule: dict) -> dict:
     org_name = data.get('header', {}).get('org_name', '')
     errors = []
     if not org_name:
-        errors.append('Поле org_name (B2) пустое — нет названия организации')
+        errors.append('Не указано название организации в шапке карточки')
     else:
         jur_form_match = re.search('\\b(ООО|ЗАО|АО|ПАО|ОАО|ИП)\\b', org_name)
         if not jur_form_match:
@@ -240,7 +240,7 @@ def _rule_3_validate(data: dict, rule: dict, api_key: str) -> dict:
     """Проверка названия проекта/потока без сетевой зависимости."""
     project_name = data.get('header', {}).get('project_name', '')
     if not project_name:
-        return {'rule_index': _RULE_3_INDEX, 'rule_title': _RULE_3_TITLE, 'status': 'FAIL', 'discrepancy': 'Поле project_name (B4) пустое — нет названия проекта/потока'}
+        return {'rule_index': _RULE_3_INDEX, 'rule_title': _RULE_3_TITLE, 'status': 'FAIL', 'discrepancy': 'Не указано название проекта (потока) в шапке карточки'}
     project_name = project_name.strip()
     if len(project_name) <= 5:
         return {'rule_index': _RULE_3_INDEX, 'rule_title': _RULE_3_TITLE, 'status': 'FAIL', 'discrepancy': f"Название проекта слишком короткое ({len(project_name)} симв.): '{project_name}'"}
@@ -281,17 +281,17 @@ def _rule_4_validate(data: dict) -> dict:
     errors = []
     position = header.get('signee_position', '')
     if not position:
-        errors.append('Должность подписанта (K4) не заполнена')
+        errors.append('Должность подписанта не заполнена')
     name = header.get('signee_name', '')
     if not name:
-        errors.append('ФИО подписанта (K7) не заполнено')
+        errors.append('ФИО подписанта не заполнено')
     else:
         words = re.findall('[А-Яа-яЁёA-Za-z]+\\.?', name)
         if len(words) < 2:
             errors.append(f"ФИО подписанта содержит менее 2 слов: '{name}'")
     date_val = header.get('signee_date', '')
     if not date_val:
-        errors.append('Дата подписания (K8) не заполнена')
+        errors.append('Дата подписания не заполнена')
     elif '___' in date_val or '20__' in date_val:
         errors.append(f"Дата подписания содержит незаполненные placeholder: '{date_val}'")
     if errors:
@@ -376,7 +376,7 @@ def _rule_6_load_data(parser_outputs_dir: Path) -> Any:
 def _rule_6_check_semantic(key_risk: str, justification: str, rule: dict, api_key: str) -> dict:
     """LLM-проверка осмысленности обоснования и ключевого риска (через единый клиент)."""
     del api_key  # src.llm.client сам подставляет ключ из LLM_CONFIG
-    prompt = f'Ты эксперт по проверке документов «Карточка проекта» в рамках бережливого производства.\n\nТРЕБОВАНИЕ:\n{rule['requirement_expert']}\n\nКРИТЕРИИ:\n- Что проверять: {rule['validation_criteria']['what_to_check']}\n- Условие успеха: {rule['validation_criteria']['success_condition']}\n- Условие ошибки: {rule['validation_criteria']['error_condition']}\n\nФАКТИЧЕСКИЕ ДАННЫЕ:\nКлючевой риск (M11): "{key_risk}"\nОбоснование выбора потока (M13): "{justification}"\n\nЗАДАНИЕ:\nПроверь, содержат ли оба поля осмысленный текст:\n- Ключевой риск — должен описывать конкретный риск проекта (например: "Срыв сроков", "Потеря клиентов").\n  НЕ осмысленный: "-", "нет", "риск", набор символов.\n- Обоснование — должно содержать аргументацию выбора потока (например: "Наличие ожидания в потоке, несвоевременная подготовка").\n  НЕ осмысленный: "-", "обоснование", "тест", набор символов.\n\nФОРМАТ ОТВЕТА (строго JSON):\n{{\n  "rule_index": "{_RULE_6_INDEX}",\n  "rule_title": "{_RULE_6_TITLE}",\n  "status": "PASS или FAIL",\n  "discrepancy": "Описание проблемы если FAIL, иначе пустая строка"\n}}\n'
+    prompt = f'Ты эксперт по проверке документов «Карточка проекта» в рамках бережливого производства.\n\nТРЕБОВАНИЕ:\n{rule['requirement_expert']}\n\nКРИТЕРИИ:\n- Что проверять: {rule['validation_criteria']['what_to_check']}\n- Условие успеха: {rule['validation_criteria']['success_condition']}\n- Условие ошибки: {rule['validation_criteria']['error_condition']}\n\nФАКТИЧЕСКИЕ ДАННЫЕ:\nКлючевой риск: "{key_risk}"\nОбоснование выбора потока: "{justification}"\n\nЗАДАНИЕ:\nПроверь, содержат ли оба поля осмысленный текст:\n- Ключевой риск — должен описывать конкретный риск проекта (например: "Срыв сроков", "Потеря клиентов").\n  НЕ осмысленный: "-", "нет", "риск", набор символов.\n- Обоснование — должно содержать аргументацию выбора потока (например: "Наличие ожидания в потоке, несвоевременная подготовка").\n  НЕ осмысленный: "-", "обоснование", "тест", набор символов.\n\nФОРМАТ ОТВЕТА (строго JSON):\n{{\n  "rule_index": "{_RULE_6_INDEX}",\n  "rule_title": "{_RULE_6_TITLE}",\n  "status": "PASS или FAIL",\n  "discrepancy": "Описание проблемы если FAIL, иначе пустая строка"\n}}\n'
     result_text = call_llm(
         messages=[
             {'role': 'system', 'content': 'Ты эксперт по валидации документов. Отвечаешь строго в формате JSON.'},
@@ -396,9 +396,9 @@ def _rule_6_validate(data: dict, rule: dict, api_key: str) -> dict:
     key_risk = section2.get('key_risk', '')
     justification = section2.get('justification', '')
     if not key_risk or not key_risk.strip():
-        errors.append('Ключевой риск (M11) не заполнен')
+        errors.append('Ключевой риск не заполнен')
     if not justification or not justification.strip():
-        errors.append('Обоснование выбора потока (M13) не заполнено')
+        errors.append('Обоснование выбора потока не заполнено')
     if errors:
         return {'rule_index': _RULE_6_INDEX, 'rule_title': _RULE_6_TITLE, 'status': 'FAIL', 'discrepancy': '; '.join(errors)}
     return _rule_6_check_semantic(key_risk, justification, rule, api_key)
@@ -501,6 +501,37 @@ RULE_8 = _make_validator_module(
 # ==============================================================================
 # RULE 9 — Единицы измерения (карточка)
 # ==============================================================================
+# Единицы измерения в карточке пишут словом, а в справочнике книги — сокращением («минута» против
+# «мин»). Сравнение строк целиком давало замечание на совпадающей по смыслу единице (жалоба 15.09).
+# Словарь минимальный: только формы, которые реально встречаются в формах заказчика.
+_UNIT_SYNONYMS = {
+    'мин': ('мин', 'минута', 'минуты', 'минут'),
+    'часы': ('час', 'часа', 'часы', 'часов'),
+    'сутки': ('сутки', 'сут'),
+    'раб. дни': ('раб. дни', 'раб дни', 'рабочие дни', 'рабочих дней'),
+    'кал. дни': ('кал. дни', 'кал дни', 'календарные дни', 'календарных дней'),
+}
+
+
+def _normalize_unit(value: Any) -> str:
+    """
+    Назначение:
+        Приводит единицу измерения к сопоставимому виду: регистр, лишние пробелы, точка в конце,
+        затем словарь синонимов («минута» → «мин»).
+
+    Вход:
+        value: единица из карточки, методики или справочника.
+
+    Выход:
+        Нормализованная строка; для незнакомой единицы — она же в нижнем регистре.
+    """
+    text = re.sub(r'\s+', ' ', str(value if value is not None else '')).strip().lower().rstrip('.')
+    for canonical, variants in _UNIT_SYNONYMS.items():
+        if text in variants:
+            return canonical
+    return text
+
+
 _RULE_9_INDEX = '9'
 _RULE_9_TITLE = 'Единицы измерения (карточка)'
 _RULE_9_CATEGORY_KEYWORDS = {'Время протекания процесса': ['время', 'протекан'], 'Выработка': ['выработк'], 'Незавершенное производство': ['запас', 'нзп', 'незавершен']}
@@ -527,7 +558,7 @@ def _rule_9_validate(kartochka: dict, dropdown: dict) -> dict:
     all_units_display = []
     for units_list in categories.values():
         for u in units_list:
-            normalized = u.lower().strip().rstrip('.')
+            normalized = _normalize_unit(u)
             all_units.add(normalized)
             all_units_display.append(u)
     for ind in indicators:
@@ -537,7 +568,7 @@ def _rule_9_validate(kartochka: dict, dropdown: dict) -> dict:
         if not unit:
             errors.append(f"Показатель #{num} '{name}': единица измерения не заполнена")
             continue
-        unit_normalized = unit.lower().strip().rstrip('.')
+        unit_normalized = _normalize_unit(unit)
         if unit_normalized not in all_units:
             errors.append(f"Показатель #{num} '{name}': единица '{unit}' не найдена в справочнике (допустимые: {', '.join(all_units_display[:10])}...)")
     if errors:
@@ -594,7 +625,7 @@ def _rule_10_validate(kartochka: dict, metodika: dict) -> dict:
         k_unit = k_units.get(m_norm)
         if k_unit is None:
             continue
-        if m_unit.lower().strip() != k_unit.lower().strip():
+        if _normalize_unit(m_unit) != _normalize_unit(k_unit):
             errors.append(f"Показатель '{m_name}': единица в методике '{m_unit}' ≠ единица в карточке '{k_unit}'")
     if errors:
         return {'rule_index': _RULE_10_INDEX, 'rule_title': _RULE_10_TITLE, 'status': 'FAIL', 'discrepancy': '; '.join(errors)}
@@ -859,6 +890,18 @@ def run_kartochka_proekta_special(args):
     parser_results = _run_kartochka_parsers(target_path, parser_outputs_dir)
     with open(session_dir / "parser_summary.json", "w", encoding="utf-8") as f:
         json.dump(parser_results, f, ensure_ascii=False, indent=2)
+
+    # Нераспознанная форма карточки: валидаторы прочитали бы пустой JSON и выдали отчёт, где
+    # каждое поле «не заполнено» (жалоба 15.09 — в файле всё заполнено, в отчёте 7 нарушений).
+    # Такой отчёт хуже отсутствия отчёта, поэтому аудит останавливается с понятным текстом.
+    fatal = [
+        name for name in ("parse_kartochka_main", "parse_metodika")
+        if parser_results.get(name, {}).get("status") == "error"
+    ]
+    if fatal:
+        message = "; ".join(str(parser_results[name].get("error", "")) for name in fatal)
+        (session_dir / "ERROR.txt").write_text(message, encoding="utf-8")
+        raise ValueError(message)
 
     if getattr(args, "parse_only", False):
         return AuditResult(
