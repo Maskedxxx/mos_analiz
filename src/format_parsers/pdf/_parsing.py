@@ -514,6 +514,92 @@ def merge_text_and_tables(
     return normalize_paddle_text("\n".join(lines))
 
 
+def text_signature(text: str) -> str:
+    """
+    Назначение:
+        Сигнатура текста для сравнения распознанных фрагментов: только буквы и цифры,
+        нижний регистр, без пробелов и пунктуации (OCR по-разному расставляет их в
+        полной странице и в кропе региона).
+
+    Вход:
+        text: произвольный текст.
+
+    Выход:
+        Строка из букв и цифр в нижнем регистре.
+    """
+    return re.sub(r"[^0-9a-zа-яё]+", "", str(text or "").lower().replace("ё", "е"))
+
+
+def longest_token(text: str) -> str:
+    """
+    Назначение:
+        Самое длинное «слово» фрагмента (буквы и цифры, от 4 символов) — по нему проверяется,
+        попал ли фрагмент в текст страницы.
+
+    Вход:
+        text: распознанный текст фрагмента.
+
+    Выход:
+        Токен в нижнем регистре или пустая строка, если подходящих слов нет (такие фрагменты
+        не добираются: риск дублей выше пользы).
+    """
+    tokens = re.findall(r"[0-9a-zа-яё]{4,}", str(text or "").lower().replace("ё", "е"))
+    return max(tokens, key=len) if tokens else ""
+
+
+def merge_missing_fragments(full_page_text: str, fragments: List[str]) -> Tuple[str, List[str]]:
+    """
+    Назначение:
+        Дописывает в текст страницы фрагменты, которые распознавание страницы целиком
+        пропустило, сохраняя их место в документе.
+
+    Вход:
+        full_page_text: текст страницы от full-page OCR.
+        fragments: тексты регионов layout в порядке чтения (сверху вниз, слева направо).
+
+    Выход:
+        Кортеж `(текст с дописанными фрагментами, список дописанного)`.
+
+    Логика:
+        Фрагмент считается попавшим в текст, если его самое длинное слово (от 4 символов)
+        встречается в сигнатуре страницы; для коротких фрагментов вроде «№ ОД-26/66»,
+        где таких слов нет, признаком служит вся сигнатура (от 5 символов). Более короткие
+        пропускаются: риск дублей выше пользы. Недостающий фрагмент вставляется после строки
+        с предыдущим найденным фрагментом — так номер приказа встаёт рядом с датой.
+    """
+    lines = full_page_text.split("\n")
+    signatures = [text_signature(line) for line in lines]
+    page_signature = "".join(signatures)
+    insert_after: Dict[int, List[str]] = {}
+    recovered: List[str] = []
+    anchor_line = -1
+    for fragment in fragments:
+        text = (fragment or "").strip()
+        if not text:
+            continue
+        signature = text_signature(text)
+        token = longest_token(text) or (signature if len(signature) >= 5 else "")
+        if not token:
+            continue
+        if token in page_signature:
+            for line_no, line_signature in enumerate(signatures):
+                if token in line_signature:
+                    anchor_line = line_no
+                    break
+            continue
+        insert_after.setdefault(anchor_line, []).append(text)
+        recovered.append(text)
+
+    if not recovered:
+        return full_page_text, []
+
+    merged: List[str] = list(insert_after.get(-1, []))
+    for line_no, line in enumerate(lines):
+        merged.append(line)
+        merged.extend(insert_after.get(line_no, []))
+    return "\n".join(merged), recovered
+
+
 def normalize_paddle_text(text: str) -> str:
     """
     Назначение:

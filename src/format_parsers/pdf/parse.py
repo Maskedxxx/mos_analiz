@@ -31,10 +31,19 @@ from src.format_parsers.pdf._clients import (
 from config.parsers import PdfParserConfig
 from src.format_parsers.pdf._parsing import (
     is_table_format,
+    merge_missing_fragments,
     merge_text_and_tables,
     parse_paddle_table_html,
+    sort_by_reading_order,
 )
 # END_IMPORTS
+
+
+# START_REGION_RECOVERY
+# PURPOSE: Индекс, с которого нумеруются VLM-запросы добора регионов, чтобы не пересекаться
+# с full-page OCR (-1) и таблицами (0..N).
+_REGION_INDEX_BASE = 1000
+# END_REGION_RECOVERY
 
 
 # START_LOGGER
@@ -358,6 +367,9 @@ class PaddleExtractor:
 
         vlm_map = {r["index"]: r["text"] for r in vlm_results}
         full_page_text = vlm_map.get(-1, "")
+        # Распознавание страницы целиком пропускает отдельные блоки (номер приказа справа от
+        # даты — обратная связь заказчика 25.08). Layout их видит, поэтому дочитываем кропами.
+        full_page_text, recovered = await self._recover_missing_regions(page_image, regions, full_page_text)
         table_entries: List[Dict[str, Any]] = []
         for i, table_reg in enumerate(table_regions):
             raw_table = vlm_map.get(i, "")
@@ -367,6 +379,7 @@ class PaddleExtractor:
         if self.log_dir:
             raw_data = {
                 "full_page_text": full_page_text,
+                "recovered_regions": recovered,
                 "tables": [
                     {
                         "bbox": [int(c) for c in table_regions[i]["bbox"]],
@@ -382,6 +395,60 @@ class PaddleExtractor:
                 json.dump(raw_data, f, ensure_ascii=False, indent=2)
 
         return merge_text_and_tables(full_page_text, table_entries, page_image.size)
+
+    async def _recover_missing_regions(
+        self,
+        page_image: Image.Image,
+        regions: List[Dict[str, Any]],
+        full_page_text: str,
+    ) -> Tuple[str, List[str]]:
+        """
+        Назначение:
+            Возвращает в текст страницы фрагменты, которые layout нашёл, а распознавание
+            страницы целиком пропустило (например, номер приказа справа от даты).
+
+        Вход:
+            page_image: изображение страницы.
+            regions: регионы layout; таблицы и картинки пропускаются — они читаются отдельно.
+            full_page_text: текст страницы от full-page OCR.
+
+        Выход:
+            Кортеж `(текст с добранными фрагментами, список добранных фрагментов)`.
+
+        Логика:
+            1. Текстовые регионы распознаются кропами одним батчем (параллельно; на практике
+               это быстрее, чем один запрос по всей странице).
+            2. Фрагмент считается попавшим в текст, если его самое длинное слово (от 4 символов)
+               встречается в сигнатуре страницы. Фрагменты без таких слов пропускаются —
+               риск дублей выше пользы.
+            3. Недостающий фрагмент вставляется после строки, в которой найден предыдущий по
+               порядку чтения регион: номер приказа встаёт рядом с датой, а не в конец страницы.
+        """
+        candidates = [r for r in regions if r.get("class_name") not in ("Table", "Picture", "Figure")]
+        if not candidates:
+            return full_page_text, []
+        candidates = sort_by_reading_order(candidates)
+
+        padding = self.config.extractor.crop_padding_px
+        items: List[Dict[str, Any]] = []
+        for i, region in enumerate(candidates):
+            x1, y1, x2, y2 = [int(c) for c in region["bbox"]]
+            crop = page_image.crop((
+                max(0, x1 - padding), max(0, y1 - padding),
+                min(page_image.width, x2 + padding), min(page_image.height, y2 + padding),
+            ))
+            items.append({"image": crop, "prompt": "OCR:", "index": _REGION_INDEX_BASE + i})
+
+        t0 = time.time()
+        t0 = time.time()
+        results = await self._vlm.recognize_batch(items)
+        texts = {r["index"] - _REGION_INDEX_BASE: (r["text"] or "").strip() for r in results}
+        fragments = [texts.get(i, "") for i in range(len(candidates))]
+        merged_text, recovered = merge_missing_fragments(full_page_text, fragments)
+        extractor_logger.info(
+            f"Добор регионов: {len(items)} кропов за {time.time() - t0:.2f}s, дописано {len(recovered)}"
+        )
+        return merged_text, recovered
 
     def _mask_table_regions(self, page_image: Image.Image, table_regions: List[Dict[str, Any]]) -> Image.Image:
         """
