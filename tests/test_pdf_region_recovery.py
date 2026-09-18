@@ -5,7 +5,12 @@
 (номер приказа справа от даты — обратная связь заказчика 25.08), layout их видит, и они
 дописываются на своё место.
 """
-from src.format_parsers.pdf._parsing import longest_token, merge_missing_fragments, text_signature
+from src.format_parsers.pdf._parsing import (
+    is_ocr_service_answer,
+    longest_token,
+    merge_missing_fragments,
+    text_signature,
+)
 
 
 def test_signature_and_token():
@@ -50,3 +55,26 @@ def test_fragment_before_any_anchor_goes_first():
     merged, recovered = merge_missing_fragments(page, ["Приложение №1 к приказу", "Текст страницы"])
     assert recovered == ["Приложение №1 к приказу"]
     assert merged.split("\n")[0] == "Приложение №1 к приказу"
+
+
+def test_service_answers_are_not_added():
+    """Ответ модели на нечитаемую подпись не должен попадать в текст документа."""
+    assert is_ocr_service_answer("The image is too blurry to recognize any text content.")
+    assert is_ocr_service_answer("I cannot read this image")
+    assert not is_ocr_service_answer("УТВЕРЖДАЮ Генеральный директор")
+    assert not is_ocr_service_answer("info@fnbe.ru")
+    page = "Генеральный директор\nСаяпин Е.В."
+    merged, recovered = merge_missing_fragments(
+        page, ["The image is too blurry to recognize any text content.", "Саяпин Е.В."]
+    )
+    assert recovered == [] and merged == page
+
+
+def test_stamp_block_is_recovered():
+    """Гриф под печатью layout относит к картинке; его текст дописывается к форме."""
+    page = "Форма №3\n\n«Акт о внедрении предложения»\n\nА К Т"
+    merged, recovered = merge_missing_fragments(
+        page, ["Форма №3", "«Акт о внедрении предложения»", "УТВЕРЖДАЮ\nГенеральный директор", "А К Т"]
+    )
+    assert recovered == ["УТВЕРЖДАЮ\nГенеральный директор"]
+    assert merged.index("УТВЕРЖДАЮ") < merged.index("А К Т")

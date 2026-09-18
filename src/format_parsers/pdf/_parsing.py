@@ -547,6 +547,45 @@ def longest_token(text: str) -> str:
     return max(tokens, key=len) if tokens else ""
 
 
+# Служебные ответы OCR-модели на нечитаемые картинки (росчерк подписи, печать). В текст документа
+# они попадать не должны — модель аудита приняла бы их за содержимое.
+_OCR_SERVICE_PHRASES = (
+    "too blurry",
+    "cannot recognize",
+    "unable to recognize",
+    "no text",
+    "i cannot",
+    "i'm sorry",
+    "sorry, i",
+    "not possible to",
+)
+
+
+def is_ocr_service_answer(text: str) -> bool:
+    """
+    Назначение:
+        Отличает служебный ответ модели («The image is too blurry…») от текста документа.
+
+    Вход:
+        text: распознанный фрагмент.
+
+    Выход:
+        True, если фрагмент — служебная фраза и в документ его добавлять не нужно.
+
+    Логика:
+        Известные формулировки отказа либо длинная фраза на латинице без единой кириллической
+        буквы (в наших документах такие не встречаются, а модель отвечает по-английски).
+    """
+    value = str(text or "").strip().lower()
+    if not value:
+        return False
+    if any(phrase in value for phrase in _OCR_SERVICE_PHRASES):
+        return True
+    has_cyrillic = bool(re.search(r"[а-яё]", value))
+    latin_words = re.findall(r"[a-z]{2,}", value)
+    return not has_cyrillic and len(latin_words) >= 5
+
+
 def merge_missing_fragments(full_page_text: str, fragments: List[str]) -> Tuple[str, List[str]]:
     """
     Назначение:
@@ -575,7 +614,7 @@ def merge_missing_fragments(full_page_text: str, fragments: List[str]) -> Tuple[
     anchor_line = -1
     for fragment in fragments:
         text = (fragment or "").strip()
-        if not text:
+        if not text or is_ocr_service_answer(text):
             continue
         signature = text_signature(text)
         token = longest_token(text) or (signature if len(signature) >= 5 else "")

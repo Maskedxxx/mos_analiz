@@ -43,6 +43,10 @@ from src.format_parsers.pdf._parsing import (
 # PURPOSE: Индекс, с которого нумеруются VLM-запросы добора регионов, чтобы не пересекаться
 # с full-page OCR (-1) и таблицами (0..N).
 _REGION_INDEX_BASE = 1000
+# Минимальная сторона региона в пикселях: отсекает точки, галочки и элементы рамок.
+# Строка текста при 200 dpi — около 25 px в высоту, поэтому порог держим низким:
+# при 30 px терялась строка с номером приказа.
+_MIN_REGION_SIDE_PX = 12
 # END_REGION_RECOVERY
 
 
@@ -409,7 +413,7 @@ class PaddleExtractor:
 
         Вход:
             page_image: изображение страницы.
-            regions: регионы layout; таблицы и картинки пропускаются — они читаются отдельно.
+            regions: регионы layout; пропускаются только таблицы — они читаются отдельно.
             full_page_text: текст страницы от full-page OCR.
 
         Выход:
@@ -424,7 +428,17 @@ class PaddleExtractor:
             3. Недостающий фрагмент вставляется после строки, в которой найден предыдущий по
                порядку чтения регион: номер приказа встаёт рядом с датой, а не в конец страницы.
         """
-        candidates = [r for r in regions if r.get("class_name") not in ("Table", "Picture", "Figure")]
+        # Картинки тоже читаем: гриф «УТВЕРЖДАЮ» под печатью layout относит к Picture, и без этого
+        # он терялся (обратная связь заказчика 25.08). Логотипы и росчерки отсеются сами: их текст
+        # либо уже есть на странице, либо слишком короткий для добора. Таблицы читаются отдельно.
+        candidates = [r for r in regions if r.get("class_name") != "Table"]
+        if not candidates:
+            return full_page_text, []
+        # Совсем мелкие блоки (точки, галочки, элементы рамок) текста не несут — не тратим на них запрос.
+        candidates = [
+            r for r in candidates
+            if (r["bbox"][2] - r["bbox"][0]) >= _MIN_REGION_SIDE_PX and (r["bbox"][3] - r["bbox"][1]) >= _MIN_REGION_SIDE_PX
+        ]
         if not candidates:
             return full_page_text, []
         candidates = sort_by_reading_order(candidates)
