@@ -252,6 +252,19 @@ export default function ScreenGeneration() {
                     </span>
                   )}
                 </label>
+                {f.type === 'select' && Array.isArray(f.options) ? (
+                  /* Поле выбора: варианты приходят из схемы генератора (статус ПО в пункте 1.1) */
+                  <select
+                    value={values[f.key] ?? ''}
+                    onChange={(e) => setValue(f.key, e.target.value)}
+                    className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm text-gray-900 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
+                  >
+                    {!f.required && <option value="">—</option>}
+                    {f.options.map((opt) => (
+                      <option key={`${f.key}_${opt}`} value={opt}>{opt}</option>
+                    ))}
+                  </select>
+                ) : (
                 <input
                   ref={f.key === ORG_KEY ? orgRef : undefined}
                   value={values[f.key] || ''}
@@ -261,6 +274,7 @@ export default function ScreenGeneration() {
                   placeholder={f.hint || ''}
                   className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm text-gray-900 placeholder:text-gray-400 placeholder:italic focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
                 />
+                )}
                 <datalist id={`dl_${f.key}`}>
                   {(f.key === ORG_KEY ? orgs : (suggest[f.key] || [])).map((v, i) => (
                     <option key={`${f.key}_${i}`} value={String(v)} />
